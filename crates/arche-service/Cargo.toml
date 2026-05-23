@@ -1,0 +1,11 @@
+[package]
+name = "arche-service"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+arche-types = { path = "../arche-types" }
+serde.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+thiserror.workspace = true

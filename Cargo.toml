@@ -1,0 +1,13 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/arche-types",
+    "crates/arche-service",
+    "crates/arche-cli",
+]
+
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+thiserror = "2"

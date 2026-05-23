@@ -1,6 +1,6 @@
 ---
 title: CLI scaffolding
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

@@ -1,6 +1,6 @@
 ---
 title: arche-types — validation logic
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

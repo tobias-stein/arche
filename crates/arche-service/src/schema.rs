@@ -20,61 +20,47 @@ static GENERATE_SCHEMA: Lazy<Value> =
 #[allow(dead_code)]
 #[derive(schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct BlueprintSchemas {
-    pub create_request: CreateBlueprintRequest,
-    pub response: Blueprint,
+struct BlueprintSchemas {
+    create_request: CreateBlueprintRequest,
+    response: Blueprint,
 }
 
 #[allow(dead_code)]
 #[derive(schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct AffixSchemas {
-    pub create_request: CreateAffixRequest,
-    pub response: Affix,
+struct AffixSchemas {
+    create_request: CreateAffixRequest,
+    response: Affix,
 }
 
 #[allow(dead_code)]
 #[derive(schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct GenerateSchemas {
-    pub request: GenerateRequest,
-    pub response: GenerateResponse,
+struct GenerateSchemas {
+    request: GenerateRequest,
+    response: GenerateResponse,
+}
+
+fn schema_response(schema: &Value) -> Response {
+    let body = serde_json::to_string(schema).unwrap();
+    (
+        StatusCode::OK,
+        [("content-type", HeaderValue::from_static("application/schema+json"))],
+        body,
+    )
+        .into_response()
 }
 
 pub async fn get_blueprints_schema() -> Response {
-    let body = serde_json::to_string(&*BLUEPRINTS_SCHEMA).unwrap();
-    (
-        StatusCode::OK,
-        [
-            ("content-type", HeaderValue::from_static("application/schema+json")),
-        ],
-        body,
-    )
-        .into_response()
+    schema_response(&BLUEPRINTS_SCHEMA)
 }
 
 pub async fn get_affixes_schema() -> Response {
-    let body = serde_json::to_string(&*AFFIXES_SCHEMA).unwrap();
-    (
-        StatusCode::OK,
-        [
-            ("content-type", HeaderValue::from_static("application/schema+json")),
-        ],
-        body,
-    )
-        .into_response()
+    schema_response(&AFFIXES_SCHEMA)
 }
 
 pub async fn get_generate_schema() -> Response {
-    let body = serde_json::to_string(&*GENERATE_SCHEMA).unwrap();
-    (
-        StatusCode::OK,
-        [
-            ("content-type", HeaderValue::from_static("application/schema+json")),
-        ],
-        body,
-    )
-        .into_response()
+    schema_response(&GENERATE_SCHEMA)
 }
 
 #[cfg(test)]
@@ -95,6 +81,30 @@ mod tests {
             .route("/api/schema/generate", get(get_generate_schema))
     }
 
+    async fn fetch_schema(router: Router, uri: &str) -> Value {
+        let response = router
+            .oneshot(
+                Request::builder()
+                    .uri(uri)
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let content_type = response
+            .headers()
+            .get("content-type")
+            .expect("missing content-type");
+        assert!(content_type.to_str().unwrap().starts_with("application/schema+json"));
+
+        axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .map(|b| serde_json::from_slice(&b).unwrap())
+            .unwrap()
+    }
+
     fn assert_valid_json_schema(body: &Value, label: &str) {
         assert!(body.is_object(), "{} schema should be an object", label);
         let obj = body.as_object().unwrap();
@@ -107,29 +117,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_blueprints_schema_endpoint() {
-        let router = build_schema_router();
-        let response = router
-            .oneshot(
-                Request::builder()
-                    .uri("/api/schema/blueprints")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-
-        assert_eq!(response.status(), StatusCode::OK);
-        let content_type = response
-            .headers()
-            .get("content-type")
-            .expect("missing content-type");
-        assert!(content_type.to_str().unwrap().starts_with("application/schema+json"));
-
-        let body: Value = axum::body::to_bytes(response.into_body(), usize::MAX)
-            .await
-            .map(|b| serde_json::from_slice(&b).unwrap())
-            .unwrap();
-
+        let body = fetch_schema(build_schema_router(), "/api/schema/blueprints").await;
         assert_valid_json_schema(&body, "blueprints");
         let obj = body.as_object().unwrap();
         assert!(obj.contains_key("properties"), "blueprints schema should have properties");
@@ -138,99 +126,23 @@ mod tests {
 
     #[tokio::test]
     async fn test_affixes_schema_endpoint() {
-        let router = build_schema_router();
-        let response = router
-            .oneshot(
-                Request::builder()
-                    .uri("/api/schema/affixes")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-
-        assert_eq!(response.status(), StatusCode::OK);
-        let content_type = response
-            .headers()
-            .get("content-type")
-            .expect("missing content-type");
-        assert!(content_type.to_str().unwrap().starts_with("application/schema+json"));
-
-        let body: Value = axum::body::to_bytes(response.into_body(), usize::MAX)
-            .await
-            .map(|b| serde_json::from_slice(&b).unwrap())
-            .unwrap();
-
+        let body = fetch_schema(build_schema_router(), "/api/schema/affixes").await;
         assert_valid_json_schema(&body, "affixes");
-        let obj = body.as_object().unwrap();
-        assert!(obj.contains_key("properties"), "affixes schema should have properties");
+        assert!(body.as_object().unwrap().contains_key("properties"), "affixes schema should have properties");
     }
 
     #[tokio::test]
     async fn test_generate_schema_endpoint() {
-        let router = build_schema_router();
-        let response = router
-            .oneshot(
-                Request::builder()
-                    .uri("/api/schema/generate")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-
-        assert_eq!(response.status(), StatusCode::OK);
-        let content_type = response
-            .headers()
-            .get("content-type")
-            .expect("missing content-type");
-        assert!(content_type.to_str().unwrap().starts_with("application/schema+json"));
-
-        let body: Value = axum::body::to_bytes(response.into_body(), usize::MAX)
-            .await
-            .map(|b| serde_json::from_slice(&b).unwrap())
-            .unwrap();
-
+        let body = fetch_schema(build_schema_router(), "/api/schema/generate").await;
         assert_valid_json_schema(&body, "generate");
-        let obj = body.as_object().unwrap();
-        assert!(obj.contains_key("properties"), "generate schema should have properties");
+        assert!(body.as_object().unwrap().contains_key("properties"), "generate schema should have properties");
     }
 
     #[tokio::test]
     async fn test_schemas_are_stable() {
         let router = build_schema_router();
-
-        let resp1 = router
-            .clone()
-            .oneshot(
-                Request::builder()
-                    .uri("/api/schema/blueprints")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-
-        let body1: Value = axum::body::to_bytes(resp1.into_body(), usize::MAX)
-            .await
-            .map(|b| serde_json::from_slice(&b).unwrap())
-            .unwrap();
-
-        let resp2 = router
-            .oneshot(
-                Request::builder()
-                    .uri("/api/schema/blueprints")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-
-        let body2: Value = axum::body::to_bytes(resp2.into_body(), usize::MAX)
-            .await
-            .map(|b| serde_json::from_slice(&b).unwrap())
-            .unwrap();
-
+        let body1 = fetch_schema(router.clone(), "/api/schema/blueprints").await;
+        let body2 = fetch_schema(router, "/api/schema/blueprints").await;
         assert_eq!(body1, body2, "blueprints schema should be stable across calls");
     }
 }

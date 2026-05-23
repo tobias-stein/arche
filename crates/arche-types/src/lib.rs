@@ -169,7 +169,6 @@ mod tests {
     use super::*;
     use serde::de::DeserializeOwned;
     use serde_json::json;
-    use std::collections::HashMap;
 
     #[test]
     fn test_value_type_round_trip() {

@@ -1,0 +1,31 @@
+use std::env;
+
+#[derive(Debug, Clone)]
+pub struct Config {
+    pub port: u16,
+    pub database_url: String,
+    pub redis_url: Option<String>,
+    #[allow(dead_code)]
+    pub cache_poll_interval_ms: u64,
+}
+
+impl Config {
+    pub fn from_env() -> Self {
+        Self {
+            port: env::var("ARCHE_PORT")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(8080),
+            database_url: env::var("ARCHE_DATABASE_URL").expect("ARCHE_DATABASE_URL must be set"),
+            redis_url: env::var("ARCHE_REDIS_URL").ok(),
+            cache_poll_interval_ms: env::var("ARCHE_CACHE_POLL_INTERVAL_MS")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(4000),
+        }
+    }
+
+    pub fn bind_addr(&self) -> String {
+        format!("0.0.0.0:{}", self.port)
+    }
+}

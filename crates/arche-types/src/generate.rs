@@ -1,6 +1,6 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
@@ -81,6 +81,6 @@ pub struct GenerateResponse {
     pub name: String,
     pub name_parts: NameParts,
     pub blueprint_id: Uuid,
-    pub blueprint_attributes: HashMap<String, serde_json::Value>,
+    pub blueprint_attributes: BTreeMap<String, serde_json::Value>,
     pub affix_attributes: Vec<AffixAttributeEntry>,
 }

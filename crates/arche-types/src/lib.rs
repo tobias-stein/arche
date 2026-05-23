@@ -152,7 +152,7 @@ mod tests {
     use generate::*;
     use serde::de::DeserializeOwned;
     use serde_json::json;
-    use std::collections::HashMap;
+    use std::collections::{BTreeMap, HashMap};
 
     #[test]    fn test_distribution_config_round_trip() {
         let cases = vec![
@@ -424,7 +424,7 @@ mod tests {
             },
             blueprint_id: Uuid::new_v4(),
             blueprint_attributes: {
-                let mut m = HashMap::new();
+                let mut m = BTreeMap::new();
                 m.insert("damage".into(), json!(27.3));
                 m
             },
@@ -450,7 +450,7 @@ mod tests {
                 suffixes: vec![],
             },
             blueprint_id: Uuid::nil(),
-            blueprint_attributes: HashMap::new(),
+            blueprint_attributes: BTreeMap::new(),
             affix_attributes: vec![],
         };
         let obj = serde_json::to_value(&resp)

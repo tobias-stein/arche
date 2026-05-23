@@ -12,7 +12,7 @@ chrono.workspace = true
 thiserror.workspace = true
 clap = { version = "4", features = ["derive"] }
 colored = "2"
-comfy-table = "7.1"
+comfy-table = "7.1, <7.2"
 
 [dev-dependencies]
 insta = { version = "1", features = ["yaml"] }

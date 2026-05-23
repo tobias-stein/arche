@@ -341,7 +341,7 @@ mod tests {
     use arche_types::generate::{AffixAttributeEntry, NameParts};
     use arche_types::{Permission, ValueType};
     use chrono::{DateTime, Utc};
-    use std::collections::HashMap;
+    use std::collections::BTreeMap;
     use std::str::FromStr;
     use uuid::Uuid;
 
@@ -385,7 +385,7 @@ mod tests {
             },
             blueprint_id: Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap(),
             blueprint_attributes: {
-                let mut m = HashMap::new();
+                let mut m = BTreeMap::new();
                 m.insert("damage".into(), serde_json::json!(27.3));
                 m.insert("weight".into(), serde_json::json!(3.5));
                 m
@@ -414,7 +414,7 @@ mod tests {
             },
             blueprint_id: Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap(),
             blueprint_attributes: {
-                let mut m = HashMap::new();
+                let mut m = BTreeMap::new();
                 m.insert("damage".into(), serde_json::json!(27.3));
                 m.insert("weight".into(), serde_json::json!(3.5));
                 m
@@ -443,7 +443,7 @@ mod tests {
                 suffixes: vec![],
             },
             blueprint_id: Uuid::nil(),
-            blueprint_attributes: HashMap::new(),
+            blueprint_attributes: BTreeMap::new(),
             affix_attributes: vec![],
         };
         writer.write_generate(&response).unwrap();

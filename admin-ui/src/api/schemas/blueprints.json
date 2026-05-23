@@ -1,0 +1,282 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "BlueprintSchemas",
+  "description": "Fallback schema for /api/schema/blueprints. Auto-generated from Rust types.",
+  "type": "object",
+  "required": [
+    "createRequest",
+    "response"
+  ],
+  "properties": {
+    "createRequest": {
+      "$ref": "#/$defs/CreateBlueprintRequest"
+    },
+    "response": {
+      "$ref": "#/$defs/Blueprint"
+    }
+  },
+  "$defs": {
+    "CreateBlueprintRequest": {
+      "type": "object",
+      "required": [
+        "name",
+        "archetype",
+        "weight",
+        "attributes",
+        "attributeOrder",
+        "affixes"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "archetype": {
+          "type": "string"
+        },
+        "weight": {
+          "type": "number"
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "attributes": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/BlueprintAttribute"
+          }
+        },
+        "attributeOrder": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "affixes": {
+          "$ref": "#/$defs/BlueprintAffixConfig"
+        }
+      },
+      "additionalProperties": false
+    },
+    "Blueprint": {
+      "type": "object",
+      "required": [
+        "id",
+        "clientId",
+        "name",
+        "archetype",
+        "weight",
+        "attributes",
+        "attributeOrder",
+        "minPrefixes",
+        "maxPrefixes",
+        "minSuffixes",
+        "maxSuffixes",
+        "createdAt",
+        "updatedAt"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "clientId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "name": {
+          "type": "string"
+        },
+        "archetype": {
+          "type": "string"
+        },
+        "weight": {
+          "type": "number"
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "attributes": {
+          "type": "object"
+        },
+        "attributeOrder": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "minPrefixes": {
+          "type": "integer"
+        },
+        "maxPrefixes": {
+          "type": "integer"
+        },
+        "minSuffixes": {
+          "type": "integer"
+        },
+        "maxSuffixes": {
+          "type": "integer"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "BlueprintAttribute": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/InlineAttributeDef"
+        },
+        {
+          "$ref": "#/$defs/RefAttribute"
+        }
+      ]
+    },
+    "InlineAttributeDef": {
+      "type": "object",
+      "properties": {
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "valueType": {
+          "$ref": "#/$defs/ValueType"
+        }
+      }
+    },
+    "RefAttribute": {
+      "type": "object",
+      "required": [
+        "$ref_id"
+      ],
+      "properties": {
+        "$ref_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ValueType": {
+      "type": "string",
+      "enum": [
+        "single",
+        "enum",
+        "range",
+        "string",
+        "boolean"
+      ]
+    },
+    "BlueprintAffixConfig": {
+      "type": "object",
+      "required": [
+        "minPrefixes",
+        "maxPrefixes",
+        "minSuffixes",
+        "maxSuffixes"
+      ],
+      "properties": {
+        "minPrefixes": {
+          "type": "integer"
+        },
+        "maxPrefixes": {
+          "type": "integer"
+        },
+        "minSuffixes": {
+          "type": "integer"
+        },
+        "maxSuffixes": {
+          "type": "integer"
+        },
+        "prefixes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AffixPoolEntry"
+          }
+        },
+        "suffixes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AffixPoolEntry"
+          }
+        }
+      }
+    },
+    "AffixPoolEntry": {
+      "type": "object",
+      "required": [
+        "affixId",
+        "weight"
+      ],
+      "properties": {
+        "affixId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "weight": {
+          "type": "number"
+        }
+      }
+    },
+    "DistributionConfig": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "uniform"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "stdDev"
+          ],
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "normal"
+            },
+            "stdDev": {
+              "type": "number"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "type",
+            "rate"
+          ],
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "exponential"
+            },
+            "rate": {
+              "type": "number"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -53,10 +53,17 @@ async fn main() {
 }
 
 fn extract_db_host(database_url: &str) -> &str {
-    database_url
-        .strip_prefix("postgres://")
-        .and_then(|rest| rest.find('@').map(|i| &rest[..i]))
-        .unwrap_or("unknown")
+    let without_scheme = match database_url.strip_prefix("postgres://") {
+        Some(s) => s,
+        None => return "unknown",
+    };
+    let host_part = without_scheme.split('@').last().unwrap_or(without_scheme);
+    let host = host_part
+        .split_once(':')
+        .or_else(|| host_part.split_once('/'))
+        .map(|(h, _)| h)
+        .unwrap_or(host_part);
+    if host.is_empty() { "unknown" } else { host }
 }
 
 async fn shutdown_signal() {
@@ -114,5 +121,47 @@ mod tests {
             .unwrap();
 
         assert_eq!(body, json!({ "status": "ok" }));
+    }
+
+    #[test]
+    fn test_extract_db_host_standard() {
+        assert_eq!(
+            extract_db_host("postgres://user:pass@localhost:5432/mydb"),
+            "localhost",
+        );
+    }
+
+    #[test]
+    fn test_extract_db_host_no_credentials() {
+        assert_eq!(
+            extract_db_host("postgres://localhost:5432/mydb"),
+            "localhost",
+        );
+    }
+
+    #[test]
+    fn test_extract_db_host_no_port() {
+        assert_eq!(
+            extract_db_host("postgres://localhost/mydb"),
+            "localhost",
+        );
+    }
+
+    #[test]
+    fn test_extract_db_host_host_only() {
+        assert_eq!(
+            extract_db_host("postgres://localhost"),
+            "localhost",
+        );
+    }
+
+    #[test]
+    fn test_extract_db_host_non_postgres_url() {
+        assert_eq!(extract_db_host("sqlite://foo.db"), "unknown");
+    }
+
+    #[test]
+    fn test_extract_db_host_empty_after_scheme() {
+        assert_eq!(extract_db_host("postgres://"), "unknown");
     }
 }

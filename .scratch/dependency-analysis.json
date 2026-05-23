@@ -1,0 +1,352 @@
+{
+  "arche-types/workspace-scaffolding.md": {
+    "title": "Arche workspace & CI scaffolding",
+    "blocked_by": [],
+    "is_unblocked": true
+  },
+  "arche-types/database-migrations.md": {
+    "title": "PostgreSQL schema + migrations",
+    "blocked_by": [],
+    "is_unblocked": true
+  },
+  "arche-types/domain-structs-enums.md": {
+    "title": "arche-types — domain structs & enums",
+    "blocked_by": ["arche-types/workspace-scaffolding.md"],
+    "is_unblocked": false
+  },
+  "arche-types/validation-logic.md": {
+    "title": "arche-types — validation logic",
+    "blocked_by": ["arche-types/domain-structs-enums.md"],
+    "is_unblocked": false
+  },
+  "arche-types/request-response-types.md": {
+    "title": "arche-types — request/response types",
+    "blocked_by": ["arche-types/domain-structs-enums.md"],
+    "is_unblocked": false
+  },
+  "arche-types/export-import-format.md": {
+    "title": "arche-types — export/import format & conflict schema",
+    "blocked_by": ["arche-types/domain-structs-enums.md"],
+    "is_unblocked": false
+  },
+  "arche-service/service-scaffolding.md": {
+    "title": "Service scaffolding",
+    "blocked_by": ["arche-types/workspace-scaffolding.md", "arche-types/domain-structs-enums.md"],
+    "is_unblocked": false
+  },
+  "arche-service/super-admin-bootstrap.md": {
+    "title": "Bootstrap — super admin key auto-generation",
+    "blocked_by": ["arche-types/database-migrations.md", "arche-types/domain-structs-enums.md"],
+    "is_unblocked": false
+  },
+  "arche-service/auth-api-key-extractor.md": {
+    "title": "Auth middleware — API key extractor",
+    "blocked_by": ["arche-types/database-migrations.md", "arche-types/domain-structs-enums.md", "arche-service/super-admin-bootstrap.md"],
+    "is_unblocked": false
+  },
+  "arche-service/permission-matrix.md": {
+    "title": "Permission matrix & endpoint guarding",
+    "blocked_by": ["arche-service/auth-api-key-extractor.md"],
+    "is_unblocked": false
+  },
+  "arche-service/rfc-9457-error-handling.md": {
+    "title": "RFC 9457 error handling",
+    "blocked_by": ["arche-service/service-scaffolding.md"],
+    "is_unblocked": false
+  },
+  "arche-service/pagination-utilities.md": {
+    "title": "Pagination utilities",
+    "blocked_by": ["arche-service/service-scaffolding.md"],
+    "is_unblocked": false
+  },
+  "arche-service/client-crud.md": {
+    "title": "Client CRUD",
+    "blocked_by": ["arche-types/database-migrations.md", "arche-types/domain-structs-enums.md", "arche-service/auth-api-key-extractor.md", "arche-service/permission-matrix.md"],
+    "is_unblocked": false
+  },
+  "arche-service/api-key-management.md": {
+    "title": "API key management",
+    "blocked_by": ["arche-types/database-migrations.md", "arche-types/domain-structs-enums.md", "arche-service/auth-api-key-extractor.md", "arche-service/permission-matrix.md"],
+    "is_unblocked": false
+  },
+  "arche-service/blueprints-crud-core.md": {
+    "title": "Blueprints CRUD — core",
+    "blocked_by": ["arche-types/database-migrations.md", "arche-types/domain-structs-enums.md", "arche-types/validation-logic.md", "arche-service/auth-api-key-extractor.md", "arche-service/permission-matrix.md"],
+    "is_unblocked": false
+  },
+  "arche-service/global-meta-attributes-crud.md": {
+    "title": "Global meta attributes CRUD",
+    "blocked_by": ["arche-types/database-migrations.md", "arche-types/domain-structs-enums.md", "arche-types/validation-logic.md", "arche-service/auth-api-key-extractor.md", "arche-service/permission-matrix.md"],
+    "is_unblocked": false
+  },
+  "arche-service/affixes-crud.md": {
+    "title": "Affixes CRUD",
+    "blocked_by": ["arche-types/database-migrations.md", "arche-types/domain-structs-enums.md", "arche-types/validation-logic.md", "arche-service/auth-api-key-extractor.md", "arche-service/permission-matrix.md"],
+    "is_unblocked": false
+  },
+  "arche-service/blueprints-affix-pool.md": {
+    "title": "Blueprints — affix pool management",
+    "blocked_by": ["arche-service/blueprints-crud-core.md", "arche-service/affixes-crud.md"],
+    "is_unblocked": false
+  },
+  "arche-service/blueprints-list-pagination.md": {
+    "title": "Blueprints — list with pagination & filters",
+    "blocked_by": ["arche-service/blueprints-crud-core.md"],
+    "is_unblocked": false
+  },
+  "arche-service/blueprints-delete-force-delete.md": {
+    "title": "Blueprints — delete & force delete",
+    "blocked_by": ["arche-service/blueprints-crud-core.md", "arche-service/blueprints-affix-pool.md"],
+    "is_unblocked": false
+  },
+  "arche-service/generation-engine-memory-load.md": {
+    "title": "Generation engine — in-memory data loading",
+    "blocked_by": ["arche-types/database-migrations.md", "arche-types/domain-structs-enums.md"],
+    "is_unblocked": false
+  },
+  "arche-service/generation-blueprint-selection.md": {
+    "title": "Generation engine — blueprint selection",
+    "blocked_by": ["arche-service/generation-engine-memory-load.md"],
+    "is_unblocked": false
+  },
+  "arche-service/generation-attribute-rolling.md": {
+    "title": "Generation engine — attribute resolution & rolling",
+    "blocked_by": ["arche-service/generation-engine-memory-load.md"],
+    "is_unblocked": false
+  },
+  "arche-service/generation-affix-selection.md": {
+    "title": "Generation engine — affix selection",
+    "blocked_by": ["arche-service/generation-engine-memory-load.md", "arche-service/affixes-crud.md"],
+    "is_unblocked": false
+  },
+  "arche-service/generation-name-composition-output.md": {
+    "title": "Generation engine — name composition & output assembly",
+    "blocked_by": ["arche-service/generation-blueprint-selection.md", "arche-service/generation-attribute-rolling.md", "arche-service/generation-affix-selection.md"],
+    "is_unblocked": false
+  },
+  "arche-service/generate-endpoint.md": {
+    "title": "Generate endpoint — POST /api/generate",
+    "blocked_by": ["arche-service/generation-blueprint-selection.md", "arche-service/generation-attribute-rolling.md", "arche-service/generation-affix-selection.md", "arche-service/generation-name-composition-output.md", "arche-service/auth-api-key-extractor.md", "arche-service/permission-matrix.md"],
+    "is_unblocked": false
+  },
+  "arche-service/cache-single-mode-polling.md": {
+    "title": "Cache — single-instance polling invalidation",
+    "blocked_by": ["arche-service/generation-engine-memory-load.md"],
+    "is_unblocked": false
+  },
+  "arche-service/cache-cluster-redis-pubsub.md": {
+    "title": "Cache — cluster-mode Redis pub/sub invalidation",
+    "blocked_by": ["arche-service/generation-engine-memory-load.md", "arche-service/cache-single-mode-polling.md"],
+    "is_unblocked": false
+  },
+  "arche-service/audit-log-mutation-recording.md": {
+    "title": "Audit log — mutation recording",
+    "blocked_by": ["arche-types/database-migrations.md", "arche-types/domain-structs-enums.md", "arche-service/auth-api-key-extractor.md"],
+    "is_unblocked": false
+  },
+  "arche-service/audit-log-query-endpoint.md": {
+    "title": "Audit log — query endpoint",
+    "blocked_by": ["arche-service/audit-log-mutation-recording.md", "arche-service/pagination-utilities.md"],
+    "is_unblocked": false
+  },
+  "arche-service/export-endpoint.md": {
+    "title": "Export endpoint",
+    "blocked_by": ["arche-types/export-import-format.md", "arche-types/domain-structs-enums.md", "arche-service/auth-api-key-extractor.md", "arche-service/permission-matrix.md"],
+    "is_unblocked": false
+  },
+  "arche-service/import-parse-conflict-detection.md": {
+    "title": "Import — parse & conflict detection",
+    "blocked_by": ["arche-types/export-import-format.md", "arche-types/domain-structs-enums.md", "arche-service/auth-api-key-extractor.md", "arche-service/permission-matrix.md"],
+    "is_unblocked": false
+  },
+  "arche-service/import-resolve-commit.md": {
+    "title": "Import — resolve & commit",
+    "blocked_by": ["arche-service/import-parse-conflict-detection.md"],
+    "is_unblocked": false
+  },
+  "arche-service/batch-delete.md": {
+    "title": "Batch delete — blueprints & affixes",
+    "blocked_by": ["arche-service/blueprints-delete-force-delete.md", "arche-service/affixes-crud.md"],
+    "is_unblocked": false
+  },
+  "arche-service/batch-assign.md": {
+    "title": "Batch assign — affixes to blueprints",
+    "blocked_by": ["arche-service/blueprints-affix-pool.md", "arche-service/affixes-crud.md"],
+    "is_unblocked": false
+  },
+  "arche-service/batch-edit.md": {
+    "title": "Batch edit — blueprint attributes",
+    "blocked_by": ["arche-service/blueprints-crud-core.md", "arche-types/validation-logic.md"],
+    "is_unblocked": false
+  },
+  "arche-service/json-schema-endpoints.md": {
+    "title": "JSON Schema introspection endpoints",
+    "blocked_by": ["arche-types/domain-structs-enums.md", "arche-types/request-response-types.md", "arche-service/service-scaffolding.md"],
+    "is_unblocked": false
+  },
+  "arche-service/delete-protection-force-cascade.md": {
+    "title": "Consistency — delete protection & force delete cascade",
+    "blocked_by": ["arche-service/blueprints-delete-force-delete.md", "arche-service/affixes-crud.md", "arche-service/global-meta-attributes-crud.md"],
+    "is_unblocked": false
+  },
+  "arche-cli/cli-scaffolding.md": {
+    "title": "CLI scaffolding",
+    "blocked_by": ["arche-types/workspace-scaffolding.md", "arche-types/domain-structs-enums.md"],
+    "is_unblocked": false
+  },
+  "arche-cli/output-formatting.md": {
+    "title": "CLI output formatting",
+    "blocked_by": ["arche-cli/cli-scaffolding.md"],
+    "is_unblocked": false
+  },
+  "arche-cli/init-command.md": {
+    "title": "arche init command",
+    "blocked_by": ["arche-cli/cli-scaffolding.md", "arche-service/super-admin-bootstrap.md"],
+    "is_unblocked": false
+  },
+  "arche-cli/generate-command.md": {
+    "title": "arche generate command",
+    "blocked_by": ["arche-cli/cli-scaffolding.md", "arche-service/generate-endpoint.md"],
+    "is_unblocked": false
+  },
+  "arche-cli/export-command.md": {
+    "title": "arche export command",
+    "blocked_by": ["arche-cli/cli-scaffolding.md", "arche-service/export-endpoint.md"],
+    "is_unblocked": false
+  },
+  "arche-cli/import-interactive.md": {
+    "title": "arche import command — interactive",
+    "blocked_by": ["arche-cli/cli-scaffolding.md", "arche-service/import-parse-conflict-detection.md", "arche-service/import-resolve-commit.md"],
+    "is_unblocked": false
+  },
+  "arche-cli/import-file-based-resolution.md": {
+    "title": "arche import — file-based resolution",
+    "blocked_by": ["arche-cli/import-interactive.md", "arche-types/export-import-format.md"],
+    "is_unblocked": false
+  },
+  "arche-cli/key-subcommands.md": {
+    "title": "arche key subcommands",
+    "blocked_by": ["arche-cli/cli-scaffolding.md", "arche-service/api-key-management.md"],
+    "is_unblocked": false
+  },
+  "arche-cli/client-subcommands.md": {
+    "title": "arche client subcommands",
+    "blocked_by": ["arche-cli/cli-scaffolding.md", "arche-service/client-crud.md"],
+    "is_unblocked": false
+  },
+  "admin-ui/scaffolding.md": {
+    "title": "Admin UI scaffolding",
+    "blocked_by": [],
+    "is_unblocked": true
+  },
+  "admin-ui/api-client-generation.md": {
+    "title": "API client generation",
+    "blocked_by": ["admin-ui/scaffolding.md", "arche-service/json-schema-endpoints.md"],
+    "is_unblocked": false
+  },
+  "admin-ui/app-shell-layout.md": {
+    "title": "App shell — header + navigation drawer + content area",
+    "blocked_by": ["admin-ui/scaffolding.md", "admin-ui/api-client-generation.md", "admin-ui/auth-login-page.md"],
+    "is_unblocked": false
+  },
+  "admin-ui/auth-login-page.md": {
+    "title": "Auth — login page + Zustand store",
+    "blocked_by": ["admin-ui/api-client-generation.md", "admin-ui/app-shell-layout.md"],
+    "is_unblocked": false
+  },
+  "admin-ui/dark-light-mode.md": {
+    "title": "Dark/light mode toggle",
+    "blocked_by": ["admin-ui/app-shell-layout.md"],
+    "is_unblocked": false
+  },
+  "admin-ui/blueprints-list-page.md": {
+    "title": "Blueprints — list page",
+    "blocked_by": ["admin-ui/api-client-generation.md", "admin-ui/app-shell-layout.md"],
+    "is_unblocked": false
+  },
+  "admin-ui/blueprints-create-edit-modal.md": {
+    "title": "Blueprints — create/edit modal",
+    "blocked_by": ["admin-ui/api-client-generation.md", "admin-ui/app-shell-layout.md"],
+    "is_unblocked": false
+  },
+  "admin-ui/blueprints-detail-page.md": {
+    "title": "Blueprints — detail page",
+    "blocked_by": ["admin-ui/api-client-generation.md", "admin-ui/app-shell-layout.md", "admin-ui/blueprints-list-page.md"],
+    "is_unblocked": false
+  },
+  "admin-ui/affixes-list-page.md": {
+    "title": "Affixes — list page",
+    "blocked_by": ["admin-ui/api-client-generation.md", "admin-ui/app-shell-layout.md"],
+    "is_unblocked": false
+  },
+  "admin-ui/affixes-create-edit-detail.md": {
+    "title": "Affixes — create/edit modal & detail page",
+    "blocked_by": ["admin-ui/api-client-generation.md", "admin-ui/app-shell-layout.md", "admin-ui/affixes-list-page.md"],
+    "is_unblocked": false
+  },
+  "admin-ui/global-meta-attributes-list.md": {
+    "title": "Global meta attributes — list page",
+    "blocked_by": ["admin-ui/api-client-generation.md", "admin-ui/app-shell-layout.md"],
+    "is_unblocked": false
+  },
+  "admin-ui/global-meta-attributes-create-edit-detail.md": {
+    "title": "Global meta attributes — create/edit modal & detail page",
+    "blocked_by": ["admin-ui/api-client-generation.md", "admin-ui/app-shell-layout.md", "admin-ui/global-meta-attributes-list.md"],
+    "is_unblocked": false
+  },
+  "admin-ui/dashboard-stat-cards-warnings.md": {
+    "title": "Dashboard — stat cards + warnings",
+    "blocked_by": ["admin-ui/api-client-generation.md", "admin-ui/app-shell-layout.md"],
+    "is_unblocked": false
+  },
+  "admin-ui/dashboard-quick-generate.md": {
+    "title": "Dashboard — Quick Generate playground",
+    "blocked_by": ["admin-ui/api-client-generation.md", "admin-ui/app-shell-layout.md", "arche-service/generate-endpoint.md"],
+    "is_unblocked": false
+  },
+  "admin-ui/clients-key-management.md": {
+    "title": "Clients management + API keys",
+    "blocked_by": ["admin-ui/api-client-generation.md", "admin-ui/app-shell-layout.md", "arche-service/client-crud.md", "arche-service/api-key-management.md"],
+    "is_unblocked": false
+  },
+  "admin-ui/audit-log-page.md": {
+    "title": "Audit log — full-page view",
+    "blocked_by": ["admin-ui/api-client-generation.md", "admin-ui/app-shell-layout.md", "arche-service/audit-log-query-endpoint.md"],
+    "is_unblocked": false
+  },
+  "admin-ui/activity-panel.md": {
+    "title": "Activity panel",
+    "blocked_by": ["admin-ui/app-shell-layout.md", "arche-service/audit-log-query-endpoint.md"],
+    "is_unblocked": false
+  },
+  "admin-ui/export-wizard.md": {
+    "title": "Export wizard",
+    "blocked_by": ["admin-ui/api-client-generation.md", "admin-ui/app-shell-layout.md", "arche-service/export-endpoint.md"],
+    "is_unblocked": false
+  },
+  "admin-ui/import-wizard.md": {
+    "title": "Import wizard",
+    "blocked_by": ["admin-ui/api-client-generation.md", "admin-ui/app-shell-layout.md", "arche-service/import-parse-conflict-detection.md", "arche-service/import-resolve-commit.md"],
+    "is_unblocked": false
+  },
+  "admin-ui/global-search.md": {
+    "title": "Global search (Cmd+K)",
+    "blocked_by": ["admin-ui/api-client-generation.md", "admin-ui/app-shell-layout.md"],
+    "is_unblocked": false
+  },
+  "admin-ui/delete-protection-toasts.md": {
+    "title": "Delete protection modals + toast notifications",
+    "blocked_by": ["admin-ui/scaffolding.md", "admin-ui/app-shell-layout.md"],
+    "is_unblocked": false
+  },
+  "admin-ui/duplicate-blueprint.md": {
+    "title": "Duplicate / use as template",
+    "blocked_by": ["admin-ui/blueprints-list-page.md", "admin-ui/blueprints-create-edit-modal.md"],
+    "is_unblocked": false
+  },
+  "admin-ui/batch-operations-ui.md": {
+    "title": "Batch operations UI",
+    "blocked_by": ["admin-ui/blueprints-list-page.md", "admin-ui/affixes-list-page.md", "arche-service/batch-delete.md", "arche-service/batch-assign.md", "arche-service/batch-edit.md"],
+    "is_unblocked": false
+  }
+}

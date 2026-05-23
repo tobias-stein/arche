@@ -2,8 +2,6 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-// ── Enums ──
-
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub enum ValueType {
@@ -27,7 +25,6 @@ pub enum AuditAction {
     Created,
     Updated,
     Deleted,
-    #[serde(rename = "forceDeleted")]
     ForceDeleted,
     Adjusted,
 }
@@ -41,8 +38,6 @@ pub enum Permission {
     Generate,
     Admin,
 }
-
-// ── Structs ──
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -231,8 +226,14 @@ mod tests {
         };
         let value: serde_json::Value = serde_json::to_value(&client).unwrap();
         let obj = value.as_object().unwrap();
-        assert!(obj.contains_key("createdAt"), "expected camelCase createdAt");
-        assert!(obj.contains_key("updatedAt"), "expected camelCase updatedAt");
+        assert!(
+            obj.contains_key("createdAt"),
+            "expected camelCase createdAt"
+        );
+        assert!(
+            obj.contains_key("updatedAt"),
+            "expected camelCase updatedAt"
+        );
     }
 
     #[test]

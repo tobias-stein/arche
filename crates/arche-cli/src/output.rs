@@ -131,10 +131,7 @@ impl OutputWriter {
                 )?;
                 writeln!(self.stdout)?;
 
-                let mut attrs = Table::new();
-                attrs.load_preset(UTF8_FULL)
-                    .apply_modifier(UTF8_ROUND_CORNERS)
-                    .set_header(vec![
+                let mut attrs = build_table(vec![
                         Cell::new("Attribute").fg(Color::Cyan),
                         Cell::new("Value").fg(Color::Cyan),
                     ]);
@@ -144,11 +141,7 @@ impl OutputWriter {
                 writeln!(self.stdout, "{}", attrs)?;
 
                 if !response.affix_attributes.is_empty() {
-                    let mut affixes = Table::new();
-                    affixes
-                        .load_preset(UTF8_FULL)
-                        .apply_modifier(UTF8_ROUND_CORNERS)
-                        .set_header(vec![
+                    let mut affixes = build_table(vec![
                             Cell::new("Affix").fg(Color::Cyan),
                             Cell::new("ID").fg(Color::Cyan),
                             Cell::new("Attributes").fg(Color::Cyan),
@@ -181,11 +174,7 @@ impl OutputWriter {
                 writeln!(self.stdout, "{json}")
             }
             OutputFormat::Pretty => {
-                let mut table = Table::new();
-                table
-                    .load_preset(UTF8_FULL)
-                    .apply_modifier(UTF8_ROUND_CORNERS)
-                    .set_header(vec![
+                let mut table = build_table(vec![
                         Cell::new("ID").fg(Color::Cyan),
                         Cell::new("Name").fg(Color::Cyan),
                         Cell::new("Permissions").fg(Color::Cyan),
@@ -235,7 +224,11 @@ impl OutputWriter {
     pub fn write_key_revoked(&mut self) -> io::Result<()> {
         match self.format {
             OutputFormat::Quiet => Ok(()),
-            OutputFormat::Json | OutputFormat::Pretty => {
+            OutputFormat::Json => {
+                let json = serde_json::to_string_pretty(&serde_json::json!({"message": "Key revoked."}))?;
+                writeln!(self.stdout, "{json}")
+            }
+            OutputFormat::Pretty => {
                 writeln!(self.stdout, "{}", "Key revoked.".green())
             }
         }
@@ -249,11 +242,7 @@ impl OutputWriter {
                 writeln!(self.stdout, "{json}")
             }
             OutputFormat::Pretty => {
-                let mut table = Table::new();
-                table
-                    .load_preset(UTF8_FULL)
-                    .apply_modifier(UTF8_ROUND_CORNERS)
-                    .set_header(vec![
+                let mut table = build_table(vec![
                         Cell::new("ID").fg(Color::Cyan),
                         Cell::new("Name").fg(Color::Cyan),
                         Cell::new("Created").fg(Color::Cyan),
@@ -325,6 +314,15 @@ impl OutputWriter {
     pub fn write_error(&mut self, error: &crate::error::CliError) -> io::Result<()> {
         writeln!(self.stderr, "{}", error.display_message())
     }
+}
+
+fn build_table(headers: Vec<Cell>) -> Table {
+    let mut table = Table::new();
+    table
+        .load_preset(UTF8_FULL)
+        .apply_modifier(UTF8_ROUND_CORNERS)
+        .set_header(headers);
+    table
 }
 
 fn format_attribute_value(value: &serde_json::Value) -> String {

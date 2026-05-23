@@ -5,8 +5,6 @@ use uuid::Uuid;
 use crate::common::ProblemJson;
 use crate::ValueType;
 
-// ── Export ──
-
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ExportRequest {
@@ -27,8 +25,6 @@ pub struct ExportManifest {
     pub client_count: i32,
 }
 
-// ── Import Success ──
-
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ImportSuccessResponse {
@@ -36,8 +32,6 @@ pub struct ImportSuccessResponse {
     pub clients_created: i64,
     pub resources_imported: i64,
 }
-
-// ── Import Conflict ──
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -67,8 +61,6 @@ pub struct ImportConflictResponse {
     pub conflicts: Vec<ConflictDetail>,
 }
 
-// ── Conflict Resolution ──
-
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub enum ResolutionStrategy {
@@ -89,5 +81,5 @@ pub struct ResourceResolution {
 #[serde(rename_all = "camelCase")]
 pub struct ConflictResolutionRequest {
     pub import_token: String,
-    pub resolutions: HashMap<String, ResourceResolution>,
+    pub resolutions: HashMap<Uuid, ResourceResolution>,
 }

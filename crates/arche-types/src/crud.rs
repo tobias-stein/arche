@@ -3,10 +3,10 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
 
-use crate::attribute::{AffixAttribute, BlueprintAffixConfig, BlueprintAttribute};
+use crate::attribute::{
+    AffixAttribute, AttributePayload, BlueprintAffixConfig, BlueprintAttribute,
+};
 use crate::{AffixLocation, Permission};
-
-// ── Blueprint ──
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -23,8 +23,6 @@ pub struct CreateBlueprintRequest {
 
 pub type UpdateBlueprintRequest = CreateBlueprintRequest;
 
-// ── Affix ──
-
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateAffixRequest {
@@ -38,8 +36,6 @@ pub struct CreateAffixRequest {
 
 pub type UpdateAffixRequest = CreateAffixRequest;
 
-// ── Global Meta Attribute ──
-
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateGlobalMetaAttributeRequest {
@@ -47,12 +43,10 @@ pub struct CreateGlobalMetaAttributeRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[serde(flatten)]
-    pub payload: crate::attribute::AttributePayload,
+    pub payload: AttributePayload,
 }
 
 pub type UpdateGlobalMetaAttributeRequest = CreateGlobalMetaAttributeRequest;
-
-// ── Client ──
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -79,8 +73,6 @@ pub struct ClientResponse {
     pub api_keys: Vec<ApiKeySummary>,
 }
 
-// ── API Key ──
-
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateApiKeyRequest {
@@ -104,5 +96,3 @@ pub struct ApiKeyResponse {
     pub name: String,
     pub permissions: Vec<Permission>,
 }
-
-// ── Schema endpoints (no special types needed — returns serde_json::Value) ──

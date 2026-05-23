@@ -152,8 +152,6 @@ mod tests {
     use serde_json::json;
     use std::collections::HashMap;
 
-    // ── Existing domain tests (unchanged) ──
-
     #[test]
     fn test_value_type_round_trip() {
         let cases = vec![
@@ -476,10 +474,6 @@ mod tests {
         assert_traits::<Permission>();
     }
 
-    // ── New tests for request/response types ──
-
-    // ── DistributionConfig ──
-
     #[test]
     fn test_distribution_config_round_trip() {
         let cases = vec![
@@ -500,8 +494,6 @@ mod tests {
             assert_eq!(deserialized, variant);
         }
     }
-
-    // ── AttributePayload ──
 
     #[test]
     fn test_attribute_payload_round_trip() {
@@ -547,8 +539,6 @@ mod tests {
         }
     }
 
-    // ── BlueprintAttribute (inline vs ref) ──
-
     #[test]
     fn test_blueprint_attribute_inline() {
         let attr = BlueprintAttribute::Inline(InlineAttributeDef {
@@ -577,8 +567,6 @@ mod tests {
         let deserialized: BlueprintAttribute = serde_json::from_value(value).unwrap();
         assert_eq!(deserialized, attr);
     }
-
-    // ── AffixAttribute (inline vs ref) ──
 
     #[test]
     fn test_affix_attribute_inline() {
@@ -610,8 +598,6 @@ mod tests {
         assert_eq!(deserialized, attr);
     }
 
-    // ── BlueprintAffixConfig ──
-
     #[test]
     fn test_blueprint_affix_config_round_trip() {
         let config = BlueprintAffixConfig {
@@ -629,8 +615,6 @@ mod tests {
         let deserialized: BlueprintAffixConfig = serde_json::from_value(value).unwrap();
         assert_eq!(deserialized, config);
     }
-
-    // ── ConstraintConfig ──
 
     #[test]
     fn test_constraint_config_round_trip() {
@@ -662,8 +646,6 @@ mod tests {
         assert_eq!(deserialized, cc);
     }
 
-    // ── ConstraintValue ──
-
     #[test]
     fn test_constraint_value_config() {
         let cv = ConstraintValue::Config(ConstraintConfig {
@@ -687,8 +669,6 @@ mod tests {
         let deserialized: ConstraintValue = serde_json::from_value(value).unwrap();
         assert_eq!(deserialized, cv);
     }
-
-    // ── GenerateRequest ──
 
     #[test]
     fn test_generate_request_minimal() {
@@ -753,8 +733,6 @@ mod tests {
         assert!(obj.contains_key("archetype"));
     }
 
-    // ── GenerateResponse ──
-
     #[test]
     fn test_generate_response_round_trip() {
         let resp = GenerateResponse {
@@ -806,8 +784,6 @@ mod tests {
         assert!(obj.contains_key("blueprintAttributes"));
         assert!(obj.contains_key("affixAttributes"));
     }
-
-    // ── CreateBlueprintRequest ──
 
     #[test]
     fn test_create_blueprint_request_round_trip() {
@@ -870,8 +846,6 @@ mod tests {
         assert!(obj.contains_key("attributeOrder"));
     }
 
-    // ── CreateAffixRequest ──
-
     #[test]
     fn test_create_affix_request_round_trip() {
         let req = CreateAffixRequest {
@@ -910,8 +884,6 @@ mod tests {
         assert_eq!(deserialized, req);
     }
 
-    // ── CreateGlobalMetaAttributeRequest ──
-
     #[test]
     fn test_create_global_meta_attribute_request_round_trip() {
         let req = CreateGlobalMetaAttributeRequest {
@@ -930,8 +902,6 @@ mod tests {
         assert_eq!(deserialized, req);
     }
 
-    // ── CreateClientRequest ──
-
     #[test]
     fn test_create_client_request_round_trip() {
         let req = CreateClientRequest {
@@ -942,8 +912,6 @@ mod tests {
         let deserialized: CreateClientRequest = serde_json::from_value(value).unwrap();
         assert_eq!(deserialized, req);
     }
-
-    // ── ClientResponse ──
 
     #[test]
     fn test_client_response_round_trip() {
@@ -974,8 +942,6 @@ mod tests {
         assert!(obj.contains_key("createdAt"));
         assert!(obj.contains_key("apiKeys"));
     }
-
-    // ── CreateApiKeyRequest / Response ──
 
     #[test]
     fn test_create_api_key_request_round_trip() {
@@ -1016,8 +982,6 @@ mod tests {
         let deserialized: ApiKeyResponse = serde_json::from_value(value).unwrap();
         assert_eq!(deserialized, resp);
     }
-
-    // ── Batch operations ──
 
     #[test]
     fn test_batch_delete_request_round_trip() {
@@ -1063,8 +1027,6 @@ mod tests {
         assert_eq!(deserialized, resp);
     }
 
-    // ── Export ──
-
     #[test]
     fn test_export_request_round_trip() {
         let req = ExportRequest {
@@ -1108,8 +1070,6 @@ mod tests {
         let deserialized: ExportManifest = serde_json::from_value(value).unwrap();
         assert_eq!(deserialized, m);
     }
-
-    // ── Import ──
 
     #[test]
     fn test_import_success_response_round_trip() {
@@ -1184,8 +1144,6 @@ mod tests {
         );
     }
 
-    // ── Resolution types ──
-
     #[test]
     fn test_resolution_strategy_round_trip() {
         let cases = vec![
@@ -1205,7 +1163,7 @@ mod tests {
     fn test_conflict_resolution_request_round_trip() {
         let mut resolutions = HashMap::new();
         resolutions.insert(
-            Uuid::new_v4().to_string(),
+            Uuid::new_v4(),
             ResourceResolution {
                 strategy: ResolutionStrategy::PerAttribute,
                 attributes: {
@@ -1224,8 +1182,6 @@ mod tests {
         let deserialized: ConflictResolutionRequest = serde_json::from_value(value).unwrap();
         assert_eq!(deserialized, req);
     }
-
-    // ── PaginatedResponse ──
 
     #[test]
     fn test_paginated_response_round_trip() {
@@ -1269,8 +1225,6 @@ mod tests {
         assert!(obj.contains_key("nextCursor"));
     }
 
-    // ── ProblemJson ──
-
     #[test]
     fn test_problem_json_round_trip() {
         let problem = ProblemJson {
@@ -1302,8 +1256,6 @@ mod tests {
             json!({"type": "/errors/unauthorized", "title": "Unauthorized", "status": 401})
         );
     }
-
-    // ── Query types ──
 
     #[test]
     fn test_blueprint_list_query_round_trip() {
@@ -1339,8 +1291,6 @@ mod tests {
         assert!(obj.contains_key("resourceType"));
         assert!(obj.contains_key("actorKeyId"));
     }
-
-    // ── Trait bounds for new types ──
 
     #[test]
     fn test_new_type_trait_bounds() {

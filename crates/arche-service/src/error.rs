@@ -160,32 +160,32 @@ pub enum AppError {
 }
 
 impl AppError {
-    fn to_problem(&self) -> ProblemResponse {
+    fn into_problem(self) -> ProblemResponse {
         match self {
             AppError::ValidationError { detail, errors } => ProblemResponse::validation_error(
-                detail.clone(),
-                errors.clone(),
+                detail,
+                errors,
             ),
             AppError::Unauthorized { detail } => ProblemResponse::unauthorized(
-                detail.clone().unwrap_or_else(|| "Authentication required".into()),
+                detail.unwrap_or_else(|| "Authentication required".into()),
             ),
             AppError::Forbidden { detail } => ProblemResponse::forbidden(
-                detail.clone().unwrap_or_else(|| "Access denied".into()),
+                detail.unwrap_or_else(|| "Access denied".into()),
             ),
             AppError::NotFound { detail } => ProblemResponse::not_found(
-                detail.clone().unwrap_or_else(|| "Resource not found".into()),
+                detail.unwrap_or_else(|| "Resource not found".into()),
             ),
             AppError::NoMatchingBlueprints { detail } => ProblemResponse::no_matching_blueprints(
-                detail.clone().unwrap_or_else(|| "No blueprints match the given constraints".into()),
+                detail.unwrap_or_else(|| "No blueprints match the given constraints".into()),
             ),
             AppError::DeleteReferencedResource { detail } => ProblemResponse::delete_referenced_resource(
-                detail.clone().unwrap_or_else(|| "Resource is referenced by other resources".into()),
+                detail.unwrap_or_else(|| "Resource is referenced by other resources".into()),
             ),
             AppError::ImportConflict { detail } => ProblemResponse::import_conflict(
-                detail.clone().unwrap_or_else(|| "Import conflicts require resolution".into()),
+                detail.unwrap_or_else(|| "Import conflicts require resolution".into()),
             ),
             AppError::UnprocessableEntity { detail } => ProblemResponse::unprocessable_entity(
-                detail.clone().unwrap_or_else(|| "Request could not be processed".into()),
+                detail.unwrap_or_else(|| "Request could not be processed".into()),
             ),
         }
     }
@@ -193,7 +193,7 @@ impl AppError {
 
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
-        self.to_problem().into_response()
+        self.into_problem().into_response()
     }
 }
 
@@ -389,7 +389,7 @@ mod tests {
                 message: "is required".into(),
             }],
         };
-        let problem = err.to_problem();
+        let problem = err.into_problem();
         assert_eq!(problem.type_, "/errors/validation-error");
         assert_eq!(problem.status, 400);
         assert!(problem.errors.is_some());
@@ -399,7 +399,7 @@ mod tests {
     #[test]
     fn test_app_error_unauthorized_default_detail() {
         let err = AppError::Unauthorized { detail: None };
-        let problem = err.to_problem();
+        let problem = err.into_problem();
         assert_eq!(problem.type_, "/errors/unauthorized");
         assert_eq!(problem.status, 401);
         assert_eq!(problem.detail, Some("Authentication required".into()));
@@ -410,14 +410,14 @@ mod tests {
         let err = AppError::Unauthorized {
             detail: Some("Invalid API key".into()),
         };
-        let problem = err.to_problem();
+        let problem = err.into_problem();
         assert_eq!(problem.detail, Some("Invalid API key".into()));
     }
 
     #[test]
     fn test_app_error_forbidden_default_detail() {
         let err = AppError::Forbidden { detail: None };
-        let problem = err.to_problem();
+        let problem = err.into_problem();
         assert_eq!(problem.type_, "/errors/forbidden");
         assert_eq!(problem.detail, Some("Access denied".into()));
     }
@@ -425,7 +425,7 @@ mod tests {
     #[test]
     fn test_app_error_not_found_default_detail() {
         let err = AppError::NotFound { detail: None };
-        let problem = err.to_problem();
+        let problem = err.into_problem();
         assert_eq!(problem.type_, "/errors/not-found");
         assert_eq!(problem.detail, Some("Resource not found".into()));
     }
@@ -433,7 +433,7 @@ mod tests {
     #[test]
     fn test_app_error_no_matching_blueprints() {
         let err = AppError::NoMatchingBlueprints { detail: None };
-        let problem = err.to_problem();
+        let problem = err.into_problem();
         assert_eq!(problem.type_, "/errors/no-matching-blueprints");
         assert_eq!(problem.status, 404);
     }
@@ -441,7 +441,7 @@ mod tests {
     #[test]
     fn test_app_error_delete_referenced_resource() {
         let err = AppError::DeleteReferencedResource { detail: None };
-        let problem = err.to_problem();
+        let problem = err.into_problem();
         assert_eq!(problem.type_, "/errors/delete-referenced-resource");
         assert_eq!(problem.status, 409);
     }
@@ -449,7 +449,7 @@ mod tests {
     #[test]
     fn test_app_error_import_conflict() {
         let err = AppError::ImportConflict { detail: None };
-        let problem = err.to_problem();
+        let problem = err.into_problem();
         assert_eq!(problem.type_, "/errors/import-conflict");
         assert_eq!(problem.status, 409);
     }
@@ -457,7 +457,7 @@ mod tests {
     #[test]
     fn test_app_error_unprocessable_entity() {
         let err = AppError::UnprocessableEntity { detail: None };
-        let problem = err.to_problem();
+        let problem = err.into_problem();
         assert_eq!(problem.type_, "/errors/unprocessable-entity");
         assert_eq!(problem.status, 422);
     }

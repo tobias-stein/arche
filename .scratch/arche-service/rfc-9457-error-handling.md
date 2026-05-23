@@ -1,6 +1,6 @@
 ---
 title: RFC 9457 error handling
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

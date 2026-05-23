@@ -1,0 +1,6 @@
+---
+source: crates/arche-cli/src/output.rs
+assertion_line: 542
+expression: output
+---
+"{\n  \"type\": \"/errors/import-conflict\",\n  \"title\": \"Import conflicts require resolution\",\n  \"status\": 409,\n  \"detail\": \"2 conflicts found\",\n  \"conflicts\": [\n    {\n      \"resourceType\": \"blueprint\",\n      \"resourceId\": \"00000000-0000-0000-0000-000000000001\",\n      \"resourceName\": \"Longsword\",\n      \"attributes\": [\n        {\n          \"key\": \"damage\",\n          \"oldValue\": {\n            \"min\": 10\n          },\n          \"newValue\": {\n            \"min\": 15\n          },\n          \"valueType\": \"range\"\n        }\n      ]\n    }\n  ]\n}\n"

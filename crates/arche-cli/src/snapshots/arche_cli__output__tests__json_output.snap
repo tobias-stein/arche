@@ -1,0 +1,6 @@
+---
+source: crates/arche-cli/src/output.rs
+assertion_line: 360
+expression: output
+---
+"{\n  \"key\": \"value\",\n  \"num\": 42\n}\n"

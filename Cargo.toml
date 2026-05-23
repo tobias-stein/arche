@@ -19,3 +19,5 @@ tower-http = { version = "0.6", features = ["cors", "trace"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 dotenvy = "0.15"
+schemars = { version = "0.8", features = ["uuid1", "chrono"] }
+once_cell = "1"

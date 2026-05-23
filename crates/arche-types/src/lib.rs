@@ -1,4 +1,5 @@
 use chrono::{DateTime, Utc};
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -10,7 +11,7 @@ pub mod export_import;
 pub mod generate;
 pub mod validation;
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub enum ValueType {
     Single,
@@ -20,14 +21,14 @@ pub enum ValueType {
     Boolean,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub enum AffixLocation {
     Prefix,
     Suffix,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub enum AuditAction {
     Created,
@@ -37,7 +38,7 @@ pub enum AuditAction {
     Adjusted,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub enum Permission {
     Read,
@@ -47,7 +48,7 @@ pub enum Permission {
     Admin,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Client {
     pub id: Uuid,
@@ -56,7 +57,7 @@ pub struct Client {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Blueprint {
     pub id: Uuid,
@@ -75,7 +76,7 @@ pub struct Blueprint {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Affix {
     pub id: Uuid,
@@ -88,7 +89,7 @@ pub struct Affix {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct GlobalMetaAttribute {
     pub id: Uuid,
@@ -101,7 +102,7 @@ pub struct GlobalMetaAttribute {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct ApiKey {
     pub id: Uuid,
@@ -114,7 +115,7 @@ pub struct ApiKey {
     pub expires_at: Option<DateTime<Utc>>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct AuditLogEntry {
     pub id: Uuid,
@@ -129,7 +130,7 @@ pub struct AuditLogEntry {
     pub after: Option<serde_json::Value>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct BlueprintAffix {
     pub id: Uuid,
@@ -972,7 +973,7 @@ mod tests {
 
     #[test]
     fn test_new_type_trait_bounds() {
-        fn assert_traits<T: Serialize + DeserializeOwned + std::fmt::Debug + Clone + PartialEq>() {}
+        fn assert_traits<T: Serialize + DeserializeOwned + std::fmt::Debug + Clone + PartialEq + JsonSchema>() {}
         assert_traits::<DistributionConfig>();
         assert_traits::<AttributePayload>();
         assert_traits::<InlineAttributeDef>();

@@ -1,4 +1,5 @@
 use chrono::{DateTime, Utc};
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -8,7 +9,7 @@ use crate::attribute::{
 };
 use crate::{AffixLocation, Permission};
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateBlueprintRequest {
     pub name: String,
@@ -23,7 +24,7 @@ pub struct CreateBlueprintRequest {
 
 pub type UpdateBlueprintRequest = CreateBlueprintRequest;
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateAffixRequest {
     pub name: String,
@@ -36,7 +37,7 @@ pub struct CreateAffixRequest {
 
 pub type UpdateAffixRequest = CreateAffixRequest;
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateGlobalMetaAttributeRequest {
     pub name: String,
@@ -48,13 +49,13 @@ pub struct CreateGlobalMetaAttributeRequest {
 
 pub type UpdateGlobalMetaAttributeRequest = CreateGlobalMetaAttributeRequest;
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateClientRequest {
     pub name: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct ApiKeySummary {
     pub id: Uuid,
@@ -63,7 +64,7 @@ pub struct ApiKeySummary {
     pub created_at: DateTime<Utc>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct ClientResponse {
     pub id: Uuid,
@@ -73,14 +74,14 @@ pub struct ClientResponse {
     pub api_keys: Vec<ApiKeySummary>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateApiKeyRequest {
     pub name: String,
     pub permissions: Vec<Permission>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateApiKeyResponse {
     pub id: Uuid,
@@ -89,7 +90,7 @@ pub struct CreateApiKeyResponse {
     pub key: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct ApiKeyResponse {
     pub id: Uuid,

@@ -1,4 +1,5 @@
 mod config;
+mod schema;
 
 use axum::{routing::get, Json, Router};
 use serde_json::{json, Value};
@@ -8,6 +9,7 @@ use tower_http::trace::TraceLayer;
 use tracing::info;
 
 use config::Config;
+use schema::{get_affixes_schema, get_blueprints_schema, get_generate_schema};
 
 async fn health_check() -> Json<Value> {
     Json(json!({ "status": "ok" }))
@@ -16,6 +18,9 @@ async fn health_check() -> Json<Value> {
 fn build_router() -> Router {
     Router::new()
         .route("/health", get(health_check))
+        .route("/api/schema/blueprints", get(get_blueprints_schema))
+        .route("/api/schema/affixes", get(get_affixes_schema))
+        .route("/api/schema/generate", get(get_generate_schema))
         .layer(TraceLayer::new_for_http())
 }
 

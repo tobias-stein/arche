@@ -1,8 +1,9 @@
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct ConstraintConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -17,14 +18,14 @@ pub struct ConstraintConfig {
     pub eq: Option<serde_json::Value>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(untagged)]
 pub enum ConstraintValue {
     Config(ConstraintConfig),
     Bare(serde_json::Value),
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct AffixConstraints {
     #[serde(default)]
@@ -41,7 +42,7 @@ pub struct AffixConstraints {
     pub block: Vec<Uuid>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct GenerateRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -54,7 +55,7 @@ pub struct GenerateRequest {
     pub affixes: Option<AffixConstraints>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct NameParts {
     pub base: String,
@@ -64,7 +65,7 @@ pub struct NameParts {
     pub suffixes: Vec<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct AffixAttributeEntry {
     pub affix_id: Uuid,
@@ -73,7 +74,7 @@ pub struct AffixAttributeEntry {
     pub attributes: serde_json::Value,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct GenerateResponse {
     pub seed: u64,

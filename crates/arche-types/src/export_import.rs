@@ -1,3 +1,4 @@
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -5,7 +6,7 @@ use uuid::Uuid;
 use crate::common::ProblemJson;
 use crate::ValueType;
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct ExportRequest {
     pub client_ids: Vec<Uuid>,
@@ -17,7 +18,7 @@ pub struct ExportRequest {
     pub inline_global_refs: bool,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct ExportManifest {
     pub version: String,
@@ -25,7 +26,7 @@ pub struct ExportManifest {
     pub client_count: i32,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct ImportSuccessResponse {
     pub status: String,
@@ -33,7 +34,7 @@ pub struct ImportSuccessResponse {
     pub resources_imported: i64,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct ConflictAttribute {
     pub key: String,
@@ -42,7 +43,7 @@ pub struct ConflictAttribute {
     pub value_type: ValueType,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct ConflictDetail {
     pub resource_type: String,
@@ -52,7 +53,7 @@ pub struct ConflictDetail {
     pub attributes: Vec<ConflictAttribute>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct ImportConflictResponse {
     #[serde(flatten)]
@@ -61,7 +62,7 @@ pub struct ImportConflictResponse {
     pub conflicts: Vec<ConflictDetail>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub enum ResolutionStrategy {
     KeepOld,
@@ -69,7 +70,7 @@ pub enum ResolutionStrategy {
     PerAttribute,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct ResourceResolution {
     pub strategy: ResolutionStrategy,
@@ -77,7 +78,7 @@ pub struct ResourceResolution {
     pub attributes: Option<HashMap<String, ResolutionStrategy>>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct ConflictResolutionRequest {
     pub import_token: String,

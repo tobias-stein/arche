@@ -1,7 +1,8 @@
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(
     tag = "type",
     rename_all = "camelCase",
@@ -13,7 +14,7 @@ pub enum DistributionConfig {
     Exponential { rate: f64 },
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(
     tag = "value_type",
     rename_all = "camelCase",
@@ -46,7 +47,7 @@ pub enum AttributePayload {
     },
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct InlineAttributeDef {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -55,7 +56,7 @@ pub struct InlineAttributeDef {
     pub payload: AttributePayload,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(untagged)]
 pub enum BlueprintAttribute {
     Inline(InlineAttributeDef),
@@ -65,7 +66,7 @@ pub enum BlueprintAttribute {
     },
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct AffixInlineAttributeDef {
     pub name: String,
@@ -75,7 +76,7 @@ pub struct AffixInlineAttributeDef {
     pub payload: AttributePayload,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(untagged)]
 pub enum AffixAttribute {
     Inline(AffixInlineAttributeDef),
@@ -85,14 +86,14 @@ pub enum AffixAttribute {
     },
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct AffixPoolEntry {
     pub affix_id: Uuid,
     pub weight: f64,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct BlueprintAffixConfig {
     pub min_prefixes: i32,

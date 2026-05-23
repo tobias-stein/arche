@@ -17,3 +17,5 @@ tower-http.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 dotenvy.workspace = true
+schemars.workspace = true
+once_cell.workspace = true

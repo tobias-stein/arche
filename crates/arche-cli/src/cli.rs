@@ -10,7 +10,7 @@ pub struct Cli {
     pub command: Command,
 }
 
-#[derive(Args, Clone)]
+#[derive(Args, Clone, Debug)]
 pub struct GlobalOpts {
     #[arg(
         long = "api-url",

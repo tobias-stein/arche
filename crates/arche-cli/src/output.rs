@@ -2,7 +2,7 @@ use serde::Serialize;
 use std::io::Write;
 
 pub fn write_json<T: Serialize>(value: &T) {
-    let json = serde_json::to_string_pretty(value).unwrap();
+    let json = serde_json::to_string_pretty(value).expect("write_json: serialization failed");
     println!("{json}");
 }
 

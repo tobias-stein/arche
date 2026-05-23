@@ -1,6 +1,5 @@
-#![allow(dead_code)]
-
 mod cli;
+#[allow(dead_code)]
 mod client;
 mod config;
 mod error;

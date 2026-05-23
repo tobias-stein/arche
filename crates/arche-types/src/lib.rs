@@ -1,5 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -132,11 +133,43 @@ pub struct BlueprintAffix {
     pub sort_order: i32,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum ResolutionStrategy {
+    KeepOld,
+    KeepNew,
+    PerAttribute,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub struct ResourceResolution {
+    pub strategy: ResolutionStrategy,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub attributes: Option<HashMap<String, ResolutionStrategy>>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub struct ConflictResolution {
+    pub import_token: Uuid,
+    pub resolutions: HashMap<Uuid, ResourceResolution>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub struct ExportManifest {
+    pub version: String,
+    pub timestamp: DateTime<Utc>,
+    pub client_count: u32,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use serde::de::DeserializeOwned;
     use serde_json::json;
+    use std::collections::HashMap;
 
     #[test]
     fn test_value_type_round_trip() {
@@ -464,5 +497,152 @@ mod tests {
         assert_traits::<AffixLocation>();
         assert_traits::<AuditAction>();
         assert_traits::<Permission>();
+        assert_traits::<ExportManifest>();
+        assert_traits::<ConflictResolution>();
+        assert_traits::<ResolutionStrategy>();
+        assert_traits::<ResourceResolution>();
+    }
+
+    #[test]
+    fn test_export_manifest_round_trip() {
+        let manifest = ExportManifest {
+            version: "1.0".into(),
+            timestamp: DateTime::<Utc>::from_timestamp_millis(0).unwrap(),
+            client_count: 3,
+        };
+        let json = serde_json::to_string(&manifest).unwrap();
+        let deserialized: ExportManifest = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized, manifest);
+    }
+
+    #[test]
+    fn test_export_manifest_json_shape() {
+        let manifest = ExportManifest {
+            version: "1.0".into(),
+            timestamp: DateTime::<Utc>::from_timestamp_millis(0).unwrap(),
+            client_count: 3,
+        };
+        let value: serde_json::Value = serde_json::to_value(&manifest).unwrap();
+        let obj = value.as_object().unwrap();
+        assert!(obj.contains_key("version"), "expected version field");
+        assert!(obj.contains_key("timestamp"), "expected timestamp field");
+        assert!(
+            obj.contains_key("client_count"),
+            "expected client_count field"
+        );
+        assert_eq!(obj["version"], "1.0");
+        assert_eq!(obj["client_count"], 3);
+    }
+
+    #[test]
+    fn test_resolution_strategy_round_trip() {
+        let cases = vec![
+            (ResolutionStrategy::KeepOld, "\"keep_old\""),
+            (ResolutionStrategy::KeepNew, "\"keep_new\""),
+            (ResolutionStrategy::PerAttribute, "\"per_attribute\""),
+        ];
+        for (variant, expected) in cases {
+            let json = serde_json::to_string(&variant).unwrap();
+            assert_eq!(json, expected);
+            let deserialized: ResolutionStrategy = serde_json::from_str(&json).unwrap();
+            assert_eq!(deserialized, variant);
+        }
+    }
+
+    #[test]
+    fn test_resource_resolution_strategy_only() {
+        let r = ResourceResolution {
+            strategy: ResolutionStrategy::KeepNew,
+            attributes: None,
+        };
+        let json = serde_json::to_string(&r).unwrap();
+        let expected = r#"{"strategy":"keep_new"}"#;
+        assert_eq!(json, expected);
+        let deserialized: ResourceResolution = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized, r);
+    }
+
+    #[test]
+    fn test_resource_resolution_with_attributes() {
+        let mut attrs = HashMap::new();
+        attrs.insert("damage".into(), ResolutionStrategy::KeepNew);
+        attrs.insert("weight".into(), ResolutionStrategy::KeepOld);
+        let r = ResourceResolution {
+            strategy: ResolutionStrategy::PerAttribute,
+            attributes: Some(attrs),
+        };
+        let value: serde_json::Value = serde_json::to_value(&r).unwrap();
+        let obj = value.as_object().unwrap();
+        assert_eq!(obj["strategy"], "per_attribute");
+        let attrs_obj = obj["attributes"].as_object().unwrap();
+        assert_eq!(attrs_obj["damage"], "keep_new");
+        assert_eq!(attrs_obj["weight"], "keep_old");
+        let deserialized: ResourceResolution = serde_json::from_value(value).unwrap();
+        assert_eq!(deserialized, r);
+    }
+
+    #[test]
+    fn test_resource_resolution_omits_attributes_when_none() {
+        let r = ResourceResolution {
+            strategy: ResolutionStrategy::KeepNew,
+            attributes: None,
+        };
+        let json = serde_json::to_string(&r).unwrap();
+        assert!(
+            !json.contains("attributes"),
+            "should omit attributes when None"
+        );
+    }
+
+    #[test]
+    fn test_conflict_resolution_round_trip() {
+        let token = Uuid::parse_str("550e8400-e29b-41d4-a716-446655440000").unwrap();
+        let res_id = Uuid::parse_str("550e8400-e29b-41d4-a716-446655440001").unwrap();
+        let mut resolutions = HashMap::new();
+        resolutions.insert(
+            res_id,
+            ResourceResolution {
+                strategy: ResolutionStrategy::KeepNew,
+                attributes: None,
+            },
+        );
+        let cr = ConflictResolution {
+            import_token: token,
+            resolutions,
+        };
+        let json = serde_json::to_string(&cr).unwrap();
+        let deserialized: ConflictResolution = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized, cr);
+    }
+
+    #[test]
+    fn test_conflict_resolution_json_shape() {
+        let token = Uuid::parse_str("550e8400-e29b-41d4-a716-446655440000").unwrap();
+        let res_id = Uuid::parse_str("550e8400-e29b-41d4-a716-446655440001").unwrap();
+        let mut resolutions = HashMap::new();
+        resolutions.insert(
+            res_id,
+            ResourceResolution {
+                strategy: ResolutionStrategy::PerAttribute,
+                attributes: Some(HashMap::from([(
+                    "damage".into(),
+                    ResolutionStrategy::KeepNew,
+                )])),
+            },
+        );
+        let cr = ConflictResolution {
+            import_token: token,
+            resolutions,
+        };
+        let value: serde_json::Value = serde_json::to_value(&cr).unwrap();
+        let obj = value.as_object().unwrap();
+        assert!(obj.contains_key("import_token"), "expected import_token");
+        assert!(obj.contains_key("resolutions"), "expected resolutions");
+        let resol_obj = obj["resolutions"].as_object().unwrap();
+        let inner = resol_obj
+            .get("550e8400-e29b-41d4-a716-446655440001")
+            .unwrap();
+        assert_eq!(inner["strategy"], "per_attribute");
+        assert_eq!(inner["attributes"]["damage"], "keep_new");
     }
 }

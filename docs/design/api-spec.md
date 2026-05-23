@@ -352,6 +352,31 @@ Response:
 
 **Response:** Binary ZIP stream (`application/zip`). Folder-per-client structure.
 
+**ZIP archive structure:**
+```
+client-<uuid>/
+  manifest.json          # ExportManifest (see schema below)
+  blueprints.json        # Blueprint[]
+  affixes.json           # Affix[]
+  global-meta-attributes.json  # GlobalMetaAttribute[]
+  api-keys.json          # ApiKey[] (optional, only if include_api_keys)
+  audit-log.json         # AuditLogEntry[] (optional, only if include_audit_log)
+```
+
+**ExportManifest schema:**
+```json
+{
+  "version": "1.0",
+  "timestamp": "2026-05-22T10:30:00Z",
+  "client_count": 3
+}
+```
+
+Fields:
+- `version` (string): Schema version for forward compatibility
+- `timestamp` (ISO 8601): When the export was generated
+- `client_count` (integer): Number of client folders in the archive
+
 ### `POST /api/import`
 
 **Request:** Binary ZIP upload (`multipart/form-data`).
@@ -411,6 +436,39 @@ Resubmit the import with resolution choices.
   }
 }
 ```
+
+**Shared schema types (defined in `arche-types`):**
+
+**ResolutionStrategy** — enum variant per resource or per-attribute:
+| JSON value | Variant | Description |
+|---|---|---|
+| `"keep_old"` | KeepOld | Keep the existing (server-side) value |
+| `"keep_new"` | KeepNew | Use the incoming (import) value |
+| `"per_attribute"` | PerAttribute | Resolve per individual attribute key |
+
+**ResourceResolution:**
+```json
+{
+  "strategy": "keep_new | keep_old | per_attribute",
+  "attributes": {
+    "<attribute-key>": "keep_old | keep_new"
+  }
+}
+```
+- `strategy` (required): The resolution strategy for this resource
+- `attributes` (optional, only when strategy is `per_attribute`): Per-attribute overrides
+
+**ConflictResolution:**
+```json
+{
+  "import_token": "uuid",
+  "resolutions": {
+    "<resource-uuid>": { "strategy": "...", "attributes": {} }
+  }
+}
+```
+- `import_token` (uuid): Token from the 409 conflict response
+- `resolutions` (map): One entry per conflicted resource
 
 ---
 

@@ -1,6 +1,7 @@
 mod config;
 mod schema;
 pub mod pagination;
+pub mod error;
 
 use axum::{routing::get, Json, Router};
 use serde_json::{json, Value};

@@ -20,73 +20,71 @@ impl ValidationError {
 pub fn validate_attribute_payload(value_type: &ValueType, payload: &Value) -> Vec<ValidationError> {
     let mut errors = Vec::new();
 
-    if let Some(obj) = payload.as_object() {
-        if obj.contains_key("$ref_id") {
-            if obj.len() > 1 {
-                errors.push(ValidationError::new(
-                    "payload",
-                    "attribute cannot have both $ref_id and inline fields",
-                ));
-            }
-            return errors;
+    let obj = match payload.as_object() {
+        Some(obj) => obj,
+        None => return errors,
+    };
+
+    if obj.contains_key("$ref_id") {
+        if obj.len() > 1 {
+            errors.push(ValidationError::new(
+                "payload",
+                "attribute cannot have both $ref_id and inline fields",
+            ));
         }
+        return errors;
     }
 
     match value_type {
         ValueType::Range => {
-            if let Some(obj) = payload.as_object() {
-                if let (Some(min), Some(max)) =
-                    (obj.get("min").and_then(|v| v.as_f64()), obj.get("max").and_then(|v| v.as_f64()))
-                {
-                    if min > max {
+            if let (Some(min), Some(max)) = (
+                obj.get("min").and_then(|v| v.as_f64()),
+                obj.get("max").and_then(|v| v.as_f64()),
+            ) {
+                if min > max {
+                    errors.push(ValidationError::new(
+                        "payload",
+                        "range.min must be ≤ range.max",
+                    ));
+                }
+            }
+
+            if let Some(dist) = obj.get("distribution").and_then(|d| d.as_object()) {
+                if let Some(std_dev) = dist.get("std_dev").and_then(|v| v.as_f64()) {
+                    if std_dev <= 0.0 {
                         errors.push(ValidationError::new(
-                            "payload",
-                            "range.min must be ≤ range.max",
+                            "payload.distribution.std_dev",
+                            "range.distribution.std_dev must be > 0",
                         ));
                     }
                 }
-
-                if let Some(dist) = obj.get("distribution").and_then(|d| d.as_object()) {
-                    if let Some(std_dev) = dist.get("std_dev").and_then(|v| v.as_f64()) {
-                        if std_dev <= 0.0 {
-                            errors.push(ValidationError::new(
-                                "payload.distribution.std_dev",
-                                "range.distribution.std_dev must be > 0",
-                            ));
-                        }
-                    }
-                    if let Some(rate) = dist.get("rate").and_then(|v| v.as_f64()) {
-                        if rate <= 0.0 {
-                            errors.push(ValidationError::new(
-                                "payload.distribution.rate",
-                                "range.distribution.rate must be > 0",
-                            ));
-                        }
+                if let Some(rate) = dist.get("rate").and_then(|v| v.as_f64()) {
+                    if rate <= 0.0 {
+                        errors.push(ValidationError::new(
+                            "payload.distribution.rate",
+                            "range.distribution.rate must be > 0",
+                        ));
                     }
                 }
             }
         }
         ValueType::Enum => {
-            if let Some(obj) = payload.as_object() {
-                if let Some(values) = obj.get("values").and_then(|v| v.as_array()) {
-                    if values.is_empty() {
-                        errors.push(ValidationError::new(
-                            "payload.values",
-                            "enum.values must have at least 1 entry",
-                        ));
-                    }
+            if let Some(values) = obj.get("values").and_then(|v| v.as_array()) {
+                if values.is_empty() {
+                    errors.push(ValidationError::new(
+                        "payload.values",
+                        "enum.values must have at least 1 entry",
+                    ));
                 }
             }
         }
         ValueType::Single => {
-            if let Some(obj) = payload.as_object() {
-                if let Some(value) = obj.get("value") {
-                    if value.is_null() {
-                        errors.push(ValidationError::new(
-                            "payload.value",
-                            "single.value must not be null",
-                        ));
-                    }
+            if let Some(value) = obj.get("value") {
+                if value.is_null() {
+                    errors.push(ValidationError::new(
+                        "payload.value",
+                        "single.value must not be null",
+                    ));
                 }
             }
         }
@@ -127,9 +125,9 @@ pub fn validate_attribute_order(
         }
     }
 
-    let attr_set: HashSet<&&String> = attr_keys.iter().collect();
+    let attr_set: HashSet<&String> = attr_keys.iter().copied().collect();
     for key in attribute_order {
-        if !attr_set.contains(&key) {
+        if !attr_set.contains(key) {
             errors.push(ValidationError::new(
                 "attribute_order",
                 format!("extra key in attribute_order: {key}"),
@@ -140,37 +138,54 @@ pub fn validate_attribute_order(
     errors
 }
 
+fn check_affix_non_negative(
+    errors: &mut Vec<ValidationError>,
+    json_path: &str,
+    field: &str,
+    value: i32,
+) {
+    if value < 0 {
+        errors.push(ValidationError::new(
+            json_path,
+            format!("{field} must be ≥ 0"),
+        ));
+    }
+}
+
 pub fn validate_blueprint(blueprint: &Blueprint) -> Vec<ValidationError> {
     let mut errors = Vec::new();
 
     if blueprint.weight <= 0.0 {
-        errors.push(ValidationError::new("weight", "blueprint weight must be > 0"));
+        errors.push(ValidationError::new(
+            "weight",
+            "blueprint weight must be > 0",
+        ));
     }
 
-    if blueprint.min_prefixes < 0 {
-        errors.push(ValidationError::new(
-            "minPrefixes",
-            "min_prefixes must be ≥ 0",
-        ));
-    }
-    if blueprint.max_prefixes < 0 {
-        errors.push(ValidationError::new(
-            "maxPrefixes",
-            "max_prefixes must be ≥ 0",
-        ));
-    }
-    if blueprint.min_suffixes < 0 {
-        errors.push(ValidationError::new(
-            "minSuffixes",
-            "min_suffixes must be ≥ 0",
-        ));
-    }
-    if blueprint.max_suffixes < 0 {
-        errors.push(ValidationError::new(
-            "maxSuffixes",
-            "max_suffixes must be ≥ 0",
-        ));
-    }
+    check_affix_non_negative(
+        &mut errors,
+        "minPrefixes",
+        "min_prefixes",
+        blueprint.min_prefixes,
+    );
+    check_affix_non_negative(
+        &mut errors,
+        "maxPrefixes",
+        "max_prefixes",
+        blueprint.max_prefixes,
+    );
+    check_affix_non_negative(
+        &mut errors,
+        "minSuffixes",
+        "min_suffixes",
+        blueprint.min_suffixes,
+    );
+    check_affix_non_negative(
+        &mut errors,
+        "maxSuffixes",
+        "max_suffixes",
+        blueprint.max_suffixes,
+    );
     if blueprint.min_prefixes > blueprint.max_prefixes {
         errors.push(ValidationError::new(
             "affixCounts",
@@ -238,11 +253,10 @@ mod tests {
     use super::*;
     use serde_json::json;
 
-    // ── validate_attribute_payload ──
-
     #[test]
     fn test_valid_range_payload() {
-        let payload = json!({"min": 1.0, "max": 10.0, "distribution": {"std_dev": 2.0, "rate": 1.0}});
+        let payload =
+            json!({"min": 1.0, "max": 10.0, "distribution": {"std_dev": 2.0, "rate": 1.0}});
         let errors = validate_attribute_payload(&ValueType::Range, &payload);
         assert!(errors.is_empty(), "expected no errors, got: {errors:?}");
     }
@@ -257,7 +271,8 @@ mod tests {
 
     #[test]
     fn test_range_std_dev_zero() {
-        let payload = json!({"min": 1.0, "max": 10.0, "distribution": {"std_dev": 0.0, "rate": 1.0}});
+        let payload =
+            json!({"min": 1.0, "max": 10.0, "distribution": {"std_dev": 0.0, "rate": 1.0}});
         let errors = validate_attribute_payload(&ValueType::Range, &payload);
         assert_eq!(errors.len(), 1);
         assert!(errors[0].message.contains("std_dev"));
@@ -265,7 +280,8 @@ mod tests {
 
     #[test]
     fn test_range_std_dev_negative() {
-        let payload = json!({"min": 1.0, "max": 10.0, "distribution": {"std_dev": -1.0, "rate": 1.0}});
+        let payload =
+            json!({"min": 1.0, "max": 10.0, "distribution": {"std_dev": -1.0, "rate": 1.0}});
         let errors = validate_attribute_payload(&ValueType::Range, &payload);
         assert_eq!(errors.len(), 1);
         assert!(errors[0].message.contains("std_dev"));
@@ -273,7 +289,8 @@ mod tests {
 
     #[test]
     fn test_range_rate_zero() {
-        let payload = json!({"min": 1.0, "max": 10.0, "distribution": {"std_dev": 2.0, "rate": 0.0}});
+        let payload =
+            json!({"min": 1.0, "max": 10.0, "distribution": {"std_dev": 2.0, "rate": 0.0}});
         let errors = validate_attribute_payload(&ValueType::Range, &payload);
         assert_eq!(errors.len(), 1);
         assert!(errors[0].message.contains("rate"));
@@ -281,7 +298,8 @@ mod tests {
 
     #[test]
     fn test_range_rate_negative() {
-        let payload = json!({"min": 1.0, "max": 10.0, "distribution": {"std_dev": 2.0, "rate": -0.5}});
+        let payload =
+            json!({"min": 1.0, "max": 10.0, "distribution": {"std_dev": 2.0, "rate": -0.5}});
         let errors = validate_attribute_payload(&ValueType::Range, &payload);
         assert_eq!(errors.len(), 1);
         assert!(errors[0].message.contains("rate"));
@@ -360,8 +378,6 @@ mod tests {
         assert!(errors.is_empty());
     }
 
-    // ── validate_attribute_order ──
-
     #[test]
     fn test_valid_attribute_order() {
         let attributes = json!({"a": {"value_type": "string"}, "b": {"value_type": "string"}});
@@ -404,7 +420,6 @@ mod tests {
         let attributes = json!({"a": {}, "b": {}, "c": {}});
         let order = vec!["a".into(), "a".into(), "d".into()];
         let errors = validate_attribute_order(&order, &attributes);
-        // duplicate a, missing b, missing c, extra d
         assert_eq!(errors.len(), 4);
     }
 
@@ -423,8 +438,6 @@ mod tests {
         let errors = validate_attribute_order(&order, &attributes);
         assert!(errors.is_empty());
     }
-
-    // ── validate_blueprint ──
 
     fn valid_blueprint() -> Blueprint {
         Blueprint {
@@ -504,7 +517,6 @@ mod tests {
         let mut bp = valid_blueprint();
         bp.max_prefixes = -1;
         let errors = validate_blueprint(&bp);
-        // negative max also triggers min (0) ≤ max (-1) violation
         assert_eq!(errors.len(), 2);
         assert!(errors[0].message.contains("max_prefixes"));
     }
@@ -541,7 +553,7 @@ mod tests {
     #[test]
     fn test_blueprint_invalid_attribute_order() {
         let mut bp = valid_blueprint();
-        bp.attribute_order = vec![]; // missing "material"
+        bp.attribute_order = vec![];
         let errors = validate_blueprint(&bp);
         assert_eq!(errors.len(), 1);
         assert!(errors[0].message.contains("missing"));
@@ -559,7 +571,8 @@ mod tests {
     #[test]
     fn test_blueprint_ref_id_with_inline_fields() {
         let mut bp = valid_blueprint();
-        bp.attributes = json!({"rarity": {"$ref_id": "some-uuid", "value_type": "string", "min": 1}});
+        bp.attributes =
+            json!({"rarity": {"$ref_id": "some-uuid", "value_type": "string", "min": 1}});
         bp.attribute_order = vec!["rarity".into()];
         let errors = validate_blueprint(&bp);
         assert_eq!(errors.len(), 1);
@@ -573,9 +586,8 @@ mod tests {
         bp.min_prefixes = 3;
         bp.max_prefixes = 1;
         bp.attributes = json!({"a": {"value_type": "range", "min": 10, "max": 1}});
-        bp.attribute_order = vec!["a".into(), "b".into()]; // extra "b"
+        bp.attribute_order = vec!["a".into(), "b".into()];
         let errors = validate_blueprint(&bp);
-        // weight + min > max + attribute payload + extra key
         assert_eq!(errors.len(), 4);
     }
 

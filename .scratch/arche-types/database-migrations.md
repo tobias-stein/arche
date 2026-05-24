@@ -1,6 +1,6 @@
 ---
 title: PostgreSQL schema + migrations
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

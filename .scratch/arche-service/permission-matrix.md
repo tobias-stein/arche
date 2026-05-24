@@ -1,6 +1,6 @@
 ---
 title: Permission matrix & endpoint guarding
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

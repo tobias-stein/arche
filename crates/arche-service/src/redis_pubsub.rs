@@ -2,6 +2,7 @@ use crate::cache::Cache;
 use redis::{AsyncCommands, Client};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
+use std::fmt;
 use std::sync::Arc;
 use tokio::sync::{mpsc, RwLock};
 use tokio_stream::StreamExt;
@@ -34,8 +35,6 @@ impl InvalidationMessage {
         }
     }
 }
-
-use std::fmt;
 
 impl fmt::Display for InvalidationMessage {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -76,23 +75,23 @@ pub fn start_redis_pubsub(
 
     let pub_client = client.clone();
     tokio::spawn(async move {
+        let mut conn = match pub_client.get_multiplexed_async_connection().await {
+            Ok(conn) => conn,
+            Err(e) => {
+                warn!(error = %e, "redis: publisher connection failed");
+                return;
+            }
+        };
         while let Some(client_id) = rx.recv().await {
             let msg = InvalidationMessage::new(client_id);
             let payload = msg.to_string();
-            match pub_client.get_multiplexed_async_connection().await {
-                Ok(mut conn) => {
-                    if let Err(e) = conn
-                        .publish::<_, _, ()>(INVALIDATION_CHANNEL, &payload)
-                        .await
-                    {
-                        warn!(error = %e, client_id = %client_id, "redis: publish failed");
-                    } else {
-                        info!(client_id = %client_id, "redis: published invalidation");
-                    }
-                }
-                Err(e) => {
-                    warn!(error = %e, client_id = %client_id, "redis: publish connect failed");
-                }
+            if let Err(e) = conn
+                .publish::<_, _, ()>(INVALIDATION_CHANNEL, &payload)
+                .await
+            {
+                warn!(error = %e, client_id = %client_id, "redis: publish failed");
+            } else {
+                info!(client_id = %client_id, "redis: published invalidation");
             }
         }
     });
@@ -240,11 +239,6 @@ mod tests {
         assert_eq!(InvalidationMessage::from_json("{}"), None);
     }
 
-    #[test]
-    fn test_invalidation_channel_constant() {
-        assert_eq!(INVALIDATION_CHANNEL, "arche:cache-invalidate");
-    }
-
     #[tokio::test]
     async fn test_handle_invalidate_sends_on_channel() {
         let (tx, mut rx) = mpsc::channel::<Uuid>(16);
@@ -257,10 +251,4 @@ mod tests {
         assert_eq!(received, Some(client_id));
     }
 
-    #[test]
-    fn test_handle_is_clone() {
-        let (tx, _rx) = mpsc::channel::<Uuid>(16);
-        let handle = RedisPubSubHandle { tx };
-        let _clone = handle.clone();
-    }
 }

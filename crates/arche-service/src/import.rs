@@ -34,7 +34,7 @@ impl IntoResponse for ImportParseResponse {
             }
             ImportParseResponse::Conflict(body) => {
                 let response = (
-                    StatusCode::from_u16(409).unwrap(),
+                    StatusCode::CONFLICT,
                     [("content-type", "application/problem+json")],
                     body.to_string(),
                 );
@@ -683,7 +683,7 @@ async fn detect_client_conflicts(
                         value_type: ValueType::String,
                     }],
                 };
-                if !conflicts.iter().any(|c: &ConflictDetail| c.resource_id == cid) {
+                if !conflicts.iter().any(|c| c.resource_id == cid) {
                     conflicts.push(detail);
                 }
             }
@@ -890,16 +890,12 @@ fn compare_field_opt(
     old: &Option<serde_json::Value>,
     new: &Option<serde_json::Value>,
 ) {
-    let old_val = old.clone().unwrap_or(serde_json::Value::Null);
-    let new_val = new.clone().unwrap_or(serde_json::Value::Null);
-    if old_val != new_val {
-        diffs.push(ConflictAttribute {
-            key: key.to_string(),
-            old_value: old_val,
-            new_value: new_val,
-            value_type: ValueType::String,
-        });
-    }
+    compare_field(
+        diffs,
+        key,
+        &old.clone().unwrap_or(serde_json::Value::Null),
+        &new.clone().unwrap_or(serde_json::Value::Null),
+    );
 }
 
 fn affix_location_str(loc: &AffixLocation) -> String {

@@ -880,6 +880,20 @@ export function BlueprintFormModal({
 
   const isPending = createMutation.isPending || updateMutation.isPending
 
+  const modalTitle = isDuplicate
+    ? 'Duplicate Blueprint'
+    : isEdit
+      ? 'Edit Blueprint'
+      : 'Create Blueprint'
+
+  const submitLabel = isPending
+    ? isEdit
+      ? 'Saving...'
+      : 'Creating...'
+    : isEdit
+      ? 'Save Changes'
+      : 'Create Blueprint'
+
   const attrEntries: AttributeEntry[] = attributeOrder
     .filter((key) => key in attributes)
     .map((key) => ({ key, attribute: attributes[key] }))
@@ -897,13 +911,7 @@ export function BlueprintFormModal({
       >
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>
-              {isDuplicate
-                ? 'Duplicate Blueprint'
-                : isEdit
-                  ? 'Edit Blueprint'
-                  : 'Create Blueprint'}
-            </DialogTitle>
+            <DialogTitle>{modalTitle}</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4">
@@ -1390,13 +1398,7 @@ export function BlueprintFormModal({
                 Cancel
               </Button>
               <Button onClick={handleSubmit} disabled={isPending}>
-                {isPending
-                  ? isEdit
-                    ? 'Saving...'
-                    : 'Creating...'
-                  : isEdit
-                    ? 'Save Changes'
-                    : 'Create Blueprint'}
+                {submitLabel}
               </Button>
             </DialogFooter>
           </div>

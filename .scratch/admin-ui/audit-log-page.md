@@ -1,6 +1,6 @@
 ---
 title: Audit log — full-page view
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

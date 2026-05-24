@@ -1,6 +1,6 @@
 ---
 title: Activity panel
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

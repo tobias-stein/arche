@@ -71,15 +71,6 @@ function getDesktopContainer(): HTMLElement {
   return el as HTMLElement
 }
 
-function makeListData(data: ReturnType<typeof makeBlueprint>[], total?: number) {
-  return {
-    data: { data: data.slice(0, data.length), total: total ?? data.length },
-    isLoading: false,
-    isError: false,
-    error: null,
-  }
-}
-
 describe('Blueprints list page', () => {
   beforeEach(() => {
     vi.useRealTimers()
@@ -88,7 +79,7 @@ describe('Blueprints list page', () => {
     mockDeleteBlueprint.mockReturnValue(createMockMutation())
     mockBatchDeleteBlueprints.mockReturnValue(createMockMutation())
     mockBatchAssignBlueprints.mockReturnValue(createMockMutation())
-    mockBatchEditBlueprints.mockReturnValue({ mutateAsync: vi.fn(), isPending: false })
+    mockBatchEditBlueprints.mockReturnValue(createMockMutation())
     mockCreateBlueprint.mockReturnValue(createMockMutation())
     mockUpdateBlueprint.mockReturnValue(createMockMutation())
     mockAffixesList.mockReturnValue({
@@ -98,8 +89,12 @@ describe('Blueprints list page', () => {
       error: null,
     })
 
-    const empty = makeListData([])
-    mockBlueprintsList.mockReturnValue(empty)
+    mockBlueprintsList.mockReturnValue({
+      data: { data: [], total: 0 },
+      isLoading: false,
+      isError: false,
+      error: null,
+    })
   })
 
   afterEach(() => {

@@ -588,9 +588,7 @@ export default function Blueprints() {
 
   const selectAllLabel = allPageSelected ? 'Deselect all' : 'Select all'
 
-  const canBatchEdit = batchEditMutation.isPending
-    ? false
-    : selectedCount > 0
+  const canBatchEdit = !batchEditMutation.isPending && selectedCount > 0
 
   return (
     <div className="space-y-4">

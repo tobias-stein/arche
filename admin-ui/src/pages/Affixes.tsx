@@ -1,21 +1,23 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { MouseEvent as ReactMouseEvent } from 'react'
-import { ChevronLeft, ChevronRight, Pencil, Trash2 } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { ChevronLeft, ChevronRight, Pencil, Plus, Trash2 } from 'lucide-react'
 
 import {
   useAffixesList,
   useBatchAssignAffixes,
   useBatchDeleteAffixes,
   useBlueprintsList,
+  useCreateAffix,
   useDeleteAffix,
   useUpdateAffix,
 } from '@/api/generated'
 import type {
   Affix,
   AffixAttribute,
-  AffixLocation,
   Blueprint,
 } from '@/api/generated'
+import { AffixCreateEditDialog } from './AffixCreateEditDialog'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -61,16 +63,16 @@ function getValueTypeDisplay(attribute: AffixAttribute): string {
   return attribute.valueType
 }
 
+function isRefAttribute(attr: AffixAttribute): boolean {
+  return '$ref_id' in attr
+}
+
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
   })
-}
-
-function isRefAttribute(attr: AffixAttribute): boolean {
-  return '$ref_id' in attr
 }
 
 function TableSkeleton() {
@@ -107,101 +109,6 @@ function CardSkeleton() {
         </Card>
       ))}
     </div>
-  )
-}
-
-function EditAffixDialog({
-  affix,
-  open,
-  onOpenChange,
-}: {
-  affix: Affix | null
-  open: boolean
-  onOpenChange: (open: boolean) => void
-}) {
-  const { toast } = useToast()
-  const updateMutation = useUpdateAffix()
-
-  const [name, setName] = useState(affix?.name ?? '')
-  const [location, setLocation] = useState<AffixLocation>(affix?.location ?? 'prefix')
-  const [description, setDescription] = useState(affix?.description ?? '')
-
-  const handleSubmit = async () => {
-    if (!affix || !name.trim()) return
-    try {
-      await updateMutation.mutateAsync({
-        id: affix.id,
-        request: {
-          name: name.trim(),
-          type: location,
-          description: description.trim() || null,
-          attribute: affix.attribute,
-        },
-      })
-      toast({ title: 'Affix updated' })
-      onOpenChange(false)
-    } catch {
-      toast({ title: 'Failed to update affix', variant: 'destructive' })
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Edit Affix</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <label htmlFor="edit-name" className="text-sm font-medium">
-              Name
-            </label>
-            <Input
-              id="edit-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Affix name"
-            />
-          </div>
-          <div className="space-y-2">
-            <label htmlFor="edit-type" className="text-sm font-medium">
-              Type
-            </label>
-            <select
-              id="edit-type"
-              value={location}
-              onChange={(e) => setLocation(e.target.value as AffixLocation)}
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            >
-              <option value="prefix">Prefix</option>
-              <option value="suffix">Suffix</option>
-            </select>
-          </div>
-          <div className="space-y-2">
-            <label htmlFor="edit-desc" className="text-sm font-medium">
-              Description
-            </label>
-            <Input
-              id="edit-desc"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Optional description"
-            />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={!name.trim() || updateMutation.isPending}
-          >
-            {updateMutation.isPending ? 'Saving...' : 'Save'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   )
 }
 
@@ -336,6 +243,10 @@ export default function Affixes() {
 
   const [editingAffix, setEditingAffix] = useState<Affix | null>(null)
   const [showEditDialog, setShowEditDialog] = useState(false)
+
+  const [showCreateDialog, setShowCreateDialog] = useState(false)
+  const createMutation = useCreateAffix()
+  const updateMutation = useUpdateAffix()
 
   const [deletingAffix, setDeletingAffix] = useState<Affix | null>(null)
   const deleteMutation = useDeleteAffix()
@@ -476,6 +387,10 @@ export default function Affixes() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Affixes</h2>
+        <Button onClick={() => setShowCreateDialog(true)}>
+          <Plus className="h-4 w-4" />
+          Create Affix
+        </Button>
       </div>
 
       {/* Filter bar */}
@@ -638,7 +553,12 @@ export default function Affixes() {
                         />
                       </TableCell>
                       <TableCell className="font-medium">
-                        {affix.name}
+                        <Link
+                          to={`/affixes/${affix.id}`}
+                          className="text-primary hover:underline"
+                        >
+                          {affix.name}
+                        </Link>
                       </TableCell>
                       <TableCell>
                         <Badge
@@ -723,7 +643,14 @@ export default function Affixes() {
                         aria-label={`Select ${affix.name}`}
                         className="rounded"
                       />
-                      <span className="font-medium">{affix.name}</span>
+                      <span className="font-medium">
+                        <Link
+                          to={`/affixes/${affix.id}`}
+                          className="text-primary hover:underline"
+                        >
+                          {affix.name}
+                        </Link>
+                      </span>
                     </div>
                     <div className="flex gap-1">
                       <Button
@@ -829,11 +756,44 @@ export default function Affixes() {
       />
 
       {/* Edit dialog */}
-      <EditAffixDialog
-        key={editingAffix?.id ?? 'none'}
+      <AffixCreateEditDialog
+        key={editingAffix?.id ?? 'edit-new'}
         affix={editingAffix}
         open={showEditDialog}
         onOpenChange={setShowEditDialog}
+        onSubmit={async (data) => {
+          if (!editingAffix) return
+          await updateMutation.mutateAsync({
+            id: editingAffix.id,
+            request: {
+              name: data.name,
+              type: data.location,
+              description: data.description,
+              attribute: data.attribute,
+            },
+          })
+          toast({ title: 'Affix updated' })
+          setShowEditDialog(false)
+        }}
+        isPending={updateMutation.isPending}
+      />
+
+      {/* Create dialog */}
+      <AffixCreateEditDialog
+        affix={null}
+        open={showCreateDialog}
+        onOpenChange={setShowCreateDialog}
+        onSubmit={async (data) => {
+          await createMutation.mutateAsync({
+            name: data.name,
+            type: data.location,
+            description: data.description,
+            attribute: data.attribute,
+          })
+          toast({ title: 'Affix created' })
+          setShowCreateDialog(false)
+        }}
+        isPending={createMutation.isPending}
       />
 
       {/* Blueprint picker dialog */}

@@ -5,6 +5,7 @@ import { setClient } from '@/api/generated/hooks'
 import { AppShell } from '@/components/AppShell'
 import { Toaster } from '@/components/ui/toaster'
 import Affixes from '@/pages/Affixes'
+import AffixDetail from '@/pages/AffixDetail'
 import AuditLog from '@/pages/AuditLog'
 import Blueprints from '@/pages/Blueprints'
 import Clients from '@/pages/Clients'
@@ -38,6 +39,7 @@ export default function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/blueprints" element={<Blueprints />} />
             <Route path="/affixes" element={<Affixes />} />
+            <Route path="/affixes/:id" element={<AffixDetail />} />
             <Route path="/global-meta-attributes" element={<GlobalMetaAttributes />} />
             <Route path="/clients" element={<Clients />} />
             <Route path="/audit-log" element={<AuditLog />} />

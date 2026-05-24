@@ -1,23 +1,45 @@
 import { create } from 'zustand'
 
-type Theme = 'light' | 'dark'
+const STORAGE_KEY = 'arche-theme'
+
+type Mode = 'light' | 'dark'
+
+function getInitialMode(): Mode {
+  const stored = localStorage.getItem(STORAGE_KEY)
+  if (stored === 'dark' || stored === 'light') return stored
+  if (window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark'
+  return 'light'
+}
+
+function applyClass(mode: Mode) {
+  document.documentElement.classList.toggle('dark', mode === 'dark')
+}
+
+function persist(mode: Mode) {
+  localStorage.setItem(STORAGE_KEY, mode)
+}
+
+const initial = getInitialMode()
+applyClass(initial)
 
 interface ThemeState {
-  theme: Theme
+  mode: Mode
   toggle: () => void
-  setTheme: (theme: Theme) => void
+  setMode: (mode: Mode) => void
 }
 
 export const useTheme = create<ThemeState>((set) => ({
-  theme: 'dark',
+  mode: initial,
   toggle: () =>
     set((state) => {
-      const next = state.theme === 'light' ? 'dark' : 'light'
-      document.documentElement.classList.toggle('dark', next === 'dark')
-      return { theme: next }
+      const next: Mode = state.mode === 'light' ? 'dark' : 'light'
+      persist(next)
+      applyClass(next)
+      return { mode: next }
     }),
-  setTheme: (theme: Theme) => {
-    document.documentElement.classList.toggle('dark', theme === 'dark')
-    set({ theme })
+  setMode: (mode: Mode) => {
+    persist(mode)
+    applyClass(mode)
+    set({ mode })
   },
 }))

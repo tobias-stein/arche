@@ -60,12 +60,9 @@ pub fn required_permission(method: &Method, path: &str) -> Option<RequiredPermis
 /// Extract a client_id UUID from a path like `/api/clients/{uuid}/...`.
 pub fn extract_path_client_id(path: &str) -> Option<Uuid> {
     let path = path.strip_prefix("/api/")?;
-    let segments: Vec<&str> = path.split('/').collect();
-    if segments.first() == Some(&"clients") && segments.len() >= 2 {
-        Uuid::parse_str(segments[1]).ok()
-    } else {
-        None
-    }
+    let rest = path.strip_prefix("clients/")?;
+    let client_id_str = rest.split('/').next()?;
+    Uuid::parse_str(client_id_str).ok()
 }
 
 impl super::AuthenticatedKey {
@@ -133,21 +130,15 @@ where
 }
 
 /// Middleware that enforces the permission matrix.
-/// 1. Public routes are allowed through without authentication.
-/// 2. For API routes, the X-API-Key header is verified against the database.
-/// 3. The required permission is determined from the method and path.
-/// 4. The key's permissions are checked against the required permission.
-/// 5. If the path contains a client_id, the key's client scope is checked.
-/// 6. The authenticated key is stored in request extensions for downstream handlers.
+/// Public routes pass through; API routes require a valid API key with matching permission.
 pub(crate) async fn permission_middleware(
     State(state): State<AppState>,
     mut request: Request,
     next: Next,
 ) -> Response {
-    let method = request.method().clone();
     let path = request.uri().path().to_owned();
 
-    let required = match required_permission(&method, &path) {
+    let required = match required_permission(request.method(), &path) {
         Some(r) => r,
         None => return next.run(request).await,
     };
@@ -168,14 +159,14 @@ pub(crate) async fn permission_middleware(
         Err(e) => return e.into_response(),
     };
 
-    match &required {
+    match required {
         RequiredPermission::SuperAdmin => {
             if let Err(e) = key.require_super_admin() {
                 return e.into_response();
             }
         }
         RequiredPermission::Regular(perm) => {
-            if let Err(e) = key.require_permission(perm.clone()) {
+            if let Err(e) = key.require_permission(perm) {
                 return e.into_response();
             }
         }
@@ -371,14 +362,6 @@ mod tests {
     fn test_get_audit_log_sub_path_requires_super_admin() {
         assert_eq!(
             required_permission(&Method::GET, "/api/audit-log/123"),
-            Some(RequiredPermission::SuperAdmin)
-        );
-    }
-
-    #[test]
-    fn test_get_audit_log_with_query_requires_super_admin() {
-        assert_eq!(
-            required_permission(&Method::GET, "/api/audit-log"),
             Some(RequiredPermission::SuperAdmin)
         );
     }

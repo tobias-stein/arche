@@ -78,7 +78,7 @@ export function GlobalSearch() {
   }
 
   return (
-    <Dialog open={searchOpen} onOpenChange={(open) => open ? openSearch() : closeSearch()}>
+    <Dialog open={searchOpen} onOpenChange={(open) => !open && closeSearch()}>
       <DialogContent className="overflow-hidden p-0">
         <Command shouldFilter={false}>
           <CommandInput

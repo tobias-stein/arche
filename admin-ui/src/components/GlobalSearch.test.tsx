@@ -34,15 +34,12 @@ function renderSearch() {
 }
 
 describe('GlobalSearch', () => {
-  beforeEach(async () => {
+  beforeEach(() => {
     vi.clearAllMocks()
     mockListBlueprints.mockResolvedValue({ data: [], nextCursor: undefined, total: 0 })
     mockListAffixes.mockResolvedValue({ data: [], nextCursor: undefined, total: 0 })
-    const { useUi: ui } = await import('@/stores/ui')
     act(() => {
-      ui.setState({
-        searchOpen: false,
-      })
+      useUi.setState({ searchOpen: false })
     })
   })
 

@@ -12,6 +12,17 @@ use crate::error::ProblemResponse;
 const AUDIT_LOG_COLUMNS: &str =
     "id, timestamp, actor_key_id, actor_key_name, client_id, resource_type, resource_id, action, before, after";
 
+const VALID_AUDIT_ACTIONS: &[&str] = &["created", "updated", "deleted", "force_deleted", "adjusted"];
+
+fn push_separator<'a>(builder: &mut QueryBuilder<'a, sqlx::Postgres>, first: &mut bool) {
+    if *first {
+        builder.push(" WHERE ");
+        *first = false;
+    } else {
+        builder.push(" AND ");
+    }
+}
+
 impl crate::pagination::HasId for AuditLogEntry {
     fn id(&self) -> Uuid {
         self.id
@@ -67,14 +78,10 @@ pub async fn list_audit_log(
     };
 
     let action_db_str: Option<&str> = match query.action.as_deref() {
-        Some("created") => Some("created"),
-        Some("updated") => Some("updated"),
-        Some("deleted") => Some("deleted"),
-        Some("force_deleted") => Some("force_deleted"),
-        Some("adjusted") => Some("adjusted"),
+        Some(a) if VALID_AUDIT_ACTIONS.contains(&a) => Some(a),
         Some(invalid) => {
             return Err(ProblemResponse::validation_error(
-                format!("Invalid action: {invalid}. Expected one of: created, updated, deleted, force_deleted, adjusted"),
+                format!("Invalid action: {invalid}. Expected one of: {}", VALID_AUDIT_ACTIONS.join(", ")),
                 vec![],
             ));
         }
@@ -90,76 +97,47 @@ pub async fn list_audit_log(
     let mut first = true;
 
     if let (Some(c_ts), Some(c_id)) = (cursor_ts, cursor) {
-        builder.push(" WHERE (timestamp, id) < (");
+        push_separator(&mut builder, &mut first);
+        builder.push("(timestamp, id) < (");
         builder.push_bind(c_ts);
         builder.push(", ");
         builder.push_bind(c_id);
         builder.push(")");
-        first = false;
     }
 
     if let Some(cid) = query.client_id {
-        if first {
-            builder.push(" WHERE ");
-            first = false;
-        } else {
-            builder.push(" AND ");
-        }
+        push_separator(&mut builder, &mut first);
         builder.push("client_id = ");
         builder.push_bind(cid);
     }
 
     if let Some(rt) = &query.resource_type {
-        if first {
-            builder.push(" WHERE ");
-            first = false;
-        } else {
-            builder.push(" AND ");
-        }
+        push_separator(&mut builder, &mut first);
         builder.push("resource_type = ");
         builder.push_bind(rt);
     }
 
     if let Some(action_str) = action_db_str {
-        if first {
-            builder.push(" WHERE ");
-            first = false;
-        } else {
-            builder.push(" AND ");
-        }
+        push_separator(&mut builder, &mut first);
         builder.push("action = ");
         builder.push_bind(action_str);
         builder.push("::audit_action");
     }
 
     if let Some(akid) = query.actor_key_id {
-        if first {
-            builder.push(" WHERE ");
-            first = false;
-        } else {
-            builder.push(" AND ");
-        }
+        push_separator(&mut builder, &mut first);
         builder.push("actor_key_id = ");
         builder.push_bind(akid);
     }
 
     if let Some(from) = query.from {
-        if first {
-            builder.push(" WHERE ");
-            first = false;
-        } else {
-            builder.push(" AND ");
-        }
+        push_separator(&mut builder, &mut first);
         builder.push("timestamp >= ");
         builder.push_bind(from);
     }
 
     if let Some(to) = query.to {
-        if first {
-            builder.push(" WHERE ");
-        } else {
-            builder.push(" AND ");
-        }
+        push_separator(&mut builder, &mut first);
         builder.push("timestamp <= ");
         builder.push_bind(to);
     }

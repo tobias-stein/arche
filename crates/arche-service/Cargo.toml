@@ -19,3 +19,6 @@ tracing-subscriber.workspace = true
 dotenvy.workspace = true
 schemars.workspace = true
 once_cell.workspace = true
+sqlx.workspace = true
+bcrypt.workspace = true
+rand.workspace = true

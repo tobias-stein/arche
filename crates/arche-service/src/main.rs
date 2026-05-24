@@ -1,3 +1,4 @@
+mod bootstrap;
 mod config;
 mod schema;
 pub mod pagination;
@@ -5,11 +6,13 @@ pub mod error;
 
 use axum::{routing::get, Json, Router};
 use serde_json::{json, Value};
+use sqlx::postgres::PgPoolOptions;
 use std::net::SocketAddr;
 use tokio::signal;
 use tower_http::trace::TraceLayer;
 use tracing::info;
 
+use bootstrap::bootstrap_super_admin;
 use config::Config;
 use schema::{get_affixes_schema, get_blueprints_schema, get_generate_schema};
 
@@ -46,6 +49,31 @@ async fn main() {
         "starting server",
     );
 
+    let pool = PgPoolOptions::new()
+        .max_connections(5)
+        .connect(&config.database_url)
+        .await
+        .expect("failed to connect to database");
+
+    sqlx::migrate!("../../arche-service/migrations")
+        .run(&pool)
+        .await
+        .expect("failed to run database migrations");
+
+    let super_admin_key = bootstrap_super_admin(&pool).await;
+
+    if let Some(ref key) = super_admin_key {
+        println!();
+        println!("╔══════════════════════════════════════════════════════════════╗");
+        println!("║               === SUPER ADMIN API KEY ===                  ║");
+        println!("║                                                            ║");
+        println!("║  {:<58}║", key);
+        println!("║                                                            ║");
+        println!("║  Store this key securely. It will not be shown again.      ║");
+        println!("╚══════════════════════════════════════════════════════════════╝");
+        println!();
+    }
+
     let router = build_router();
 
     let addr: SocketAddr = config.bind_addr().parse().expect("invalid bind address");
@@ -64,7 +92,7 @@ fn extract_db_host(database_url: &str) -> &str {
         Some(s) => s,
         None => return "unknown",
     };
-    let host_part = without_scheme.split('@').last().unwrap_or(without_scheme);
+    let host_part = without_scheme.split('@').next_back().unwrap_or(without_scheme);
     let host = host_part
         .split_once(':')
         .or_else(|| host_part.split_once('/'))

@@ -62,17 +62,12 @@ impl ImportStaging {
 
     pub fn take(&self, token: &str) -> Result<StagedImport, ProblemResponse> {
         let entry = self.data.remove(token);
+        self.cleanup();
         match entry {
-            Some((_, (ts, import))) if ts.elapsed() <= STAGING_TTL => {
-                self.cleanup();
-                Ok(import)
-            }
-            Some(_) => {
-                self.cleanup();
-                Err(ProblemResponse::not_found(
-                    "Import token has expired. Please re-upload the archive.",
-                ))
-            }
+            Some((_, (ts, import))) if ts.elapsed() <= STAGING_TTL => Ok(import),
+            Some(_) => Err(ProblemResponse::not_found(
+                "Import token has expired. Please re-upload the archive.",
+            )),
             None => Err(ProblemResponse::not_found(
                 "Invalid or expired import token",
             )),
@@ -99,15 +94,6 @@ pub struct ClientImport {
     pub affixes: Vec<Affix>,
     pub global_meta_attributes: Vec<GlobalMetaAttribute>,
     pub blueprint_affixes: Vec<BlueprintAffix>,
-}
-
-#[derive(serde::Deserialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-struct ManifestJson {
-    #[allow(dead_code)]
-    version: String,
-    #[allow(dead_code)]
-    client_count: i32,
 }
 
 #[derive(serde::Deserialize, Debug, Clone)]
@@ -185,7 +171,7 @@ pub async fn import_parse_handler(
     for client_dir in &parsed {
         let client_import = build_client_import(client_dir)?;
         let conflicts =
-            detect_client_conflicts(&client_import, &existing_cache, pool).await?;
+            detect_client_conflicts(&client_import, &existing_cache).await?;
         if !conflicts.is_empty() {
             all_conflicts.extend(conflicts);
         }
@@ -410,13 +396,7 @@ fn apply_blueprint_field(bp: &mut Blueprint, key: &str, value: &serde_json::Valu
         "name" => bp.name = value.as_str().unwrap_or("").to_string(),
         "archetype" => bp.archetype = value.as_str().unwrap_or("").to_string(),
         "weight" => bp.weight = value.as_f64().unwrap_or(1.0),
-        "description" => {
-            bp.description = if value.is_null() {
-                None
-            } else {
-                Some(value.as_str().unwrap_or("").to_string())
-            }
-        }
+        "description" => bp.description = opt_string(value),
         "attributes" => bp.attributes = value.clone(),
         "attribute_order" => {
             bp.attribute_order = serde_json::from_value(value.clone()).unwrap_or_default()
@@ -432,13 +412,7 @@ fn apply_blueprint_field(bp: &mut Blueprint, key: &str, value: &serde_json::Valu
 fn apply_affix_field(a: &mut Affix, key: &str, value: &serde_json::Value) {
     match key {
         "name" => a.name = value.as_str().unwrap_or("").to_string(),
-        "description" => {
-            a.description = if value.is_null() {
-                None
-            } else {
-                Some(value.as_str().unwrap_or("").to_string())
-            }
-        }
+        "description" => a.description = opt_string(value),
         "type" | "location" => {
             a.location = match value.as_str().unwrap_or("prefix") {
                 "suffix" => AffixLocation::Suffix,
@@ -453,13 +427,7 @@ fn apply_affix_field(a: &mut Affix, key: &str, value: &serde_json::Value) {
 fn apply_gma_field(gma: &mut GlobalMetaAttribute, key: &str, value: &serde_json::Value) {
     match key {
         "name" => gma.name = value.as_str().unwrap_or("").to_string(),
-        "description" => {
-            gma.description = if value.is_null() {
-                None
-            } else {
-                Some(value.as_str().unwrap_or("").to_string())
-            }
-        }
+        "description" => gma.description = opt_string(value),
         "value_type" => {
             gma.value_type = match value.as_str().unwrap_or("range") {
                 "single" => ValueType::Single,
@@ -472,6 +440,14 @@ fn apply_gma_field(gma: &mut GlobalMetaAttribute, key: &str, value: &serde_json:
         }
         "payload" => gma.payload = value.clone(),
         _ => {}
+    }
+}
+
+fn opt_string(value: &serde_json::Value) -> Option<String> {
+    if value.is_null() {
+        None
+    } else {
+        Some(value.as_str().unwrap_or("").to_string())
     }
 }
 
@@ -688,7 +664,6 @@ fn build_client_import(files: &[(String, Vec<u8>)]) -> Result<ClientImport, Prob
 async fn detect_client_conflicts(
     import: &ClientImport,
     cache: &Cache,
-    pool: &PgPool,
 ) -> Result<Vec<ConflictDetail>, ProblemResponse> {
     let mut conflicts = Vec::new();
 
@@ -756,8 +731,6 @@ async fn detect_client_conflicts(
             }
         }
     }
-
-    let _ = pool;
 
     Ok(conflicts)
 }

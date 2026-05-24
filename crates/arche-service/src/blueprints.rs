@@ -18,6 +18,10 @@ impl HasId for Blueprint {
     }
 }
 
+const BLUEPRINT_COLUMNS: &str = "id, client_id, name, archetype, weight, description, \
+    attributes, attribute_order, min_prefixes, max_prefixes, \
+    min_suffixes, max_suffixes, created_at, updated_at";
+
 pub async fn list_blueprints(
     State(state): State<crate::AppState>,
     CurrentUser(user): CurrentUser,
@@ -36,16 +40,12 @@ pub async fn list_blueprints(
         ProblemResponse::validation_error(e.to_string(), vec![])
     })?;
 
-    let columns = "id, client_id, name, archetype, weight, description, \
-                   attributes, attribute_order, min_prefixes, max_prefixes, \
-                   min_suffixes, max_suffixes, created_at, updated_at";
-
     match mode {
         PaginationMode::Cursor { after, limit } => {
             let fetch_limit = limit + 1;
 
             let mut builder = QueryBuilder::new(
-                format!("SELECT {columns} FROM blueprints"),
+                format!("SELECT {BLUEPRINT_COLUMNS} FROM blueprints"),
             );
             apply_filters(
                 &mut builder,
@@ -92,7 +92,7 @@ pub async fn list_blueprints(
                 .get(0);
 
             let mut builder = QueryBuilder::new(
-                format!("SELECT {columns} FROM blueprints"),
+                format!("SELECT {BLUEPRINT_COLUMNS} FROM blueprints"),
             );
             apply_filters(
                 &mut builder,
@@ -173,12 +173,11 @@ fn resolve_client_id(
     if user.is_super {
         Ok(query_client_id)
     } else {
-        match user.client_id {
-            Some(cid) => Ok(Some(cid)),
-            None => Err(ProblemResponse::forbidden(
+        user.client_id.map(Some).ok_or_else(|| {
+            ProblemResponse::forbidden(
                 "Access denied: key is not associated with any client",
-            )),
-        }
+            )
+        })
     }
 }
 

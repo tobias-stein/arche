@@ -48,7 +48,6 @@ fn cmd_init(config: &Config) -> Result<(), CliError> {
     let client = client::build_client(config);
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-
     let response = rt
         .block_on(client.get(&url).send())
         .map_err(|e| CliError::Generic(format!("Failed to connect to API: {e}")))?;
@@ -141,9 +140,9 @@ mod init_tests {
         }
     }
 
-    fn run_init(config: Config) -> Result<(), CliError> {
-        std::thread::spawn(move || cmd_init(&config))
-            .join()
+    async fn run_init(config: Config) -> Result<(), CliError> {
+        tokio::task::spawn_blocking(move || cmd_init(&config))
+            .await
             .unwrap()
     }
 
@@ -162,7 +161,7 @@ mod init_tests {
             .await;
 
         let config = make_config(&uri, false, false);
-        let result = run_init(config);
+        let result = run_init(config).await;
         assert!(result.is_ok());
     }
 
@@ -181,7 +180,7 @@ mod init_tests {
             .await;
 
         let config = make_config(&uri, false, false);
-        let result = run_init(config);
+        let result = run_init(config).await;
         assert!(result.is_ok());
     }
 
@@ -200,7 +199,7 @@ mod init_tests {
             .await;
 
         let config = make_config(&uri, true, false);
-        let result = run_init(config);
+        let result = run_init(config).await;
         assert!(result.is_ok());
     }
 
@@ -219,7 +218,7 @@ mod init_tests {
             .await;
 
         let config = make_config(&uri, false, true);
-        let result = run_init(config);
+        let result = run_init(config).await;
         assert!(result.is_ok());
     }
 
@@ -235,7 +234,7 @@ mod init_tests {
             .await;
 
         let config = make_config(&uri, false, false);
-        let result = run_init(config);
+        let result = run_init(config).await;
         assert!(result.is_err());
         match result {
             Err(CliError::Api(_)) => {}
@@ -262,7 +261,7 @@ mod init_tests {
             .await;
 
         let config = make_config(&uri, false, false);
-        let result = run_init(config);
+        let result = run_init(config).await;
         assert!(result.is_err());
         match &result {
             Err(CliError::Api(problem)) => {

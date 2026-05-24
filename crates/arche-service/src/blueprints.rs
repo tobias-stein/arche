@@ -4,6 +4,7 @@ use arche_types::crud::{BlueprintResponse, CreateBlueprintRequest};
 use arche_types::{AffixLocation, Blueprint};
 use axum::extract::{Path, Query, State};
 use axum::Json;
+use serde::Deserialize;
 use sqlx::postgres::PgRow;
 use sqlx::{QueryBuilder, Row};
 use std::collections::{HashMap, HashSet};
@@ -446,6 +447,73 @@ pub async fn update_blueprint(
     let response = assemble_response(&bp, &req.affixes);
 
     Ok(Json(response))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct DeleteBlueprintQuery {
+    #[serde(default)]
+    pub force: bool,
+}
+
+pub async fn delete_blueprint(
+    State(state): State<crate::AppState>,
+    CurrentUser(user): CurrentUser,
+    Path(id): Path<Uuid>,
+    Query(query): Query<DeleteBlueprintQuery>,
+) -> Result<Json<serde_json::Value>, ProblemResponse> {
+    let row = sqlx::query(&format!(
+        "SELECT {BLUEPRINT_COLUMNS} FROM blueprints WHERE id = $1"
+    ))
+    .bind(id)
+    .fetch_optional(&*state.pool)
+    .await
+    .map_err(|e| {
+        tracing::error!(error = %e, "blueprints: get for delete failed");
+        ProblemResponse::unprocessable_entity("Failed to get blueprint for deletion")
+    })?
+    .ok_or_else(|| ProblemResponse::not_found(format!("Blueprint not found: {id}")))?;
+
+    let bp = row_to_blueprint(&row);
+
+    if !user.is_super {
+        let user_cid = user.client_id.ok_or_else(|| {
+            ProblemResponse::forbidden("Access denied: key is not associated with any client")
+        })?;
+        if bp.client_id != user_cid {
+            return Err(ProblemResponse::not_found(format!("Blueprint not found: {id}")));
+        }
+    }
+
+    if !query.force {
+        let count: i64 = sqlx::query(
+            "SELECT COUNT(*) FROM blueprint_affixes WHERE blueprint_id = $1",
+        )
+        .bind(id)
+        .fetch_one(&*state.pool)
+        .await
+        .map_err(|e| {
+            tracing::error!(error = %e, "blueprints: check references failed");
+            ProblemResponse::unprocessable_entity("Failed to check blueprint references")
+        })?
+        .get(0);
+
+        if count > 0 {
+            return Err(ProblemResponse::delete_referenced_resource(format!(
+                "Blueprint {id} is referenced by {count} affix pool entries. Use force=true to cascade delete.",
+            )));
+        }
+    }
+
+    sqlx::query("DELETE FROM blueprints WHERE id = $1")
+        .bind(id)
+        .execute(&*state.pool)
+        .await
+        .map_err(|e| {
+            tracing::error!(error = %e, "blueprints: delete failed");
+            ProblemResponse::unprocessable_entity("Failed to delete blueprint")
+        })?;
+
+    Ok(Json(serde_json::json!({"deleted": true})))
 }
 
 fn apply_filters<'a>(
@@ -1214,6 +1282,18 @@ mod tests {
         assert!(result.is_err());
     }
 
+    #[test]
+    fn test_delete_blueprint_query_default_force_false() {
+        let query: DeleteBlueprintQuery = serde_json::from_str("{}").unwrap();
+        assert!(!query.force);
+    }
+
+    #[test]
+    fn test_delete_blueprint_query_force_true() {
+        let query: DeleteBlueprintQuery = serde_json::from_str(r#"{"force":true}"#).unwrap();
+        assert!(query.force);
+    }
+
     // DB integration tests
     mod db_tests {
         use super::*;
@@ -1848,6 +1928,346 @@ mod tests {
                     .execute(&pool)
                     .await
                     .unwrap();
+        }
+
+        #[tokio::test]
+        async fn test_delete_blueprint_no_affixes_succeeds() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_id = create_test_client(&pool).await;
+            let bp_id = Uuid::new_v4();
+            sqlx::query(
+                "INSERT INTO blueprints (id, client_id, name, archetype, weight, attributes, attribute_order, \
+                 min_prefixes, max_prefixes, min_suffixes, max_suffixes) \
+                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)",
+            )
+            .bind(bp_id)
+            .bind(client_id)
+            .bind("Sword")
+            .bind("sword")
+            .bind(1.0)
+            .bind(&json!({}))
+            .bind(&vec!["damage".to_string()])
+            .bind(0)
+            .bind(2)
+            .bind(0)
+            .bind(2)
+            .execute(&pool)
+            .await
+            .unwrap();
+
+            let state = test_state(Arc::new(pool.clone()));
+            let user = test_user(client_id, Permission::Delete);
+
+            let result = delete_blueprint(
+                axum::extract::State(state),
+                user,
+                axum::extract::Path(bp_id),
+                axum::extract::Query(DeleteBlueprintQuery { force: false }),
+            )
+            .await;
+
+            assert!(result.is_ok(), "delete failed: {:?}", result.err());
+            let resp = result.unwrap();
+            assert_eq!(resp.0, json!({"deleted": true}));
+
+            let count: i64 = sqlx::query(
+                "SELECT COUNT(*) FROM blueprints WHERE id = $1",
+            )
+            .bind(bp_id)
+            .fetch_one(&pool)
+            .await
+            .unwrap()
+            .get(0);
+            assert_eq!(count, 0);
+
+            sqlx::query("DELETE FROM clients WHERE id = $1")
+                .bind(client_id)
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+
+        #[tokio::test]
+        async fn test_delete_blueprint_with_affixes_returns_409() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_id = create_test_client(&pool).await;
+            let prefix_id = create_test_affix(&pool, client_id, "Fire", AffixLocation::Prefix).await;
+            let bp_id = Uuid::new_v4();
+            sqlx::query(
+                "INSERT INTO blueprints (id, client_id, name, archetype, weight, attributes, attribute_order, \
+                 min_prefixes, max_prefixes, min_suffixes, max_suffixes) \
+                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)",
+            )
+            .bind(bp_id)
+            .bind(client_id)
+            .bind("Sword")
+            .bind("sword")
+            .bind(1.0)
+            .bind(&json!({}))
+            .bind(&vec!["damage".to_string()])
+            .bind(0)
+            .bind(2)
+            .bind(0)
+            .bind(2)
+            .execute(&pool)
+            .await
+            .unwrap();
+            sqlx::query(
+                "INSERT INTO blueprint_affixes (blueprint_id, affix_id, weight, location, sort_order) \
+                 VALUES ($1,$2,$3,$4,$5)",
+            )
+            .bind(bp_id)
+            .bind(prefix_id)
+            .bind(1.0)
+            .bind(affix_location_str(&AffixLocation::Prefix))
+            .bind(0)
+            .execute(&pool)
+            .await
+            .unwrap();
+
+            let state = test_state(Arc::new(pool.clone()));
+            let user = test_user(client_id, Permission::Delete);
+
+            let result = delete_blueprint(
+                axum::extract::State(state),
+                user,
+                axum::extract::Path(bp_id),
+                axum::extract::Query(DeleteBlueprintQuery { force: false }),
+            )
+            .await;
+
+            assert!(result.is_err());
+            let err = result.unwrap_err();
+            assert_eq!(err.status, 409);
+            assert!(err.detail.unwrap().contains("referenced by 1 affix pool"));
+
+            let count: i64 = sqlx::query(
+                "SELECT COUNT(*) FROM blueprints WHERE id = $1",
+            )
+            .bind(bp_id)
+            .fetch_one(&pool)
+            .await
+            .unwrap()
+            .get(0);
+            assert_eq!(count, 1);
+
+            sqlx::query("DELETE FROM blueprint_affixes WHERE blueprint_id = $1")
+                .bind(bp_id)
+                .execute(&pool)
+                .await
+                .unwrap();
+            sqlx::query("DELETE FROM blueprints WHERE id = $1")
+                .bind(bp_id)
+                .execute(&pool)
+                .await
+                .unwrap();
+            sqlx::query("DELETE FROM affixes WHERE client_id = $1")
+                .bind(client_id)
+                .execute(&pool)
+                .await
+                .unwrap();
+            sqlx::query("DELETE FROM clients WHERE id = $1")
+                .bind(client_id)
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+
+        #[tokio::test]
+        async fn test_force_delete_blueprint_with_affixes_succeeds() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_id = create_test_client(&pool).await;
+            let prefix_id = create_test_affix(&pool, client_id, "Fire", AffixLocation::Prefix).await;
+            let bp_id = Uuid::new_v4();
+            sqlx::query(
+                "INSERT INTO blueprints (id, client_id, name, archetype, weight, attributes, attribute_order, \
+                 min_prefixes, max_prefixes, min_suffixes, max_suffixes) \
+                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)",
+            )
+            .bind(bp_id)
+            .bind(client_id)
+            .bind("Sword")
+            .bind("sword")
+            .bind(1.0)
+            .bind(&json!({}))
+            .bind(&vec!["damage".to_string()])
+            .bind(0)
+            .bind(2)
+            .bind(0)
+            .bind(2)
+            .execute(&pool)
+            .await
+            .unwrap();
+            sqlx::query(
+                "INSERT INTO blueprint_affixes (blueprint_id, affix_id, weight, location, sort_order) \
+                 VALUES ($1,$2,$3,$4,$5)",
+            )
+            .bind(bp_id)
+            .bind(prefix_id)
+            .bind(1.0)
+            .bind(affix_location_str(&AffixLocation::Prefix))
+            .bind(0)
+            .execute(&pool)
+            .await
+            .unwrap();
+
+            let state = test_state(Arc::new(pool.clone()));
+            let user = test_user(client_id, Permission::Delete);
+
+            let result = delete_blueprint(
+                axum::extract::State(state),
+                user,
+                axum::extract::Path(bp_id),
+                axum::extract::Query(DeleteBlueprintQuery { force: true }),
+            )
+            .await;
+
+            assert!(result.is_ok(), "force delete failed: {:?}", result.err());
+            let resp = result.unwrap();
+            assert_eq!(resp.0, json!({"deleted": true}));
+
+            let count: i64 = sqlx::query(
+                "SELECT COUNT(*) FROM blueprints WHERE id = $1",
+            )
+            .bind(bp_id)
+            .fetch_one(&pool)
+            .await
+            .unwrap()
+            .get(0);
+            assert_eq!(count, 0);
+
+            let affix_count: i64 = sqlx::query(
+                "SELECT COUNT(*) FROM blueprint_affixes WHERE blueprint_id = $1",
+            )
+            .bind(bp_id)
+            .fetch_one(&pool)
+            .await
+            .unwrap()
+            .get(0);
+            assert_eq!(affix_count, 0);
+
+            sqlx::query("DELETE FROM affixes WHERE client_id = $1")
+                .bind(client_id)
+                .execute(&pool)
+                .await
+                .unwrap();
+            sqlx::query("DELETE FROM clients WHERE id = $1")
+                .bind(client_id)
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+
+        #[tokio::test]
+        async fn test_delete_nonexistent_blueprint_returns_404() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_id = create_test_client(&pool).await;
+
+            let state = test_state(Arc::new(pool.clone()));
+            let user = test_user(client_id, Permission::Delete);
+
+            let result = delete_blueprint(
+                axum::extract::State(state),
+                user,
+                axum::extract::Path(Uuid::new_v4()),
+                axum::extract::Query(DeleteBlueprintQuery { force: false }),
+            )
+            .await;
+
+            assert!(result.is_err());
+            let err = result.unwrap_err();
+            assert_eq!(err.status, 404);
+            assert!(err.detail.unwrap().contains("Blueprint not found"));
+
+            sqlx::query("DELETE FROM clients WHERE id = $1")
+                .bind(client_id)
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+
+        #[tokio::test]
+        async fn test_delete_blueprint_wrong_client_returns_404() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_a = create_test_client(&pool).await;
+            let client_b = create_test_client(&pool).await;
+            let bp_id = Uuid::new_v4();
+            sqlx::query(
+                "INSERT INTO blueprints (id, client_id, name, archetype, weight, attributes, attribute_order, \
+                 min_prefixes, max_prefixes, min_suffixes, max_suffixes) \
+                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)",
+            )
+            .bind(bp_id)
+            .bind(client_a)
+            .bind("Sword")
+            .bind("sword")
+            .bind(1.0)
+            .bind(&json!({}))
+            .bind(&vec!["damage".to_string()])
+            .bind(0)
+            .bind(2)
+            .bind(0)
+            .bind(2)
+            .execute(&pool)
+            .await
+            .unwrap();
+
+            let state = test_state(Arc::new(pool.clone()));
+            let user = test_user(client_b, Permission::Delete);
+
+            let result = delete_blueprint(
+                axum::extract::State(state),
+                user,
+                axum::extract::Path(bp_id),
+                axum::extract::Query(DeleteBlueprintQuery { force: false }),
+            )
+            .await;
+
+            assert!(result.is_err());
+            let err = result.unwrap_err();
+            assert_eq!(err.status, 404);
+            assert!(err.detail.unwrap().contains("Blueprint not found"));
+
+            let count: i64 = sqlx::query(
+                "SELECT COUNT(*) FROM blueprints WHERE id = $1",
+            )
+            .bind(bp_id)
+            .fetch_one(&pool)
+            .await
+            .unwrap()
+            .get(0);
+            assert_eq!(count, 1);
+
+            sqlx::query("DELETE FROM blueprints WHERE id = $1")
+                .bind(bp_id)
+                .execute(&pool)
+                .await
+                .unwrap();
+            sqlx::query("DELETE FROM clients WHERE id = $1")
+                .bind(client_a)
+                .execute(&pool)
+                .await
+                .unwrap();
+            sqlx::query("DELETE FROM clients WHERE id = $1")
+                .bind(client_b)
+                .execute(&pool)
+                .await
+                .unwrap();
         }
     }
 }

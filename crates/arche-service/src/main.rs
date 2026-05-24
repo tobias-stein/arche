@@ -79,7 +79,7 @@ fn build_router(state: AppState) -> Router {
         .route("/api/schema/affixes", get(get_affixes_schema))
         .route("/api/schema/generate", get(get_generate_schema))
         .route("/api/blueprints", get(blueprints::list_blueprints).post(blueprints::create_blueprint))
-        .route("/api/blueprints/{id}", get(blueprints::get_blueprint).put(blueprints::update_blueprint))
+        .route("/api/blueprints/{id}", get(blueprints::get_blueprint).put(blueprints::update_blueprint).delete(blueprints::delete_blueprint))
         .route("/api/blueprints/batch/edit", post(batch::batch_edit_blueprints))
         .route("/api/import", post(import::import_parse_handler))
         .route("/api/import/resolve", post(import::import_resolve_handler))

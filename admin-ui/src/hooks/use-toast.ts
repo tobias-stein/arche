@@ -16,8 +16,7 @@ type ToasterToast = {
 let count = 0
 
 function genId() {
-  count = (count + 1) % Number.MAX_SAFE_INTEGER
-  return count.toString()
+  return String(++count)
 }
 
 type Action =
@@ -130,7 +129,7 @@ function useToast() {
       const index = listeners.indexOf(setState)
       if (index > -1) listeners.splice(index, 1)
     }
-  }, [state])
+  }, [])
 
   return {
     ...state,

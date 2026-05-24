@@ -1,6 +1,6 @@
 ---
 title: Batch edit — blueprint attributes
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

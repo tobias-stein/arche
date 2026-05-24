@@ -26,11 +26,8 @@ fn main() -> ExitCode {
 
 fn run(cli: Cli, config: &Config) -> Result<(), CliError> {
     print_verbose(&format!("API URL: {}", config.api_url), config.verbose);
-    if config.api_key.is_some() {
-        print_verbose("API key: configured", config.verbose);
-    } else {
-        print_verbose("API key: not set", config.verbose);
-    }
+    let key_status = if config.api_key.is_some() { "configured" } else { "not set" };
+    print_verbose(&format!("API key: {key_status}"), config.verbose);
 
     match &cli.command {
         Command::Init => cmd_init(config),

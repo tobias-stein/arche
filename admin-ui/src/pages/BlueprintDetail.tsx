@@ -57,7 +57,7 @@ function isRefAttribute(attr: BlueprintAttribute): attr is RefAttribute {
 }
 
 function getValueTypeDisplay(attr: BlueprintAttribute): string {
-  if ('$ref_id' in attr) return 'global'
+  if (isRefAttribute(attr)) return 'global'
   return attr.valueType
 }
 
@@ -360,27 +360,27 @@ export default function BlueprintDetail() {
     (k) => k in (blueprint.attributes ?? {}),
   )
 
-  const bp = blueprint
+  const blueprintData = blueprint
 
   async function handleDuplicate() {
     try {
       await createMutation.mutateAsync({
-        name: `${bp.name} (Copy)`,
-        archetype: bp.archetype,
-        weight: bp.weight,
-        description: bp.description,
-        attributes: bp.attributes,
-        attributeOrder: bp.attributeOrder,
+        name: `${blueprintData.name} (Copy)`,
+        archetype: blueprintData.archetype,
+        weight: blueprintData.weight,
+        description: blueprintData.description,
+        attributes: blueprintData.attributes,
+        attributeOrder: blueprintData.attributeOrder,
         affixes: {
-          minPrefixes: bp.minPrefixes,
-          maxPrefixes: bp.maxPrefixes,
-          minSuffixes: bp.minSuffixes,
-          maxSuffixes: bp.maxSuffixes,
+          minPrefixes: blueprintData.minPrefixes,
+          maxPrefixes: blueprintData.maxPrefixes,
+          minSuffixes: blueprintData.minSuffixes,
+          maxSuffixes: blueprintData.maxSuffixes,
           prefixes: [],
           suffixes: [],
         },
       })
-      toast({ title: `Duplicated "${bp.name}"` })
+      toast({ title: `Duplicated "${blueprintData.name}"` })
     } catch {
       toast({ title: 'Failed to duplicate blueprint', variant: 'destructive' })
     }

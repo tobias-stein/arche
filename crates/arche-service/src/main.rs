@@ -2,6 +2,7 @@ mod bootstrap;
 mod config;
 mod schema;
 pub mod cache;
+pub mod generation;
 pub mod pagination;
 pub mod error;
 

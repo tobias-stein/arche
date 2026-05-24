@@ -336,7 +336,6 @@ export default function Affixes() {
 
   const [editingAffix, setEditingAffix] = useState<Affix | null>(null)
   const [showEditDialog, setShowEditDialog] = useState(false)
-  const [editDialogKey, setEditDialogKey] = useState(0)
 
   const [deletingAffix, setDeletingAffix] = useState<Affix | null>(null)
   const deleteMutation = useDeleteAffix()
@@ -345,19 +344,14 @@ export default function Affixes() {
   const batchDeleteMutation = useBatchDeleteAffixes()
 
   const [showBlueprintPicker, setShowBlueprintPicker] = useState(false)
-  const [pickerKey, setPickerKey] = useState(0)
-
-  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pickerOpenCountRef = useRef(0)
 
   useEffect(() => {
-    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current)
-    searchTimeoutRef.current = setTimeout(() => {
+    const timeout = setTimeout(() => {
       setDebouncedSearch(search)
       setPage(1)
     }, 300)
-    return () => {
-      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current)
-    }
+    return () => clearTimeout(timeout)
   }, [search])
 
   const {
@@ -439,7 +433,6 @@ export default function Affixes() {
 
   function handleEdit(affix: Affix) {
     setEditingAffix(affix)
-    setEditDialogKey((k) => k + 1)
     setShowEditDialog(true)
   }
 
@@ -546,7 +539,7 @@ export default function Affixes() {
               size="sm"
               variant="secondary"
               onClick={() => {
-                setPickerKey((k) => k + 1)
+                pickerOpenCountRef.current++
                 setShowBlueprintPicker(true)
               }}
             >
@@ -837,7 +830,7 @@ export default function Affixes() {
 
       {/* Edit dialog */}
       <EditAffixDialog
-        key={editDialogKey}
+        key={editingAffix?.id ?? 'none'}
         affix={editingAffix}
         open={showEditDialog}
         onOpenChange={setShowEditDialog}
@@ -845,7 +838,7 @@ export default function Affixes() {
 
       {/* Blueprint picker dialog */}
       <BlueprintPickerDialog
-        key={pickerKey}
+        key={pickerOpenCountRef.current}
         open={showBlueprintPicker}
         onOpenChange={setShowBlueprintPicker}
         selectedAffixIds={Array.from(selectedIds)}

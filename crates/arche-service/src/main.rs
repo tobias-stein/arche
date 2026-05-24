@@ -1,9 +1,9 @@
+pub mod auth;
 mod bootstrap;
 mod config;
 pub mod generation;
 mod schema;
 pub mod cache;
-pub mod generation;
 pub mod pagination;
 pub mod error;
 pub mod redis_pubsub;
@@ -34,6 +34,12 @@ struct AppState {
     cache: Arc<RwLock<Cache>>,
     pool: Arc<PgPool>,
     redis: Option<RedisPubSubHandle>,
+}
+
+impl axum::extract::FromRef<AppState> for Arc<PgPool> {
+    fn from_ref(state: &AppState) -> Self {
+        state.pool.clone()
+    }
 }
 
 async fn health_check() -> Json<Value> {

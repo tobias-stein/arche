@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { MouseEvent as ReactMouseEvent } from 'react'
 import { ChevronLeft, ChevronRight, Pencil, Trash2 } from 'lucide-react'
 
@@ -41,6 +41,11 @@ import {
 import { useToast } from '@/hooks/use-toast'
 
 const PER_PAGE = 20
+
+function pluralize(count: number, singular: string, plural?: string): string {
+  if (count === 1) return singular
+  return plural ?? `${singular}s`
+}
 
 function getAttributeName(attribute: AffixAttribute): string {
   if ('$ref_id' in attribute && attribute.$ref_id) {
@@ -121,7 +126,7 @@ function EditAffixDialog({
   const [location, setLocation] = useState<AffixLocation>(affix?.location ?? 'prefix')
   const [description, setDescription] = useState(affix?.description ?? '')
 
-  const handleSubmit = useCallback(async () => {
+  const handleSubmit = async () => {
     if (!affix || !name.trim()) return
     try {
       await updateMutation.mutateAsync({
@@ -138,7 +143,7 @@ function EditAffixDialog({
     } catch {
       toast({ title: 'Failed to update affix', variant: 'destructive' })
     }
-  }, [affix, name, location, description, updateMutation, toast, onOpenChange])
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -248,7 +253,7 @@ function BlueprintPickerDialog({
         weight: 1,
       })
       toast({
-        title: `Assigned ${selectedAffixIds.length} affix${selectedAffixIds.length !== 1 ? 'es' : ''} to ${selectedBpIds.size} blueprint${selectedBpIds.size !== 1 ? 's' : ''}`,
+        title: `Assigned ${pluralize(selectedAffixIds.length, 'affix', 'affixes')} to ${pluralize(selectedBpIds.size, 'blueprint')}`,
       })
       onOpenChange(false)
     } catch {
@@ -311,7 +316,7 @@ function BlueprintPickerDialog({
           >
             {batchAssignMutation.isPending
               ? 'Assigning...'
-              : `Assign (${selectedAffixIds.length} affix${selectedAffixIds.length !== 1 ? 'es' : ''})`}
+              : `Assign (${pluralize(selectedAffixIds.length, 'affix', 'affixes')})`}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -384,6 +389,13 @@ export default function Affixes() {
 
   const selectedCount = selectedIds.size
 
+  const paginationText =
+    totalCount > 0
+      ? `Page ${page} of ${totalPages} (${totalCount} total)`
+      : filteredItems.length > 0
+        ? pluralize(filteredItems.length, 'result')
+        : 'No results'
+
   function clearSelection() {
     setSelectedIds(new Set())
     setLastCheckedIdx(null)
@@ -453,7 +465,7 @@ export default function Affixes() {
       await batchDeleteMutation.mutateAsync({
         ids: Array.from(selectedIds),
       })
-      toast({ title: `Deleted ${selectedCount} affix${selectedCount !== 1 ? 'es' : ''}` })
+      toast({ title: `Deleted ${pluralize(selectedCount, 'affix', 'affixes')}` })
       setShowBatchDelete(false)
       clearSelection()
     } catch {
@@ -465,10 +477,7 @@ export default function Affixes() {
     filteredItems.length > 0 &&
     filteredItems.every((a) => selectedIds.has(a.id))
 
-  const selectAllLabel =
-    filteredItems.length > 0 && allPageSelected
-      ? 'Deselect all'
-      : 'Select all'
+  const selectAllLabel = allPageSelected ? 'Deselect all' : 'Select all'
 
   return (
     <div className="space-y-4">
@@ -770,11 +779,7 @@ export default function Affixes() {
             {/* Pagination */}
             <div className="flex items-center justify-between px-4 py-3 border-t">
               <span className="text-sm text-muted-foreground">
-                {totalCount > 0
-                  ? `Page ${page} of ${totalPages} (${totalCount} total)`
-                  : filteredItems.length > 0
-                    ? `${filteredItems.length} result${filteredItems.length !== 1 ? 's' : ''}`
-                    : 'No results'}
+                {paginationText}
               </span>
               <div className="flex items-center gap-2">
                 <Button
@@ -823,7 +828,7 @@ export default function Affixes() {
         open={showBatchDelete}
         onOpenChange={setShowBatchDelete}
         title="Batch Delete Affixes"
-        description={`Are you sure you want to delete ${selectedCount} affix${selectedCount !== 1 ? 'es' : ''}? This action cannot be undone.`}
+        description={`Are you sure you want to delete ${pluralize(selectedCount, 'affix', 'affixes')}? This action cannot be undone.`}
         confirmLabel="Delete All"
         variant="destructive"
         loading={batchDeleteMutation.isPending}

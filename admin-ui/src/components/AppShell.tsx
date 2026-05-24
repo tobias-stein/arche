@@ -4,6 +4,7 @@ import { useTheme } from '@/stores/theme'
 import { useUi } from '@/stores/ui'
 import { NavigationDrawer } from './NavigationDrawer'
 import { ActivityPanel } from './ActivityPanel'
+import { GlobalSearch } from './GlobalSearch'
 
 function ThemeToggle() {
   const { mode, toggle } = useTheme()
@@ -19,7 +20,7 @@ function ThemeToggle() {
 }
 
 function Header() {
-  const { drawerOpen, panelOpen, toggleDrawer, togglePanel } = useUi()
+  const { drawerOpen, panelOpen, toggleDrawer, togglePanel, openSearch } = useUi()
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 h-16 border-b bg-background flex items-center gap-4 px-4">
@@ -32,7 +33,10 @@ function Header() {
       </button>
       <span className="text-lg font-bold">Arche Admin</span>
       <div className="flex-1 max-w-md mx-auto">
-        <button className="w-full h-9 flex items-center gap-2 rounded-md border border-input bg-background px-3 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground">
+        <button
+          onClick={openSearch}
+          className="w-full h-9 flex items-center gap-2 rounded-md border border-input bg-background px-3 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+        >
           <Search className="h-4 w-4" />
           <span>Search...</span>
           <kbd className="ml-auto text-xs bg-muted px-1.5 py-0.5 rounded hidden sm:inline-flex items-center">
@@ -70,6 +74,7 @@ export function AppShell() {
         </main>
         {panelOpen && <ActivityPanel />}
       </div>
+      <GlobalSearch />
     </div>
   )
 }

@@ -53,7 +53,9 @@ export default function App() {
             <Route element={<AppShell />}>
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/blueprints" element={<Blueprints />} />
+              <Route path="/blueprints/:id" element={<Blueprints />} />
               <Route path="/affixes" element={<Affixes />} />
+              <Route path="/affixes/:id" element={<Affixes />} />
               <Route path="/global-meta-attributes" element={<GlobalMetaAttributes />} />
               <Route path="/clients" element={<Clients />} />
               <Route path="/audit-log" element={<AuditLog />} />

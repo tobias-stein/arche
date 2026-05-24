@@ -1,12 +1,16 @@
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { ArcheClient } from '@/api/generated/client'
 import { setClient } from '@/api/generated/hooks'
 import { AppShell } from '@/components/AppShell'
 
 setClient(new ArcheClient({ baseUrl: 'http://localhost:3000' }))
+
+vi.mock('@/components/GlobalSearch', () => ({
+  GlobalSearch: () => null,
+}))
 
 function renderShell(route = '/dashboard') {
   const queryClient = new QueryClient({
@@ -28,6 +32,7 @@ describe('AppShell', () => {
       drawerOpen: true,
       panelOpen: false,
       panelDocked: false,
+      searchOpen: false,
     })
     const { useTheme } = await import('@/stores/theme')
     useTheme.setState({ mode: 'light' })
@@ -43,6 +48,18 @@ describe('AppShell', () => {
     renderShell()
 
     expect(screen.getByText('Search...')).toBeInTheDocument()
+  })
+
+  it('opens search when search button is clicked', async () => {
+    const { useUi } = await import('@/stores/ui')
+    useUi.setState({ searchOpen: false })
+
+    renderShell()
+
+    const searchButton = screen.getByText('Search...')
+    searchButton.click()
+
+    expect(useUi.getState().searchOpen).toBe(true)
   })
 
   it('renders the drawer toggle button', () => {

@@ -1,5 +1,6 @@
 pub mod auth;
 mod bootstrap;
+pub mod blueprints;
 mod config;
 pub mod generation;
 pub mod import;
@@ -76,6 +77,7 @@ fn build_router(state: AppState) -> Router {
         .route("/api/schema/blueprints", get(get_blueprints_schema))
         .route("/api/schema/affixes", get(get_affixes_schema))
         .route("/api/schema/generate", get(get_generate_schema))
+        .route("/api/blueprints", get(blueprints::list_blueprints))
         .route("/api/import", post(import::import_parse_handler))
         .route("/api/import/resolve", post(import::import_resolve_handler))
         .layer(TraceLayer::new_for_http())

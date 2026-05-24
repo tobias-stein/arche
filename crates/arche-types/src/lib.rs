@@ -991,6 +991,7 @@ mod tests {
             limit: None,
             page: Some(1),
             per_page: None,
+            client_id: None,
             archetype: Some("sword".into()),
             search: None,
         };

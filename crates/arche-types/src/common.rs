@@ -34,6 +34,8 @@ pub struct BlueprintListQuery {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub per_page: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub client_id: Option<uuid::Uuid>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub archetype: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub search: Option<String>,

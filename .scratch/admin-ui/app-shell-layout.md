@@ -1,6 +1,6 @@
 ---
 title: App shell — header + navigation drawer + content area
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

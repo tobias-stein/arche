@@ -79,6 +79,7 @@ type AttributeEntry = {
 }
 
 const VALUE_TYPES: ValueType[] = ['single', 'enum', 'range', 'string', 'boolean']
+const errorClass = 'text-[0.8rem] font-medium text-destructive'
 
 function getValueTypeDisplay(attr: BlueprintAttribute): string {
   if ('$ref_id' in attr) return 'global'
@@ -155,48 +156,42 @@ function SortableRow({
   )
 }
 
-function SortableAffixRow({
-  id,
-  children,
-}: {
-  id: string
-  children: React.ReactNode
-}) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id })
+function buildDistribution(distType: string, stdDev: string, rate: string) {
+  if (distType === 'none') return undefined
+  if (distType === 'uniform') return { type: 'uniform' } as const
+  if (distType === 'normal')
+    return { type: 'normal', stdDev: Number(stdDev) || 1 } as const
+  if (distType === 'exponential')
+    return { type: 'exponential', rate: Number(rate) || 1 } as const
+  return undefined
+}
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
+function reorderPool(
+  items: AffixPoolEntry[],
+  setter: (items: AffixPoolEntry[]) => void,
+  prefix: string,
+): (event: DragEndEvent) => void {
+  return (event) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+
+    const updated = [...items]
+    const oldIdx = Number((active.id as string).replace(`${prefix}-`, ''))
+    const newIdx = Number((over.id as string).replace(`${prefix}-`, ''))
+
+    if (
+      !isNaN(oldIdx) &&
+      !isNaN(newIdx) &&
+      oldIdx >= 0 &&
+      newIdx >= 0 &&
+      oldIdx < items.length &&
+      newIdx < items.length
+    ) {
+      const [moved] = updated.splice(oldIdx, 1)
+      updated.splice(newIdx, 0, moved)
+      setter(updated)
+    }
   }
-
-  return (
-    <TableRow
-      ref={setNodeRef}
-      style={style}
-      className={isDragging ? 'z-50' : ''}
-    >
-      <TableCell className="w-8">
-        <button
-          type="button"
-          className="cursor-grab touch-none"
-          {...attributes}
-          {...listeners}
-          aria-label="Drag to reorder"
-        >
-          <GripVertical className="h-4 w-4 text-muted-foreground" />
-        </button>
-      </TableCell>
-      {children}
-    </TableRow>
-  )
 }
 
 function InlineAttributeForm({
@@ -235,20 +230,10 @@ function InlineAttributeForm({
           setError('Value must be a number')
           return
         }
-        payload = { valueType: 'single', value: v }
-        if (distType !== 'none') {
-          if (distType === 'uniform')
-            payload.distribution = { type: 'uniform' }
-          else if (distType === 'normal')
-            payload.distribution = {
-              type: 'normal',
-              stdDev: Number(distStdDev) || 1,
-            }
-          else if (distType === 'exponential')
-            payload.distribution = {
-              type: 'exponential',
-              rate: Number(distRate) || 1,
-            }
+        payload = {
+          valueType: 'single',
+          value: v,
+          distribution: buildDistribution(distType, distStdDev, distRate),
         }
         break
       }
@@ -271,20 +256,11 @@ function InlineAttributeForm({
           setError('Min and max must be numbers')
           return
         }
-        payload = { valueType: 'range', min, max }
-        if (distType !== 'none') {
-          if (distType === 'uniform')
-            payload.distribution = { type: 'uniform' }
-          else if (distType === 'normal')
-            payload.distribution = {
-              type: 'normal',
-              stdDev: Number(distStdDev) || 1,
-            }
-          else if (distType === 'exponential')
-            payload.distribution = {
-              type: 'exponential',
-              rate: Number(distRate) || 1,
-            }
+        payload = {
+          valueType: 'range',
+          min,
+          max,
+          distribution: buildDistribution(distType, distStdDev, distRate),
         }
         break
       }
@@ -466,7 +442,7 @@ function InlineAttributeForm({
         </div>
       )}
 
-      {valueType === 'single' && distType === 'normal' && (
+      {(valueType === 'single' || valueType === 'range') && distType === 'normal' && (
         <div className="space-y-2">
           <label className="text-sm font-medium" htmlFor="dist-stddev">
             Std Dev
@@ -481,37 +457,7 @@ function InlineAttributeForm({
         </div>
       )}
 
-      {valueType === 'single' && distType === 'exponential' && (
-        <div className="space-y-2">
-          <label className="text-sm font-medium" htmlFor="dist-rate">
-            Rate
-          </label>
-          <Input
-            id="dist-rate"
-            type="number"
-            value={distRate}
-            onChange={(e) => setDistRate(e.target.value)}
-            placeholder="1"
-          />
-        </div>
-      )}
-
-      {valueType === 'range' && distType === 'normal' && (
-        <div className="space-y-2">
-          <label className="text-sm font-medium" htmlFor="dist-stddev">
-            Std Dev
-          </label>
-          <Input
-            id="dist-stddev"
-            type="number"
-            value={distStdDev}
-            onChange={(e) => setDistStdDev(e.target.value)}
-            placeholder="1"
-          />
-        </div>
-      )}
-
-      {valueType === 'range' && distType === 'exponential' && (
+      {(valueType === 'single' || valueType === 'range') && distType === 'exponential' && (
         <div className="space-y-2">
           <label className="text-sm font-medium" htmlFor="dist-rate">
             Rate
@@ -539,7 +485,7 @@ function InlineAttributeForm({
       </div>
 
       {error && (
-        <p className="text-[0.8rem] font-medium text-destructive">{error}</p>
+                                                    <p className={errorClass}>{error}</p>
       )}
 
       <div className="flex gap-2">
@@ -764,52 +710,12 @@ export function BlueprintFormModal({
   )
 
   const handlePrefixDragEnd = useCallback(
-    (event: DragEndEvent) => {
-      const { active, over } = event
-      if (!over || active.id === over.id) return
-
-      const items = [...prefixes]
-      const oldIdx = Number((active.id as string).replace('prefix-', ''))
-      const newIdx = Number((over.id as string).replace('prefix-', ''))
-
-      if (
-        !isNaN(oldIdx) &&
-        !isNaN(newIdx) &&
-        oldIdx >= 0 &&
-        newIdx >= 0 &&
-        oldIdx < items.length &&
-        newIdx < items.length
-      ) {
-        const [moved] = items.splice(oldIdx, 1)
-        items.splice(newIdx, 0, moved)
-        setPrefixes(items)
-      }
-    },
+    (event: DragEndEvent) => reorderPool(prefixes, setPrefixes, 'prefix')(event),
     [prefixes],
   )
 
   const handleSuffixDragEnd = useCallback(
-    (event: DragEndEvent) => {
-      const { active, over } = event
-      if (!over || active.id === over.id) return
-
-      const items = [...suffixes]
-      const oldIdx = Number((active.id as string).replace('suffix-', ''))
-      const newIdx = Number((over.id as string).replace('suffix-', ''))
-
-      if (
-        !isNaN(oldIdx) &&
-        !isNaN(newIdx) &&
-        oldIdx >= 0 &&
-        newIdx >= 0 &&
-        oldIdx < items.length &&
-        newIdx < items.length
-      ) {
-        const [moved] = items.splice(oldIdx, 1)
-        items.splice(newIdx, 0, moved)
-        setSuffixes(items)
-      }
-    },
+    (event: DragEndEvent) => reorderPool(suffixes, setSuffixes, 'suffix')(event),
     [suffixes],
   )
 
@@ -1014,7 +920,7 @@ export function BlueprintFormModal({
                     placeholder="Blueprint name"
                   />
                   {errors.name && (
-                    <p className="text-[0.8rem] font-medium text-destructive">
+                    <p className={errorClass}>
                       {errors.name}
                     </p>
                   )}
@@ -1034,7 +940,7 @@ export function BlueprintFormModal({
                     placeholder="e.g. weapon, character"
                   />
                   {errors.archetype && (
-                    <p className="text-[0.8rem] font-medium text-destructive">
+                    <p className={errorClass}>
                       {errors.archetype}
                     </p>
                   )}
@@ -1055,7 +961,7 @@ export function BlueprintFormModal({
                     }}
                   />
                   {errors.weight && (
-                    <p className="text-[0.8rem] font-medium text-destructive">
+                    <p className={errorClass}>
                       {errors.weight}
                     </p>
                   )}
@@ -1205,7 +1111,7 @@ export function BlueprintFormModal({
                         }}
                       />
                       {errors['affixes.minPrefixes'] && (
-                        <p className="text-[0.8rem] font-medium text-destructive">
+                        <p className={errorClass}>
                           {errors['affixes.minPrefixes']}
                         </p>
                       )}
@@ -1225,7 +1131,7 @@ export function BlueprintFormModal({
                         }}
                       />
                       {errors['affixes.maxPrefixes'] && (
-                        <p className="text-[0.8rem] font-medium text-destructive">
+                        <p className={errorClass}>
                           {errors['affixes.maxPrefixes']}
                         </p>
                       )}
@@ -1271,7 +1177,7 @@ export function BlueprintFormModal({
                               strategy={verticalListSortingStrategy}
                             >
                               {prefixes.map((p, idx) => (
-                                <SortableAffixRow
+                                <SortableRow
                                   key={`prefix-${idx}`}
                                   id={`prefix-${idx}`}
                                 >
@@ -1309,7 +1215,7 @@ export function BlueprintFormModal({
                                       <Trash2 className="h-4 w-4" />
                                     </Button>
                                   </TableCell>
-                                </SortableAffixRow>
+                                </SortableRow>
                               ))}
                             </SortableContext>
                           </TableBody>
@@ -1343,7 +1249,7 @@ export function BlueprintFormModal({
                         }}
                       />
                       {errors['affixes.minSuffixes'] && (
-                        <p className="text-[0.8rem] font-medium text-destructive">
+                        <p className={errorClass}>
                           {errors['affixes.minSuffixes']}
                         </p>
                       )}
@@ -1363,7 +1269,7 @@ export function BlueprintFormModal({
                         }}
                       />
                       {errors['affixes.maxSuffixes'] && (
-                        <p className="text-[0.8rem] font-medium text-destructive">
+                        <p className={errorClass}>
                           {errors['affixes.maxSuffixes']}
                         </p>
                       )}
@@ -1409,7 +1315,7 @@ export function BlueprintFormModal({
                               strategy={verticalListSortingStrategy}
                             >
                               {suffixes.map((s, idx) => (
-                                <SortableAffixRow
+                                <SortableRow
                                   key={`suffix-${idx}`}
                                   id={`suffix-${idx}`}
                                 >
@@ -1447,7 +1353,7 @@ export function BlueprintFormModal({
                                       <Trash2 className="h-4 w-4" />
                                     </Button>
                                   </TableCell>
-                                </SortableAffixRow>
+                                </SortableRow>
                               ))}
                             </SortableContext>
                           </TableBody>

@@ -51,15 +51,13 @@ export default function Login() {
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Input
-                type="password"
-                placeholder="API Key"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                autoFocus
-              />
-            </div>
+            <Input
+              type="password"
+              placeholder="API Key"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              autoFocus
+            />
             {error && (
               <p className="text-sm text-destructive" role="alert">
                 {error}

@@ -22,3 +22,6 @@ once_cell.workspace = true
 sqlx.workspace = true
 bcrypt.workspace = true
 rand.workspace = true
+
+[dev-dependencies]
+proptest = "1"

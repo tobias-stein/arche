@@ -1,6 +1,6 @@
 ---
 title: Duplicate / use as template
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

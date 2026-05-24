@@ -1,6 +1,6 @@
 ---
 title: Blueprints — detail page
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

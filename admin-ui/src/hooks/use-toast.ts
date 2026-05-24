@@ -2,22 +2,21 @@ import * as React from 'react'
 
 import type { ToastActionElement } from '@/components/ui/toast'
 
-const TOAST_LIMIT = 1
-const TOAST_REMOVE_DELAY = 1000000
+const TOAST_LIMIT = 10
+const TOAST_REMOVE_DELAY = 5000
 
 type ToasterToast = {
   id: string
   title?: React.ReactNode
   description?: React.ReactNode
   action?: ToastActionElement
-  variant?: 'default' | 'destructive'
+  variant?: 'default' | 'destructive' | 'success' | 'warning'
 }
 
 let count = 0
 
 function genId() {
-  count = (count + 1) % Number.MAX_SAFE_INTEGER
-  return count.toString()
+  return String(++count)
 }
 
 type Action =
@@ -78,14 +77,7 @@ export const reducer = (state: State, action: Action): State => {
       } else {
         state.toasts.forEach((t) => addToRemoveQueue(t.id))
       }
-      return {
-        ...state,
-        toasts: state.toasts.map((t) =>
-          t.id === toastId || toastId === undefined
-            ? { ...t }
-            : t,
-        ),
-      }
+      return { ...state }
     }
     case 'REMOVE_TOAST':
       if (action.toastId === undefined) {
@@ -137,7 +129,7 @@ function useToast() {
       const index = listeners.indexOf(setState)
       if (index > -1) listeners.splice(index, 1)
     }
-  }, [state])
+  }, [])
 
   return {
     ...state,

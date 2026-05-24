@@ -378,13 +378,13 @@ mod tests {
         clients.insert(client_id, client);
 
         let mut blueprints = HashMap::new();
-        blueprints.insert(bp_id, bp.clone());
+        blueprints.insert(bp_id, bp);
 
         let mut affixes = HashMap::new();
-        affixes.insert(affix_id, affix.clone());
+        affixes.insert(affix_id, affix);
 
         let mut gmas = HashMap::new();
-        gmas.insert(gma_id, gma.clone());
+        gmas.insert(gma_id, gma);
 
         let by_client = Cache::build_client_caches(&clients, &blueprints, &affixes, &gmas);
 
@@ -465,7 +465,6 @@ mod tests {
         );
 
         let cc = by_client.get(&client_id).unwrap();
-        assert!(Arc::ptr_eq(&cc.blueprints[0], &cc.blueprints[0]));
         assert_eq!(Arc::strong_count(&cc.blueprints[0]), 1);
     }
 

@@ -5,7 +5,6 @@ use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use std::collections::{BTreeMap, HashMap};
 
-
 pub fn roll_blueprint_attributes(
     blueprint: &Blueprint,
     client_cache: &ClientCache,
@@ -141,28 +140,33 @@ mod tests {
         }
     }
 
-    // --- Resolution tests ---
-
-    #[test]
-    fn test_resolve_inline_attribute() {
-        let bp = Blueprint {
+    fn make_blueprint(attributes: serde_json::Value, attribute_order: Vec<String>) -> Blueprint {
+        Blueprint {
             id: Uuid::new_v4(),
             client_id: Uuid::nil(),
             name: "Test".into(),
             archetype: "test".into(),
             weight: 1.0,
             description: None,
-            attributes: serde_json::json!({
-                "damage": {"value_type": "range", "min": 1.0, "max": 10.0}
-            }),
-            attribute_order: vec!["damage".into()],
+            attributes,
+            attribute_order,
             min_prefixes: 0,
             max_prefixes: 0,
             min_suffixes: 0,
             max_suffixes: 0,
             created_at: ts(),
             updated_at: ts(),
-        };
+        }
+    }
+
+    // --- Resolution tests ---
+
+    #[test]
+    fn test_resolve_inline_attribute() {
+        let bp = make_blueprint(
+            serde_json::json!({"damage": {"value_type": "range", "min": 1.0, "max": 10.0}}),
+            vec!["damage".into()],
+        );
 
         let cache = make_client_cache(vec![]);
         let resolved = resolve_attributes(&bp, &cache);
@@ -187,24 +191,10 @@ mod tests {
             serde_json::json!({"value_type": "range", "min": 5.0, "max": 20.0}),
         );
 
-        let bp = Blueprint {
-            id: Uuid::new_v4(),
-            client_id: Uuid::nil(),
-            name: "Test".into(),
-            archetype: "test".into(),
-            weight: 1.0,
-            description: None,
-            attributes: serde_json::json!({
-                "damage": {"$ref_id": global_id.to_string()}
-            }),
-            attribute_order: vec!["damage".into()],
-            min_prefixes: 0,
-            max_prefixes: 0,
-            min_suffixes: 0,
-            max_suffixes: 0,
-            created_at: ts(),
-            updated_at: ts(),
-        };
+        let bp = make_blueprint(
+            serde_json::json!({"damage": {"$ref_id": global_id.to_string()}}),
+            vec!["damage".into()],
+        );
 
         let cache = make_client_cache(vec![global]);
         let resolved = resolve_attributes(&bp, &cache);
@@ -229,25 +219,13 @@ mod tests {
             serde_json::json!({"value_type": "enum", "values": ["common", "rare"]}),
         );
 
-        let bp = Blueprint {
-            id: Uuid::new_v4(),
-            client_id: Uuid::nil(),
-            name: "Test".into(),
-            archetype: "test".into(),
-            weight: 1.0,
-            description: None,
-            attributes: serde_json::json!({
+        let bp = make_blueprint(
+            serde_json::json!({
                 "rarity": {"$ref_id": global_id.to_string()},
                 "damage": {"value_type": "range", "min": 1.0, "max": 10.0}
             }),
-            attribute_order: vec!["damage".into(), "rarity".into()],
-            min_prefixes: 0,
-            max_prefixes: 0,
-            min_suffixes: 0,
-            max_suffixes: 0,
-            created_at: ts(),
-            updated_at: ts(),
-        };
+            vec!["damage".into(), "rarity".into()],
+        );
 
         let cache = make_client_cache(vec![global]);
         let resolved = resolve_attributes(&bp, &cache);
@@ -265,24 +243,10 @@ mod tests {
 
     #[test]
     fn test_resolve_missing_ref_skipped() {
-        let bp = Blueprint {
-            id: Uuid::new_v4(),
-            client_id: Uuid::nil(),
-            name: "Test".into(),
-            archetype: "test".into(),
-            weight: 1.0,
-            description: None,
-            attributes: serde_json::json!({
-                "damage": {"$ref_id": Uuid::new_v4().to_string()}
-            }),
-            attribute_order: vec!["damage".into()],
-            min_prefixes: 0,
-            max_prefixes: 0,
-            min_suffixes: 0,
-            max_suffixes: 0,
-            created_at: ts(),
-            updated_at: ts(),
-        };
+        let bp = make_blueprint(
+            serde_json::json!({"damage": {"$ref_id": Uuid::new_v4().to_string()}}),
+            vec!["damage".into()],
+        );
 
         let cache = make_client_cache(vec![]);
         let resolved = resolve_attributes(&bp, &cache);
@@ -450,26 +414,14 @@ mod tests {
 
     #[test]
     fn test_output_ordered_by_attribute_order() {
-        let bp = Blueprint {
-            id: Uuid::new_v4(),
-            client_id: Uuid::nil(),
-            name: "Test".into(),
-            archetype: "test".into(),
-            weight: 1.0,
-            description: None,
-            attributes: serde_json::json!({
+        let bp = make_blueprint(
+            serde_json::json!({
                 "z": {"value_type": "single", "value": 1.0},
                 "a": {"value_type": "single", "value": 2.0},
                 "m": {"value_type": "single", "value": 3.0},
             }),
-            attribute_order: vec!["a".into(), "m".into(), "z".into()],
-            min_prefixes: 0,
-            max_prefixes: 0,
-            min_suffixes: 0,
-            max_suffixes: 0,
-            created_at: ts(),
-            updated_at: ts(),
-        };
+            vec!["a".into(), "m".into(), "z".into()],
+        );
 
         let cache = make_client_cache(vec![]);
         let rolled = roll_blueprint_attributes(&bp, &cache, 1);
@@ -480,24 +432,12 @@ mod tests {
 
     #[test]
     fn test_deterministic_with_same_seed_and_input() {
-        let bp = Blueprint {
-            id: Uuid::new_v4(),
-            client_id: Uuid::nil(),
-            name: "Test".into(),
-            archetype: "test".into(),
-            weight: 1.0,
-            description: None,
-            attributes: serde_json::json!({
+        let bp = make_blueprint(
+            serde_json::json!({
                 "damage": {"value_type": "range", "min": 10.0, "max": 20.0, "distribution": {"type": "normal", "stdDev": 2.0}},
             }),
-            attribute_order: vec!["damage".into()],
-            min_prefixes: 0,
-            max_prefixes: 0,
-            min_suffixes: 0,
-            max_suffixes: 0,
-            created_at: ts(),
-            updated_at: ts(),
-        };
+            vec!["damage".into()],
+        );
 
         let cache = make_client_cache(vec![]);
         let result1 = roll_blueprint_attributes(&bp, &cache, 42);

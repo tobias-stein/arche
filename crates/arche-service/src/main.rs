@@ -9,6 +9,7 @@ pub mod error;
 pub mod redis_pubsub;
 
 use axum::extract::State;
+use axum::middleware;
 use axum::{routing::get, Json, Router};
 use arche_types::crud::BootstrapResponse;
 use serde_json::{json, Value};
@@ -30,7 +31,7 @@ use schema::{get_affixes_schema, get_blueprints_schema, get_generate_schema};
 
 #[derive(Clone)]
 #[allow(dead_code)]
-struct AppState {
+pub(crate) struct AppState {
     cache: Arc<RwLock<Cache>>,
     pool: Arc<PgPool>,
     redis: Option<RedisPubSubHandle>,
@@ -73,6 +74,10 @@ fn build_router(state: AppState) -> Router {
         .route("/api/schema/affixes", get(get_affixes_schema))
         .route("/api/schema/generate", get(get_generate_schema))
         .layer(TraceLayer::new_for_http())
+        .layer(middleware::from_fn_with_state(
+            state.clone(),
+            auth::permission::permission_middleware,
+        ))
         .with_state(state)
 }
 

@@ -10,6 +10,8 @@ use uuid::Uuid;
 
 use crate::error::ProblemResponse;
 
+pub mod permission;
+
 #[derive(Debug, Clone)]
 pub struct AuthenticatedKey {
     pub id: Uuid,
@@ -39,7 +41,7 @@ where
     }
 }
 
-async fn verify_api_key(
+pub(super) async fn verify_api_key(
     raw_key: &str,
     pool: &PgPool,
 ) -> Result<AuthenticatedKey, ProblemResponse> {

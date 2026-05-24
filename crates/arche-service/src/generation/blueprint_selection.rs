@@ -82,17 +82,8 @@ fn payload_matches_constraint(payload: &AttributePayload, constraint: &Constrain
     match constraint {
         ConstraintValue::Config(config) => match payload {
             AttributePayload::Range { min, max, .. } => {
-                if let Some(gte) = config.gte {
-                    if *max < gte {
-                        return false;
-                    }
-                }
-                if let Some(lte) = config.lte {
-                    if *min > lte {
-                        return false;
-                    }
-                }
-                true
+                config.gte.is_none_or(|gte| *max >= gte)
+                    && config.lte.is_none_or(|lte| *min <= lte)
             }
             AttributePayload::Enum { values } => {
                 if let Some(ref in_values) = config.r#in {
@@ -106,25 +97,15 @@ fn payload_matches_constraint(payload: &AttributePayload, constraint: &Constrain
                 }
             }
             AttributePayload::String { .. } => {
-                if config.contains.is_some() {
-                    return true;
-                }
-                if let Some(ref eq_val) = config.eq {
-                    return eq_val.is_string();
-                }
-                false
+                config.contains.is_some() || config.eq.as_ref().is_some_and(|v| v.is_string())
             }
             AttributePayload::Boolean { value: bp_value } => {
-                if let Some(ref eq_val) = config.eq {
-                    return eq_val.as_bool() == Some(*bp_value);
-                }
-                false
+                config.eq.as_ref().is_some_and(|v| v.as_bool() == Some(*bp_value))
             }
             AttributePayload::Single { value, .. } => {
-                if let Some(ref eq_val) = config.eq {
-                    return eq_val.as_f64().is_some_and(|v| (v - value).abs() < f64::EPSILON);
-                }
-                false
+                config.eq.as_ref().is_some_and(|v| {
+                    v.as_f64().is_some_and(|v2| (v2 - value).abs() < f64::EPSILON)
+                })
             }
         },
         ConstraintValue::Bare(value) => match payload {
@@ -243,23 +224,6 @@ mod tests {
             payload: AttributePayload::Boolean { value },
         }))
         .unwrap()
-    }
-
-    #[allow(dead_code)]
-    fn single_attr(value: f64) -> serde_json::Value {
-        serde_json::to_value(BlueprintAttribute::Inline(InlineAttributeDef {
-            description: None,
-            payload: AttributePayload::Single {
-                value,
-                distribution: None,
-            },
-        }))
-        .unwrap()
-    }
-
-    #[allow(dead_code)]
-    fn ref_attr(ref_id: Uuid) -> serde_json::Value {
-        serde_json::to_value(BlueprintAttribute::Ref { ref_id }).unwrap()
     }
 
     // --- Archetype filter ---
@@ -952,8 +916,7 @@ mod tests {
             serde_json::json!({}),
         );
 
-        // Run twice with same seed - must return same blueprint
-        let (cc, _) = make_client_cache(vec![bp1.clone(), bp2.clone(), bp3.clone()], vec![]);
+        let (cc, _) = make_client_cache(vec![bp1, bp2, bp3], vec![]);
 
         let mut rng1 = StdRng::seed_from_u64(12345);
         let req = GenerateRequest {

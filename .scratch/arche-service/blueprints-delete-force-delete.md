@@ -1,6 +1,6 @@
 ---
 title: Blueprints — delete & force delete
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

@@ -2,15 +2,15 @@ import * as React from 'react'
 
 import type { ToastActionElement } from '@/components/ui/toast'
 
-const TOAST_LIMIT = 1
-const TOAST_REMOVE_DELAY = 1000000
+const TOAST_LIMIT = 10
+const TOAST_REMOVE_DELAY = 5000
 
 type ToasterToast = {
   id: string
   title?: React.ReactNode
   description?: React.ReactNode
   action?: ToastActionElement
-  variant?: 'default' | 'destructive'
+  variant?: 'default' | 'destructive' | 'success' | 'warning'
 }
 
 let count = 0

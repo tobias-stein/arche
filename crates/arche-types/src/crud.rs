@@ -11,6 +11,27 @@ use crate::{AffixLocation, Permission};
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
+pub struct BlueprintResponse {
+    pub id: Uuid,
+    pub client_id: Uuid,
+    pub name: String,
+    pub archetype: String,
+    pub weight: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    pub attributes: serde_json::Value,
+    pub attribute_order: Vec<String>,
+    pub min_prefixes: i32,
+    pub max_prefixes: i32,
+    pub min_suffixes: i32,
+    pub max_suffixes: i32,
+    pub affixes: BlueprintAffixConfig,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct CreateBlueprintRequest {
     pub name: String,
     pub archetype: String,

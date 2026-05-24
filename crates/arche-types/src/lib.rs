@@ -21,7 +21,7 @@ pub enum ValueType {
     Boolean,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub enum AffixLocation {
     Prefix,
@@ -523,6 +523,77 @@ mod tests {
             .unwrap()
             .clone();
         assert!(obj.contains_key("attributeOrder"));
+    }
+
+    #[test]
+    fn test_blueprint_response_round_trip() {
+        let resp = BlueprintResponse {
+            id: Uuid::new_v4(),
+            client_id: Uuid::new_v4(),
+            name: "Longsword".into(),
+            archetype: "sword".into(),
+            weight: 1.0,
+            description: Some("A sturdy sword".into()),
+            attributes: json!({"damage": {"min": 10, "max": 23}}),
+            attribute_order: vec!["damage".into()],
+            min_prefixes: 0,
+            max_prefixes: 2,
+            min_suffixes: 1,
+            max_suffixes: 1,
+            affixes: BlueprintAffixConfig {
+                min_prefixes: 0,
+                max_prefixes: 2,
+                min_suffixes: 1,
+                max_suffixes: 1,
+                prefixes: vec![AffixPoolEntry {
+                    affix_id: Uuid::new_v4(),
+                    weight: 1.0,
+                }],
+                suffixes: vec![],
+            },
+            created_at: DateTime::<Utc>::from_timestamp_millis(0).unwrap(),
+            updated_at: DateTime::<Utc>::from_timestamp_millis(0).unwrap(),
+        };
+        let value = serde_json::to_value(&resp).unwrap();
+        let deserialized: BlueprintResponse = serde_json::from_value(value).unwrap();
+        assert_eq!(deserialized, resp);
+    }
+
+    #[test]
+    fn test_blueprint_response_camel_case() {
+        let resp = BlueprintResponse {
+            id: Uuid::nil(),
+            client_id: Uuid::nil(),
+            name: "x".into(),
+            archetype: "x".into(),
+            weight: 1.0,
+            description: None,
+            attributes: json!({}),
+            attribute_order: vec![],
+            min_prefixes: 0,
+            max_prefixes: 0,
+            min_suffixes: 0,
+            max_suffixes: 0,
+            affixes: BlueprintAffixConfig {
+                min_prefixes: 0,
+                max_prefixes: 0,
+                min_suffixes: 0,
+                max_suffixes: 0,
+                prefixes: vec![],
+                suffixes: vec![],
+            },
+            created_at: DateTime::<Utc>::from_timestamp_millis(0).unwrap(),
+            updated_at: DateTime::<Utc>::from_timestamp_millis(0).unwrap(),
+        };
+        let obj = serde_json::to_value(&resp)
+            .unwrap()
+            .as_object()
+            .unwrap()
+            .clone();
+        assert!(obj.contains_key("clientId"));
+        assert!(obj.contains_key("attributeOrder"));
+        assert!(obj.contains_key("minPrefixes"));
+        assert!(obj.contains_key("affixes"));
     }
 
     #[test]
@@ -1065,5 +1136,6 @@ mod tests {
         assert_traits::<BlueprintListQuery>();
         assert_traits::<AuditLogListQuery>();
         assert_traits::<BootstrapResponse>();
+        assert_traits::<BlueprintResponse>();
     }
 }

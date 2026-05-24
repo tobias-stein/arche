@@ -94,6 +94,17 @@ impl ProblemResponse {
         }
     }
 
+    pub fn conflict(detail: impl Into<String>) -> Self {
+        Self {
+            type_: "/errors/conflict".into(),
+            title: "Conflict".into(),
+            status: 409,
+            detail: Some(detail.into()),
+            instance: None,
+            errors: None,
+        }
+    }
+
     pub fn import_conflict(detail: impl Into<String>) -> Self {
         Self {
             type_: "/errors/import-conflict".into(),

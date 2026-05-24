@@ -5,7 +5,6 @@ pub struct Config {
     pub port: u16,
     pub database_url: String,
     pub redis_url: Option<String>,
-    #[allow(dead_code)]
     pub cache_poll_interval_ms: u64,
 }
 

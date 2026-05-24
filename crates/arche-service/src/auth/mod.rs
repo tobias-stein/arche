@@ -71,14 +71,7 @@ async fn verify_api_key(
 
             let permissions: Vec<Permission> = permissions_str
                 .iter()
-                .filter_map(|p| match p.as_str() {
-                    "read" => Some(Permission::Read),
-                    "write" => Some(Permission::Write),
-                    "delete" => Some(Permission::Delete),
-                    "generate" => Some(Permission::Generate),
-                    "admin" => Some(Permission::Admin),
-                    _ => None,
-                })
+                .filter_map(|p| parse_permission(p.as_str()))
                 .collect();
 
             return Ok(AuthenticatedKey {
@@ -92,6 +85,17 @@ async fn verify_api_key(
     }
 
     Err(ProblemResponse::unauthorized("Invalid API key"))
+}
+
+fn parse_permission(s: &str) -> Option<Permission> {
+    match s {
+        "read" => Some(Permission::Read),
+        "write" => Some(Permission::Write),
+        "delete" => Some(Permission::Delete),
+        "generate" => Some(Permission::Generate),
+        "admin" => Some(Permission::Admin),
+        _ => None,
+    }
 }
 
 #[cfg(test)]
@@ -222,14 +226,7 @@ mod tests {
         let input = ["read", "write", "generate"];
         let permissions: Vec<Permission> = input
             .iter()
-            .filter_map(|p| match *p {
-                "read" => Some(Permission::Read),
-                "write" => Some(Permission::Write),
-                "delete" => Some(Permission::Delete),
-                "generate" => Some(Permission::Generate),
-                "admin" => Some(Permission::Admin),
-                _ => None,
-            })
+            .filter_map(|p| parse_permission(p))
             .collect();
         assert_eq!(permissions.len(), 3);
         assert!(permissions.contains(&Permission::Read));
@@ -242,14 +239,7 @@ mod tests {
         let input = ["read", "unknown", "admin"];
         let permissions: Vec<Permission> = input
             .iter()
-            .filter_map(|p| match *p {
-                "read" => Some(Permission::Read),
-                "write" => Some(Permission::Write),
-                "delete" => Some(Permission::Delete),
-                "generate" => Some(Permission::Generate),
-                "admin" => Some(Permission::Admin),
-                _ => None,
-            })
+            .filter_map(|p| parse_permission(p))
             .collect();
         assert_eq!(permissions.len(), 2);
         assert!(permissions.contains(&Permission::Read));

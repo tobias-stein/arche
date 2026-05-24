@@ -1,6 +1,6 @@
 ---
 title: Cache — cluster-mode Redis pub/sub invalidation
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

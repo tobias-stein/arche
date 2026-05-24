@@ -1,4 +1,5 @@
 pub mod auth;
+pub mod batch;
 mod bootstrap;
 pub mod blueprints;
 mod config;
@@ -78,6 +79,7 @@ fn build_router(state: AppState) -> Router {
         .route("/api/schema/affixes", get(get_affixes_schema))
         .route("/api/schema/generate", get(get_generate_schema))
         .route("/api/blueprints", get(blueprints::list_blueprints))
+        .route("/api/blueprints/batch/edit", post(batch::batch_edit_blueprints))
         .route("/api/import", post(import::import_parse_handler))
         .route("/api/import/resolve", post(import::import_resolve_handler))
         .layer(TraceLayer::new_for_http())

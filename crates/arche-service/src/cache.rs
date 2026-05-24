@@ -30,25 +30,40 @@ impl Cache {
         let global_meta_attributes = Self::load_global_meta_attributes(pool).await?;
         let blueprint_affixes = Self::load_blueprint_affixes(pool).await?;
 
+        Ok(Cache::new(
+            clients,
+            blueprints,
+            affixes,
+            global_meta_attributes,
+            blueprint_affixes,
+        ))
+    }
+
+    pub fn get_client_data(&self, client_id: Uuid) -> Option<&ClientCache> {
+        self.by_client.get(&client_id)
+    }
+
+    pub fn new(
+        clients: HashMap<Uuid, Client>,
+        blueprints: HashMap<Uuid, Blueprint>,
+        affixes: HashMap<Uuid, Affix>,
+        global_meta_attributes: HashMap<Uuid, GlobalMetaAttribute>,
+        blueprint_affixes: HashMap<Uuid, Vec<BlueprintAffix>>,
+    ) -> Self {
         let by_client = Self::build_client_caches(
             &clients,
             &blueprints,
             &affixes,
             &global_meta_attributes,
         );
-
-        Ok(Cache {
+        Cache {
             clients,
             blueprints,
             affixes,
             global_meta_attributes,
             blueprint_affixes,
             by_client,
-        })
-    }
-
-    pub fn get_client_data(&self, client_id: Uuid) -> Option<&ClientCache> {
-        self.by_client.get(&client_id)
+        }
     }
 
     async fn load_clients(pool: &PgPool) -> Result<HashMap<Uuid, Client>, sqlx::Error> {
@@ -289,7 +304,6 @@ fn parse_value_type(s: &str) -> ValueType {
 mod tests {
     use super::*;
     use chrono::TimeZone;
-    use std::collections::HashMap;
 
     fn make_client(id: Uuid, name: &str) -> Client {
         let ts = Utc.with_ymd_and_hms(2024, 1, 1, 0, 0, 0).unwrap();
@@ -351,14 +365,13 @@ mod tests {
 
     #[test]
     fn test_empty_cache() {
-        let cache = Cache {
-            clients: HashMap::new(),
-            blueprints: HashMap::new(),
-            affixes: HashMap::new(),
-            global_meta_attributes: HashMap::new(),
-            blueprint_affixes: HashMap::new(),
-            by_client: HashMap::new(),
-        };
+        let cache = Cache::new(
+            HashMap::new(),
+            HashMap::new(),
+            HashMap::new(),
+            HashMap::new(),
+            HashMap::new(),
+        );
         assert!(cache.get_client_data(Uuid::new_v4()).is_none());
     }
 
@@ -369,33 +382,19 @@ mod tests {
         let affix_id = Uuid::new_v4();
         let gma_id = Uuid::new_v4();
 
-        let client = make_client(client_id, "test-game");
-        let bp = make_blueprint(bp_id, client_id, "Longsword");
-        let affix = make_affix(affix_id, client_id, "Fire", AffixLocation::Prefix);
-        let gma = make_gma(gma_id, client_id, "damage");
-
         let mut clients = HashMap::new();
-        clients.insert(client_id, client);
+        clients.insert(client_id, make_client(client_id, "test-game"));
 
         let mut blueprints = HashMap::new();
-        blueprints.insert(bp_id, bp);
+        blueprints.insert(bp_id, make_blueprint(bp_id, client_id, "Longsword"));
 
         let mut affixes = HashMap::new();
-        affixes.insert(affix_id, affix);
+        affixes.insert(affix_id, make_affix(affix_id, client_id, "Fire", AffixLocation::Prefix));
 
         let mut gmas = HashMap::new();
-        gmas.insert(gma_id, gma);
+        gmas.insert(gma_id, make_gma(gma_id, client_id, "damage"));
 
-        let by_client = Cache::build_client_caches(&clients, &blueprints, &affixes, &gmas);
-
-        let cache = Cache {
-            clients,
-            blueprints,
-            affixes,
-            global_meta_attributes: gmas,
-            blueprint_affixes: HashMap::new(),
-            by_client,
-        };
+        let cache = Cache::new(clients, blueprints, affixes, gmas, HashMap::new());
 
         let cc = cache.get_client_data(client_id).expect("client cache should exist");
         assert_eq!(cc.blueprints.len(), 1);
@@ -428,11 +427,10 @@ mod tests {
         affixes.insert(aff1, make_affix(aff1, c1, "Fire", AffixLocation::Prefix));
         affixes.insert(aff2, make_affix(aff2, c2, "Ice", AffixLocation::Suffix));
 
-        let gmas = HashMap::new();
-        let by_client = Cache::build_client_caches(&clients, &blueprints, &affixes, &gmas);
+        let cache = Cache::new(clients, blueprints, affixes, HashMap::new(), HashMap::new());
 
-        let cc1 = by_client.get(&c1).unwrap();
-        let cc2 = by_client.get(&c2).unwrap();
+        let cc1 = cache.get_client_data(c1).unwrap();
+        let cc2 = cache.get_client_data(c2).unwrap();
 
         assert_eq!(cc1.blueprints.len(), 1);
         assert_eq!(cc1.blueprints[0].id, bp1);
@@ -457,14 +455,9 @@ mod tests {
         let mut blueprints = HashMap::new();
         blueprints.insert(bp_id, make_blueprint(bp_id, client_id, "Longsword"));
 
-        let by_client = Cache::build_client_caches(
-            &clients,
-            &blueprints,
-            &HashMap::new(),
-            &HashMap::new(),
-        );
+        let cache = Cache::new(clients, blueprints, HashMap::new(), HashMap::new(), HashMap::new());
 
-        let cc = by_client.get(&client_id).unwrap();
+        let cc = cache.get_client_data(client_id).unwrap();
         assert_eq!(Arc::strong_count(&cc.blueprints[0]), 1);
     }
 
@@ -508,14 +501,9 @@ mod tests {
         let mut clients = HashMap::new();
         clients.insert(client_id, make_client(client_id, "empty-game"));
 
-        let by_client = Cache::build_client_caches(
-            &clients,
-            &HashMap::new(),
-            &HashMap::new(),
-            &HashMap::new(),
-        );
+        let cache = Cache::new(clients, HashMap::new(), HashMap::new(), HashMap::new(), HashMap::new());
 
-        let cc = by_client.get(&client_id).unwrap();
+        let cc = cache.get_client_data(client_id).unwrap();
         assert!(cc.blueprints.is_empty());
         assert!(cc.affixes.is_empty());
         assert!(cc.global_meta_attributes.is_empty());

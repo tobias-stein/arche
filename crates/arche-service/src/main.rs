@@ -3,6 +3,7 @@ mod config;
 pub mod generation;
 mod schema;
 pub mod cache;
+pub mod generation;
 pub mod pagination;
 pub mod error;
 

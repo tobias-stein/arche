@@ -1,6 +1,6 @@
 ---
 title: PRD Dependency Map
-status: ready-for-agent
+status: completed
 ---
 
 ## Dependency Graph

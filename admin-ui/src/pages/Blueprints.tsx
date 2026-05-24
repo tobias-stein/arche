@@ -9,6 +9,7 @@ import {
   ChevronUp,
   Copy,
   Pencil,
+  Plus,
   Trash2,
 } from 'lucide-react'
 
@@ -20,7 +21,6 @@ import {
   useBlueprintsList,
   useCreateBlueprint,
   useDeleteBlueprint,
-  useUpdateBlueprint,
 } from '@/api/generated'
 import type {
   Affix,
@@ -47,6 +47,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { BlueprintFormModal } from '@/components/BlueprintFormModal'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { useToast } from '@/hooks/use-toast'
 
@@ -124,122 +125,6 @@ function SortIcon({ field, currentField, dir }: { field: SortField; currentField
     <ChevronUp className="h-3 w-3 ml-1" />
   ) : (
     <ChevronDown className="h-3 w-3 ml-1" />
-  )
-}
-
-function EditBlueprintDialog({
-  blueprint,
-  open,
-  onOpenChange,
-}: {
-  blueprint: Blueprint | null
-  open: boolean
-  onOpenChange: (open: boolean) => void
-}) {
-  const { toast } = useToast()
-  const updateMutation = useUpdateBlueprint()
-
-  const [name, setName] = useState(blueprint?.name ?? '')
-  const [archetype, setArchetype] = useState(blueprint?.archetype ?? '')
-  const [weight, setWeight] = useState(blueprint?.weight ?? 1)
-  const [description, setDescription] = useState(blueprint?.description ?? '')
-
-  const handleSubmit = async () => {
-    if (!blueprint || !name.trim() || !archetype.trim()) return
-    try {
-      await updateMutation.mutateAsync({
-        id: blueprint.id,
-        request: {
-          name: name.trim(),
-          archetype: archetype.trim(),
-          weight,
-          description: description.trim() || null,
-          attributes: blueprint.attributes,
-          attributeOrder: blueprint.attributeOrder,
-          affixes: {
-            minPrefixes: blueprint.minPrefixes,
-            maxPrefixes: blueprint.maxPrefixes,
-            minSuffixes: blueprint.minSuffixes,
-            maxSuffixes: blueprint.maxSuffixes,
-            prefixes: [],
-            suffixes: [],
-          },
-        },
-      })
-      toast({ title: 'Blueprint updated' })
-      onOpenChange(false)
-    } catch {
-      toast({ title: 'Failed to update blueprint', variant: 'destructive' })
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Edit Blueprint</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <label htmlFor="edit-name" className="text-sm font-medium">
-              Name
-            </label>
-            <Input
-              id="edit-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Blueprint name"
-            />
-          </div>
-          <div className="space-y-2">
-            <label htmlFor="edit-archetype" className="text-sm font-medium">
-              Archetype
-            </label>
-            <Input
-              id="edit-archetype"
-              value={archetype}
-              onChange={(e) => setArchetype(e.target.value)}
-              placeholder="e.g. weapon, armor, consumable"
-            />
-          </div>
-          <div className="space-y-2">
-            <label htmlFor="edit-weight" className="text-sm font-medium">
-              Weight
-            </label>
-            <Input
-              id="edit-weight"
-              type="number"
-              min={0}
-              step={0.1}
-              value={weight}
-              onChange={(e) => setWeight(Number(e.target.value))}
-            />
-          </div>
-          <div className="space-y-2">
-            <label htmlFor="edit-desc" className="text-sm font-medium">
-              Description
-            </label>
-            <Input
-              id="edit-desc"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Optional description"
-            />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={!name.trim() || !archetype.trim() || updateMutation.isPending}
-          >
-            {updateMutation.isPending ? 'Saving...' : 'Save'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   )
 }
 
@@ -374,7 +259,8 @@ export default function Blueprints() {
   const [lastCheckedIdx, setLastCheckedIdx] = useState<number | null>(null)
 
   const [editingBlueprint, setEditingBlueprint] = useState<Blueprint | null>(null)
-  const [showEditDialog, setShowEditDialog] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [showCreateModal, setShowCreateModal] = useState(false)
 
   const createMutation = useCreateBlueprint()
 
@@ -519,7 +405,7 @@ export default function Blueprints() {
 
   function handleEdit(bp: Blueprint) {
     setEditingBlueprint(bp)
-    setShowEditDialog(true)
+    setShowEditModal(true)
   }
 
   async function handleDuplicate(bp: Blueprint) {
@@ -594,6 +480,10 @@ export default function Blueprints() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Blueprints</h2>
+        <Button onClick={() => setShowCreateModal(true)}>
+          <Plus className="h-4 w-4" />
+          Create Blueprint
+        </Button>
       </div>
 
       {/* Filter bar */}
@@ -1031,12 +921,18 @@ export default function Blueprints() {
         onConfirm={handleBatchDelete}
       />
 
-      {/* Edit dialog */}
-      <EditBlueprintDialog
-        key={editingBlueprint?.id ?? 'none'}
+      {/* Edit modal */}
+      <BlueprintFormModal
+        key={editingBlueprint?.id ?? 'edit'}
+        open={showEditModal}
+        onOpenChange={setShowEditModal}
         blueprint={editingBlueprint}
-        open={showEditDialog}
-        onOpenChange={setShowEditDialog}
+      />
+
+      {/* Create modal */}
+      <BlueprintFormModal
+        open={showCreateModal}
+        onOpenChange={setShowCreateModal}
       />
 
       {/* Batch assign affix picker dialog */}

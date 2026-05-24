@@ -1,6 +1,6 @@
 ---
 title: Blueprints — list with pagination & filters
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

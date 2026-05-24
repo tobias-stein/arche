@@ -28,7 +28,7 @@ Here are the last 10 commits:
 
 <diff-to-main>
 
-!`git diff main..HEAD`
+!`git diff main..HEAD | head -c 20000`
 
 </diff-to-main>
 

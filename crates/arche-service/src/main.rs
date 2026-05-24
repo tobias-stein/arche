@@ -1,5 +1,6 @@
 mod config;
 mod schema;
+pub mod cache;
 pub mod pagination;
 pub mod error;
 
@@ -64,7 +65,7 @@ fn extract_db_host(database_url: &str) -> &str {
         Some(s) => s,
         None => return "unknown",
     };
-    let host_part = without_scheme.split('@').last().unwrap_or(without_scheme);
+    let host_part = without_scheme.split('@').next_back().unwrap_or(without_scheme);
     let host = host_part
         .split_once(':')
         .or_else(|| host_part.split_once('/'))

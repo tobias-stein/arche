@@ -105,8 +105,7 @@ function CardSkeleton() {
             <Skeleton className="h-4 w-1/2" />
           </CardContent>
         </Card>
-      ))
-    }
+      ))}
     </div>
   )
 }
@@ -240,12 +239,14 @@ export default function GlobalMetaAttributes() {
   const totalCount = data?.total ?? 0
   const totalPages = Math.max(1, Math.ceil(totalCount / PER_PAGE))
 
-  const paginationText =
-    totalCount > 0
-      ? `Page ${page} of ${totalPages} (${totalCount} total)`
-      : filteredItems.length > 0
-        ? pluralize(filteredItems.length, 'result')
-        : 'No results'
+  let paginationText: string
+  if (totalCount > 0) {
+    paginationText = `Page ${page} of ${totalPages} (${totalCount} total)`
+  } else if (filteredItems.length > 0) {
+    paginationText = pluralize(filteredItems.length, 'result')
+  } else {
+    paginationText = 'No results'
+  }
 
   // Fetch blueprints and affixes for usage count computation
   const { data: bpData } = useBlueprintsList({ perPage: 500 })
@@ -279,6 +280,12 @@ export default function GlobalMetaAttributes() {
   function handleEdit(gma: GlobalMetaAttribute) {
     setEditingGma(gma)
     setShowEditDialog(true)
+  }
+
+  function getDeleteDescription(): string {
+    if (!deletingGma) return ''
+    const count = usageCounts.get(deletingGma.id) ?? 0
+    return `Are you sure you want to delete "${deletingGma.name}"? This action cannot be undone.\n\nUsed by ${count} ${pluralize(count, 'blueprint/affix', 'blueprints/affixes')}.`
   }
 
   async function handleDelete() {
@@ -532,7 +539,7 @@ export default function GlobalMetaAttributes() {
           if (!open) setDeletingGma(null)
         }}
         title="Delete Global Meta Attribute"
-        description={`Are you sure you want to delete "${deletingGma?.name}"? This action cannot be undone.${deletingGma ? `\n\nUsed by ${usageCounts.get(deletingGma.id) ?? 0} ${pluralize(usageCounts.get(deletingGma.id) ?? 0, 'blueprint/affix', 'blueprints/affixes')}.` : ''}`}
+        description={getDeleteDescription()}
         confirmLabel="Delete"
         variant="destructive"
         loading={deleteMutation.isPending}

@@ -6,14 +6,13 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 const MINUTE = 60
-const HOUR = 3600
-const DAY = 86400
-const WEEK = 604800
-const MONTH = 2592000
+const HOUR = 60 * MINUTE
+const DAY = 24 * HOUR
+const WEEK = 7 * DAY
+const MONTH = 30 * DAY
 
 export function relativeTime(iso: string): string {
   const diff = (Date.now() - new Date(iso).getTime()) / 1000
-  if (diff < 0) return 'just now'
   if (diff < MINUTE) return 'just now'
   if (diff < HOUR) {
     const m = Math.floor(diff / MINUTE)

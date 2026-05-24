@@ -457,34 +457,18 @@ impl Cache {
         self.global_meta_attributes
             .retain(|_, gma| gma.client_id != client_id);
 
-        self.blueprints.extend(data.blueprints);
-        self.affixes.extend(data.affixes);
-        self.global_meta_attributes.extend(data.global_meta_attributes);
-        self.blueprint_affixes.extend(data.blueprint_affixes);
-
         match data.client {
             Some(client) => {
-                self.clients.insert(client_id, client);
                 let cc = ClientCache {
-                    blueprints: self
-                        .blueprints
-                        .values()
-                        .filter(|bp| bp.client_id == client_id)
-                        .map(|bp| Arc::new(bp.clone()))
-                        .collect(),
-                    affixes: self
-                        .affixes
-                        .values()
-                        .filter(|a| a.client_id == client_id)
-                        .map(|a| Arc::new(a.clone()))
-                        .collect(),
-                    global_meta_attributes: self
-                        .global_meta_attributes
-                        .values()
-                        .filter(|gma| gma.client_id == client_id)
-                        .map(|gma| Arc::new(gma.clone()))
-                        .collect(),
+                    blueprints: data.blueprints.values().map(|bp| Arc::new(bp.clone())).collect(),
+                    affixes: data.affixes.values().map(|a| Arc::new(a.clone())).collect(),
+                    global_meta_attributes: data.global_meta_attributes.values().map(|gma| Arc::new(gma.clone())).collect(),
                 };
+                self.blueprints.extend(data.blueprints);
+                self.affixes.extend(data.affixes);
+                self.global_meta_attributes.extend(data.global_meta_attributes);
+                self.blueprint_affixes.extend(data.blueprint_affixes);
+                self.clients.insert(client_id, client);
                 self.by_client.insert(client_id, cc);
             }
             None => {

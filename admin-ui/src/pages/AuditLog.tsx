@@ -237,19 +237,27 @@ export default function AuditLog() {
   const filterDirty =
     JSON.stringify(filters) !== JSON.stringify(appliedFilters)
 
-  function applyFilters() {
-    setAppliedFilters({ ...filters })
+  const hasAppliedFilters =
+    appliedFilters.resourceType !== '' ||
+    appliedFilters.action !== '' ||
+    appliedFilters.from !== '' ||
+    appliedFilters.to !== ''
+
+  function resetNavigation() {
     setCursorStack([])
     setCurrentCursor(undefined)
     setExpandedRowId(null)
   }
 
+  function applyFilters() {
+    setAppliedFilters({ ...filters })
+    resetNavigation()
+  }
+
   function resetFilters() {
     setFilters(EMPTY_FILTERS)
     setAppliedFilters(EMPTY_FILTERS)
-    setCursorStack([])
-    setCurrentCursor(undefined)
-    setExpandedRowId(null)
+    resetNavigation()
   }
 
   function goNext() {
@@ -407,7 +415,7 @@ export default function AuditLog() {
               No audit log entries found
             </p>
             <p className="text-sm text-muted-foreground mt-1">
-              {filterDirty || appliedFilters.resourceType || appliedFilters.action || appliedFilters.from || appliedFilters.to
+              {hasAppliedFilters
                 ? 'Try adjusting your filters'
                 : 'Audit log entries will appear here as changes are made'}
             </p>
@@ -533,9 +541,7 @@ export default function AuditLog() {
                     value={perPage}
                     onChange={(e) => {
                       setPerPage(Number(e.target.value))
-                      setCursorStack([])
-                      setCurrentCursor(undefined)
-                      setExpandedRowId(null)
+                      resetNavigation()
                     }}
                     className="h-7 rounded border border-input bg-transparent px-1.5 text-xs shadow-sm"
                   >

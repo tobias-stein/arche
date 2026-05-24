@@ -83,12 +83,14 @@ function getDistribution(
   const a = attr as Record<string, unknown>
   const dist = a.distribution as Record<string, unknown> | undefined
   if (!dist) return { use: false, type: 'uniform', stdDev: '', rate: '' }
-  const type = dist.type === 'normal' ? 'normal' : dist.type === 'exponential' ? 'exponential' : 'uniform'
+  let distType: 'uniform' | 'normal' | 'exponential' = 'uniform'
+  if (dist.type === 'normal') distType = 'normal'
+  else if (dist.type === 'exponential') distType = 'exponential'
   return {
     use: true,
-    type: type as 'uniform' | 'normal' | 'exponential',
-    stdDev: type === 'normal' ? String(dist.stdDev ?? '') : '',
-    rate: type === 'exponential' ? String(dist.rate ?? '') : '',
+    type: distType,
+    stdDev: distType === 'normal' ? String(dist.stdDev ?? '') : '',
+    rate: distType === 'exponential' ? String(dist.rate ?? '') : '',
   }
 }
 
@@ -138,6 +140,18 @@ function InlineAttributeForm({
   const [distStdDev, setDistStdDev] = useState(initDist.stdDev)
   const [distRate, setDistRate] = useState(initDist.rate)
 
+  function buildDistribution(): Record<string, unknown> | null {
+    if (distType === 'uniform') return { type: 'uniform' }
+    if (distType === 'normal') {
+      const sd = parseFloat(distStdDev)
+      if (isNaN(sd) || sd <= 0) return null
+      return { type: 'normal', stdDev: sd }
+    }
+    const rate = parseFloat(distRate)
+    if (isNaN(rate) || rate <= 0) return null
+    return { type: 'exponential', rate }
+  }
+
   const buildAttribute = (): AffixAttribute | null => {
     if (!name.trim()) return null
 
@@ -150,16 +164,9 @@ function InlineAttributeForm({
         if (isNaN(val)) return null
         base.value = val
         if (useDist) {
-          if (distType === 'uniform') base.distribution = { type: 'uniform' }
-          else if (distType === 'normal') {
-            const sd = parseFloat(distStdDev)
-            if (isNaN(sd) || sd <= 0) return null
-            base.distribution = { type: 'normal', stdDev: sd }
-          } else {
-            const rate = parseFloat(distRate)
-            if (isNaN(rate) || rate <= 0) return null
-            base.distribution = { type: 'exponential', rate }
-          }
+          const dist = buildDistribution()
+          if (!dist) return null
+          base.distribution = dist
         }
         break
       }
@@ -176,16 +183,9 @@ function InlineAttributeForm({
         base.min = min
         base.max = max
         if (useDist) {
-          if (distType === 'uniform') base.distribution = { type: 'uniform' }
-          else if (distType === 'normal') {
-            const sd = parseFloat(distStdDev)
-            if (isNaN(sd) || sd <= 0) return null
-            base.distribution = { type: 'normal', stdDev: sd }
-          } else {
-            const rate = parseFloat(distRate)
-            if (isNaN(rate) || rate <= 0) return null
-            base.distribution = { type: 'exponential', rate }
-          }
+          const dist = buildDistribution()
+          if (!dist) return null
+          base.distribution = dist
         }
         break
       }
@@ -443,10 +443,10 @@ function GlobalAttributePicker({
   const [search, setSearch] = useState('')
   const [open, setOpen] = useState(false)
 
-  const items = useMemo<GlobalMetaAttribute[]>(() => {
-    const raw = (data?.data ?? []) as GlobalMetaAttribute[]
-    return raw
-  }, [data?.data])
+  const items = useMemo(
+    () => (data?.data ?? []) as GlobalMetaAttribute[],
+    [data?.data],
+  )
 
   const filtered = useMemo(
     () =>

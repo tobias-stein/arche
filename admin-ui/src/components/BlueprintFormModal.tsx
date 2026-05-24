@@ -635,37 +635,42 @@ export function BlueprintFormModal({
   open,
   onOpenChange,
   blueprint,
+  duplicateFrom,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   blueprint?: Blueprint | null
+  duplicateFrom?: Blueprint | null
 }) {
   const { toast } = useToast()
   const isEdit = !!blueprint
+  const isDuplicate = !!duplicateFrom
   const createMutation = useCreateBlueprint()
   const updateMutation = useUpdateBlueprint()
 
-  const [name, setName] = useState(blueprint?.name ?? '')
-  const [archetype, setArchetype] = useState(blueprint?.archetype ?? '')
-  const [weight, setWeight] = useState(blueprint?.weight ?? 1)
-  const [description, setDescription] = useState(blueprint?.description ?? '')
+  const sourceData = duplicateFrom ?? blueprint
+
+  const [name, setName] = useState(sourceData?.name ?? '')
+  const [archetype, setArchetype] = useState(sourceData?.archetype ?? '')
+  const [weight, setWeight] = useState(sourceData?.weight ?? 1)
+  const [description, setDescription] = useState(sourceData?.description ?? '')
   const [attributes, setAttributes] = useState<Record<string, BlueprintAttribute>>(
-    blueprint?.attributes ?? {},
+    sourceData?.attributes ?? {},
   )
   const [attributeOrder, setAttributeOrder] = useState<string[]>(
-    blueprint?.attributeOrder ?? [],
+    sourceData?.attributeOrder ?? [],
   )
   const [minPrefixes, setMinPrefixes] = useState(
-    blueprint?.minPrefixes ?? 0,
+    sourceData?.minPrefixes ?? 0,
   )
   const [maxPrefixes, setMaxPrefixes] = useState(
-    blueprint?.maxPrefixes ?? 0,
+    sourceData?.maxPrefixes ?? 0,
   )
   const [minSuffixes, setMinSuffixes] = useState(
-    blueprint?.minSuffixes ?? 0,
+    sourceData?.minSuffixes ?? 0,
   )
   const [maxSuffixes, setMaxSuffixes] = useState(
-    blueprint?.maxSuffixes ?? 0,
+    sourceData?.maxSuffixes ?? 0,
   )
   const [prefixes, setPrefixes] = useState<AffixPoolEntry[]>([])
   const [suffixes, setSuffixes] = useState<AffixPoolEntry[]>([])
@@ -857,21 +862,21 @@ export function BlueprintFormModal({
   }
 
   const resetForm = useCallback(() => {
-    setName(blueprint?.name ?? '')
-    setArchetype(blueprint?.archetype ?? '')
-    setWeight(blueprint?.weight ?? 1)
-    setDescription(blueprint?.description ?? '')
-    setAttributes(blueprint?.attributes ?? {})
-    setAttributeOrder(blueprint?.attributeOrder ?? [])
-    setMinPrefixes(blueprint?.minPrefixes ?? 0)
-    setMaxPrefixes(blueprint?.maxPrefixes ?? 0)
-    setMinSuffixes(blueprint?.minSuffixes ?? 0)
-    setMaxSuffixes(blueprint?.maxSuffixes ?? 0)
+    setName(sourceData?.name ?? '')
+    setArchetype(sourceData?.archetype ?? '')
+    setWeight(sourceData?.weight ?? 1)
+    setDescription(sourceData?.description ?? '')
+    setAttributes(sourceData?.attributes ?? {})
+    setAttributeOrder(sourceData?.attributeOrder ?? [])
+    setMinPrefixes(sourceData?.minPrefixes ?? 0)
+    setMaxPrefixes(sourceData?.maxPrefixes ?? 0)
+    setMinSuffixes(sourceData?.minSuffixes ?? 0)
+    setMaxSuffixes(sourceData?.maxSuffixes ?? 0)
     setPrefixes([])
     setSuffixes([])
     setErrors({})
     setShowInlineForm(false)
-  }, [blueprint])
+  }, [sourceData])
 
   const isPending = createMutation.isPending || updateMutation.isPending
 
@@ -893,7 +898,11 @@ export function BlueprintFormModal({
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {isEdit ? 'Edit Blueprint' : 'Create Blueprint'}
+              {isDuplicate
+                ? 'Duplicate Blueprint'
+                : isEdit
+                  ? 'Edit Blueprint'
+                  : 'Create Blueprint'}
             </DialogTitle>
           </DialogHeader>
 

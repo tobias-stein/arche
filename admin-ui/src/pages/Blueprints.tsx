@@ -19,7 +19,6 @@ import {
   useBatchDeleteBlueprints,
   useBatchEditBlueprints,
   useBlueprintsList,
-  useCreateBlueprint,
   useDeleteBlueprint,
 } from '@/api/generated'
 import type {
@@ -262,7 +261,8 @@ export default function Blueprints() {
   const [showEditModal, setShowEditModal] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
 
-  const createMutation = useCreateBlueprint()
+  const [duplicatingBlueprint, setDuplicatingBlueprint] = useState<Blueprint | null>(null)
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false)
 
   const [deletingBlueprint, setDeletingBlueprint] = useState<Blueprint | null>(null)
   const deleteMutation = useDeleteBlueprint()
@@ -408,28 +408,19 @@ export default function Blueprints() {
     setShowEditModal(true)
   }
 
-  async function handleDuplicate(bp: Blueprint) {
-    try {
-      await createMutation.mutateAsync({
-        name: `${bp.name} (Copy)`,
-        archetype: bp.archetype,
-        weight: bp.weight,
-        description: bp.description,
-        attributes: bp.attributes,
-        attributeOrder: bp.attributeOrder,
-        affixes: {
-          minPrefixes: bp.minPrefixes,
-          maxPrefixes: bp.maxPrefixes,
-          minSuffixes: bp.minSuffixes,
-          maxSuffixes: bp.maxSuffixes,
-          prefixes: [],
-          suffixes: [],
-        },
-      })
-      toast({ title: `Duplicated "${bp.name}"` })
-    } catch {
-      toast({ title: 'Failed to duplicate blueprint', variant: 'destructive' })
-    }
+  function getCopyName(name: string): string {
+    const base = `${name} (Copy)`
+    const existingNames = new Set(allBlueprints.map((b) => b.name))
+    if (!existingNames.has(base)) return base
+    let n = 2
+    while (existingNames.has(`${name} (Copy ${n})`)) n++
+    return `${name} (Copy ${n})`
+  }
+
+  function handleDuplicate(bp: Blueprint) {
+    const copy: Blueprint = { ...bp, name: getCopyName(bp.name) }
+    setDuplicatingBlueprint(copy)
+    setShowDuplicateModal(true)
   }
 
   async function handleDelete() {
@@ -731,7 +722,6 @@ export default function Blueprints() {
                             size="icon"
                             variant="ghost"
                             onClick={() => handleDuplicate(bp)}
-                            disabled={createMutation.isPending}
                             aria-label={`Duplicate ${bp.name}`}
                           >
                             <Copy className="h-4 w-4" />
@@ -793,7 +783,6 @@ export default function Blueprints() {
                         variant="ghost"
                         className="h-8 w-8"
                         onClick={() => handleDuplicate(bp)}
-                        disabled={createMutation.isPending}
                         aria-label={`Duplicate ${bp.name}`}
                       >
                         <Copy className="h-3.5 w-3.5" />
@@ -933,6 +922,14 @@ export default function Blueprints() {
       <BlueprintFormModal
         open={showCreateModal}
         onOpenChange={setShowCreateModal}
+      />
+
+      {/* Duplicate modal */}
+      <BlueprintFormModal
+        key={duplicatingBlueprint?.id ?? 'duplicate'}
+        open={showDuplicateModal}
+        onOpenChange={setShowDuplicateModal}
+        duplicateFrom={duplicatingBlueprint}
       />
 
       {/* Batch assign affix picker dialog */}

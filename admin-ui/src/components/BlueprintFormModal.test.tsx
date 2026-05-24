@@ -10,7 +10,7 @@ import type { Blueprint } from '@/api/generated'
 
 setClient(new ArcheClient({ baseUrl: 'http://localhost:3000' }))
 
-function renderModal(blueprint?: Blueprint | null) {
+function renderModal(blueprint?: Blueprint | null, duplicateFrom?: Blueprint | null) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   })
@@ -22,6 +22,7 @@ function renderModal(blueprint?: Blueprint | null) {
           open={true}
           onOpenChange={onOpenChange}
           blueprint={blueprint ?? null}
+          duplicateFrom={duplicateFrom ?? null}
         />
       </MemoryRouter>
     </QueryClientProvider>,
@@ -112,6 +113,46 @@ describe('BlueprintFormModal', () => {
       expect(
         screen.getByRole('button', { name: 'Save Changes' }),
       ).toBeInTheDocument()
+    })
+  })
+
+  describe('Duplicate mode', () => {
+    function createDuplicateMock() {
+      const bp = createMockBlueprint()
+      return { ...bp, name: 'Test BP (Copy)' }
+    }
+
+    it('renders with "Duplicate Blueprint" title', () => {
+      renderModal(null, createDuplicateMock())
+      expect(
+        screen.getByRole('heading', { name: 'Duplicate Blueprint' }),
+      ).toBeInTheDocument()
+    })
+
+    it('pre-fills form fields with source blueprint data', () => {
+      renderModal(null, createDuplicateMock())
+      expect(screen.getByDisplayValue('Test BP (Copy)')).toBeInTheDocument()
+      expect(screen.getByDisplayValue('weapon')).toBeInTheDocument()
+    })
+
+    it('shows Create Blueprint button (not Save Changes)', () => {
+      renderModal(null, createDuplicateMock())
+      expect(
+        screen.getByRole('button', { name: 'Create Blueprint' }),
+      ).toBeInTheDocument()
+      expect(
+        screen.queryByRole('button', { name: 'Save Changes' }),
+      ).not.toBeInTheDocument()
+    })
+
+    it('pre-fills affix counts from source', async () => {
+      const user = userEvent.setup()
+      renderModal(null, createDuplicateMock())
+      await user.click(screen.getByRole('tab', { name: 'Affixes' }))
+      expect(screen.getByDisplayValue('1')).toBeInTheDocument()
+      expect(screen.getByDisplayValue('3')).toBeInTheDocument()
+      expect(screen.getByDisplayValue('0')).toBeInTheDocument()
+      expect(screen.getByDisplayValue('2')).toBeInTheDocument()
     })
   })
 

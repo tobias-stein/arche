@@ -11,6 +11,7 @@ const mockBatchEditBlueprints = vi.fn()
 const mockCreateBlueprint = vi.fn()
 const mockUpdateBlueprint = vi.fn()
 const mockAffixesList = vi.fn()
+const mockGlobalMetaAttributesList = vi.fn()
 
 vi.mock('@/api/generated', () => ({
   useBlueprintsList: (query?: unknown) => mockBlueprintsList(query),
@@ -21,6 +22,7 @@ vi.mock('@/api/generated', () => ({
   useCreateBlueprint: () => mockCreateBlueprint(),
   useUpdateBlueprint: () => mockUpdateBlueprint(),
   useAffixesList: (query?: unknown) => mockAffixesList(query),
+  useGlobalMetaAttributesList: (query?: unknown) => mockGlobalMetaAttributesList(query),
 }))
 
 import Blueprints from '@/pages/Blueprints'
@@ -83,6 +85,13 @@ describe('Blueprints list page', () => {
     mockCreateBlueprint.mockReturnValue(createMockMutation())
     mockUpdateBlueprint.mockReturnValue(createMockMutation())
     mockAffixesList.mockReturnValue({
+      data: { data: [], total: 0 },
+      isLoading: false,
+      isError: false,
+      error: null,
+    })
+
+    mockGlobalMetaAttributesList.mockReturnValue({
       data: { data: [], total: 0 },
       isLoading: false,
       isError: false,
@@ -346,6 +355,21 @@ describe('Blueprints list page', () => {
     await waitFor(() => {
       expect(screen.getByText('Delete Blueprint')).toBeInTheDocument()
     })
+  })
+
+  it('opens duplicate modal when Duplicate is clicked', async () => {
+    setBlueprints([makeBlueprint({ id: '1', name: 'Sword', archetype: 'weapon', weight: 10 })])
+    mockCreateBlueprint.mockReturnValue(createMockMutation())
+
+    renderBlueprints()
+
+    const desktop = getDesktopContainer()
+    fireEvent.click(within(desktop).getByLabelText('Duplicate Sword'))
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'Duplicate Blueprint' })).toBeInTheDocument()
+    })
+    expect(screen.getByDisplayValue('Sword (Copy)')).toBeInTheDocument()
   })
 
   // --- Pagination ---

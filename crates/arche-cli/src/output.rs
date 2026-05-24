@@ -332,6 +332,32 @@ fn format_attribute_value(value: &serde_json::Value) -> String {
     }
 }
 
+pub fn print_success(msg: &str, quiet: bool) {
+    if !quiet {
+        println!("{msg}");
+    }
+}
+
+pub fn print_error(msg: &str) {
+    eprintln!("Error: {msg}");
+}
+
+pub fn print_verbose(msg: &str, verbose: bool) {
+    if verbose {
+        eprintln!("[verbose] {msg}");
+    }
+}
+
+pub fn write_binary(data: &[u8], path: Option<&str>) -> Result<(), std::io::Error> {
+    if let Some(path) = path {
+        std::fs::write(path, data)
+    } else {
+        let stdout = std::io::stdout();
+        let mut handle = stdout.lock();
+        handle.write_all(data)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

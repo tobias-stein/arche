@@ -236,43 +236,8 @@ pub async fn create_blueprint(
     let updated_at = row.get("updated_at");
 
     let mut sort_order: i32 = 0;
-    for (entry, _) in &affix_rows {
-        sqlx::query(
-            "INSERT INTO blueprint_affixes (blueprint_id, affix_id, weight, location, sort_order) \
-             VALUES ($1, $2, $3, $4, $5)",
-        )
-        .bind(bp_id)
-        .bind(entry.affix_id)
-        .bind(entry.weight)
-        .bind(affix_location_str(&AffixLocation::Prefix))
-        .bind(sort_order)
-        .execute(&mut *tx)
-        .await
-        .map_err(|e| {
-            tracing::error!(error = %e, "blueprints: insert blueprint_affixes failed");
-            ProblemResponse::unprocessable_entity("Failed to create blueprint affix pool")
-        })?;
-        sort_order += 1;
-    }
-
-    for (entry, _) in &suffix_affix_rows {
-        sqlx::query(
-            "INSERT INTO blueprint_affixes (blueprint_id, affix_id, weight, location, sort_order) \
-             VALUES ($1, $2, $3, $4, $5)",
-        )
-        .bind(bp_id)
-        .bind(entry.affix_id)
-        .bind(entry.weight)
-        .bind(affix_location_str(&AffixLocation::Suffix))
-        .bind(sort_order)
-        .execute(&mut *tx)
-        .await
-        .map_err(|e| {
-            tracing::error!(error = %e, "blueprints: insert blueprint_affixes failed");
-            ProblemResponse::unprocessable_entity("Failed to create blueprint affix pool")
-        })?;
-        sort_order += 1;
-    }
+    insert_affix_entries(&mut tx, bp_id, &affix_rows, AffixLocation::Prefix, &mut sort_order).await?;
+    insert_affix_entries(&mut tx, bp_id, &suffix_affix_rows, AffixLocation::Suffix, &mut sort_order).await?;
 
     tx.commit().await.map_err(|e| {
         tracing::error!(error = %e, "blueprints: commit transaction failed");
@@ -303,8 +268,8 @@ pub async fn create_blueprint(
             max_prefixes: req.affixes.max_prefixes,
             min_suffixes: req.affixes.min_suffixes,
             max_suffixes: req.affixes.max_suffixes,
-            prefixes: affix_rows.into_iter().map(|(e, _)| e).collect(),
-            suffixes: suffix_affix_rows.into_iter().map(|(e, _)| e).collect(),
+            prefixes: affix_rows,
+            suffixes: suffix_affix_rows,
         },
     );
 
@@ -453,86 +418,8 @@ pub async fn update_blueprint(
     }
 
     let mut sort_order: i32 = 0;
-
-    for entry in &req.affixes.prefixes {
-        let key = (entry.affix_id, AffixLocation::Prefix);
-        if existing_set.contains_key(&key) {
-            if (existing_set[&key] - entry.weight).abs() > f64::EPSILON {
-                sqlx::query(
-                    "UPDATE blueprint_affixes SET weight=$1, sort_order=$2 \
-                     WHERE blueprint_id=$3 AND affix_id=$4 AND location=$5",
-                )
-                .bind(entry.weight)
-                .bind(sort_order)
-                .bind(id)
-                .bind(entry.affix_id)
-                .bind(affix_location_str(&AffixLocation::Prefix))
-                .execute(&mut *tx)
-                .await
-                .map_err(|e| {
-                    tracing::error!(error = %e, "blueprints: update affix weight failed");
-                    ProblemResponse::unprocessable_entity("Failed to update affix pool")
-                })?;
-            }
-        } else {
-            sqlx::query(
-                "INSERT INTO blueprint_affixes (blueprint_id, affix_id, weight, location, sort_order) \
-                 VALUES ($1, $2, $3, $4, $5)",
-            )
-            .bind(id)
-            .bind(entry.affix_id)
-            .bind(entry.weight)
-            .bind(affix_location_str(&AffixLocation::Prefix))
-            .bind(sort_order)
-            .execute(&mut *tx)
-            .await
-            .map_err(|e| {
-                tracing::error!(error = %e, "blueprints: insert affix failed");
-                ProblemResponse::unprocessable_entity("Failed to update affix pool")
-            })?;
-        }
-        sort_order += 1;
-    }
-
-    for entry in &req.affixes.suffixes {
-        let key = (entry.affix_id, AffixLocation::Suffix);
-        if existing_set.contains_key(&key) {
-            if (existing_set[&key] - entry.weight).abs() > f64::EPSILON {
-                sqlx::query(
-                    "UPDATE blueprint_affixes SET weight=$1, sort_order=$2 \
-                     WHERE blueprint_id=$3 AND affix_id=$4 AND location=$5",
-                )
-                .bind(entry.weight)
-                .bind(sort_order)
-                .bind(id)
-                .bind(entry.affix_id)
-                .bind(affix_location_str(&AffixLocation::Suffix))
-                .execute(&mut *tx)
-                .await
-                .map_err(|e| {
-                    tracing::error!(error = %e, "blueprints: update affix weight failed");
-                    ProblemResponse::unprocessable_entity("Failed to update affix pool")
-                })?;
-            }
-        } else {
-            sqlx::query(
-                "INSERT INTO blueprint_affixes (blueprint_id, affix_id, weight, location, sort_order) \
-                 VALUES ($1, $2, $3, $4, $5)",
-            )
-            .bind(id)
-            .bind(entry.affix_id)
-            .bind(entry.weight)
-            .bind(affix_location_str(&AffixLocation::Suffix))
-            .bind(sort_order)
-            .execute(&mut *tx)
-            .await
-            .map_err(|e| {
-                tracing::error!(error = %e, "blueprints: insert affix failed");
-                ProblemResponse::unprocessable_entity("Failed to update affix pool")
-            })?;
-        }
-        sort_order += 1;
-    }
+    upsert_affix_pool_entries(&mut tx, id, &req.affixes.prefixes, AffixLocation::Prefix, &existing_set, &mut sort_order).await?;
+    upsert_affix_pool_entries(&mut tx, id, &req.affixes.suffixes, AffixLocation::Suffix, &existing_set, &mut sort_order).await?;
 
     tx.commit().await.map_err(|e| {
         tracing::error!(error = %e, "blueprints: commit update transaction failed");
@@ -727,7 +614,7 @@ async fn validate_affix_pool(
     client_id: Uuid,
     entries: &[AffixPoolEntry],
     expected_location: AffixLocation,
-) -> Result<Vec<(AffixPoolEntry, Uuid)>, ProblemResponse> {
+) -> Result<Vec<AffixPoolEntry>, ProblemResponse> {
     let mut valid_entries = Vec::new();
 
     for entry in entries {
@@ -761,21 +648,20 @@ async fn validate_affix_pool(
                 let affix_type = parse_affix_location(&affix_type_str).unwrap_or(AffixLocation::Prefix);
                 if affix_type != expected_location {
                     return Err(ProblemResponse::validation_error(
-                        format!(
-                            "Affix type mismatch: affix {} is of type {:?}, \
-                             expected {:?}",
-                            entry.affix_id, affix_type, expected_location
+                    format!(
+                        "Affix type mismatch: affix {} is of type {}, expected {}",
+                        entry.affix_id, affix_location_str(&affix_type), affix_location_str(&expected_location)
+                    ),
+                    vec![FieldError {
+                        path: "affixes".into(),
+                        message: format!(
+                            "affix {} has type {}, cannot be used as {}",
+                            entry.affix_id, affix_location_str(&affix_type), affix_location_str(&expected_location)
                         ),
-                        vec![FieldError {
-                            path: "affixes".into(),
-                            message: format!(
-                                "affix {} has type {:?}, cannot be used as {:?}",
-                                entry.affix_id, affix_type, expected_location
-                            ),
                         }],
                     ));
                 }
-                valid_entries.push((entry.clone(), affix_client_id));
+                valid_entries.push(entry.clone());
             }
         }
     }
@@ -845,6 +731,86 @@ async fn fetch_affix_pool(
         prefixes,
         suffixes,
     })
+}
+
+async fn insert_affix_entries(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    blueprint_id: Uuid,
+    entries: &[AffixPoolEntry],
+    location: AffixLocation,
+    sort_order: &mut i32,
+) -> Result<(), ProblemResponse> {
+    let loc_str = affix_location_str(&location);
+    for entry in entries {
+        sqlx::query(
+            "INSERT INTO blueprint_affixes (blueprint_id, affix_id, weight, location, sort_order) \
+             VALUES ($1, $2, $3, $4, $5)",
+        )
+        .bind(blueprint_id)
+        .bind(entry.affix_id)
+        .bind(entry.weight)
+        .bind(loc_str)
+        .bind(*sort_order)
+        .execute(&mut **tx)
+        .await
+        .map_err(|e| {
+            tracing::error!(error = %e, "blueprints: insert blueprint_affixes failed");
+            ProblemResponse::unprocessable_entity("Failed to create blueprint affix pool")
+        })?;
+        *sort_order += 1;
+    }
+    Ok(())
+}
+
+async fn upsert_affix_pool_entries(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    blueprint_id: Uuid,
+    entries: &[AffixPoolEntry],
+    location: AffixLocation,
+    existing_set: &HashMap<(Uuid, AffixLocation), f64>,
+    sort_order: &mut i32,
+) -> Result<(), ProblemResponse> {
+    let loc_str = affix_location_str(&location);
+    for entry in entries {
+        let key = (entry.affix_id, location.clone());
+        if existing_set.contains_key(&key) {
+            if (existing_set[&key] - entry.weight).abs() > f64::EPSILON {
+                sqlx::query(
+                    "UPDATE blueprint_affixes SET weight=$1, sort_order=$2 \
+                     WHERE blueprint_id=$3 AND affix_id=$4 AND location=$5",
+                )
+                .bind(entry.weight)
+                .bind(*sort_order)
+                .bind(blueprint_id)
+                .bind(entry.affix_id)
+                .bind(loc_str)
+                .execute(&mut **tx)
+                .await
+                .map_err(|e| {
+                    tracing::error!(error = %e, "blueprints: update affix weight failed");
+                    ProblemResponse::unprocessable_entity("Failed to update affix pool")
+                })?;
+            }
+        } else {
+            sqlx::query(
+                "INSERT INTO blueprint_affixes (blueprint_id, affix_id, weight, location, sort_order) \
+                 VALUES ($1, $2, $3, $4, $5)",
+            )
+            .bind(blueprint_id)
+            .bind(entry.affix_id)
+            .bind(entry.weight)
+            .bind(loc_str)
+            .bind(*sort_order)
+            .execute(&mut **tx)
+            .await
+            .map_err(|e| {
+                tracing::error!(error = %e, "blueprints: insert affix failed");
+                ProblemResponse::unprocessable_entity("Failed to update affix pool")
+            })?;
+        }
+        *sort_order += 1;
+    }
+    Ok(())
 }
 
 fn assemble_response(bp: &Blueprint, affixes: &BlueprintAffixConfig) -> BlueprintResponse {

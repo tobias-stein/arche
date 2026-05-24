@@ -60,6 +60,7 @@ pub struct ImportConflictResponse {
     pub problem: ProblemJson,
     #[serde(default)]
     pub conflicts: Vec<ConflictDetail>,
+    pub import_token: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]

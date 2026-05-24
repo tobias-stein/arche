@@ -782,6 +782,7 @@ mod tests {
                     value_type: ValueType::Range,
                 }],
             }],
+            import_token: "tok_abc".into(),
         };
         let value = serde_json::to_value(&resp).unwrap();
         let deserialized: ImportConflictResponse = serde_json::from_value(value).unwrap();
@@ -803,10 +804,12 @@ mod tests {
                 resource_name: "x".into(),
                 attributes: vec![],
             }],
+            import_token: "tok".into(),
         };
         let value = serde_json::to_value(&resp).unwrap();
         let obj = value.as_object().unwrap();
         assert!(obj.contains_key("conflicts"), "should have conflicts key");
+        assert!(obj.contains_key("importToken"), "should have importToken key");
         let conflicts = obj.get("conflicts").unwrap().as_array().unwrap();
         let first = conflicts[0].as_object().unwrap();
         assert!(

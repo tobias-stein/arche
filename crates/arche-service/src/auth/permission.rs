@@ -43,6 +43,9 @@ pub fn required_permission(method: &Method, path: &str) -> Option<RequiredPermis
             Some(RequiredPermission::Regular(Permission::Read))
         }
         Method::POST => {
+            if path == "/api/import" || path == "/api/import/resolve" {
+                return Some(RequiredPermission::SuperAdmin);
+            }
             if path == "/api/generate" {
                 return Some(RequiredPermission::Regular(Permission::Generate));
             }
@@ -369,6 +372,22 @@ mod tests {
     #[test]
     fn test_options_method_not_guarded() {
         assert_eq!(required_permission(&Method::OPTIONS, "/api/blueprints"), None);
+    }
+
+    #[test]
+    fn test_post_import_requires_super_admin() {
+        assert_eq!(
+            required_permission(&Method::POST, "/api/import"),
+            Some(RequiredPermission::SuperAdmin)
+        );
+    }
+
+    #[test]
+    fn test_post_import_resolve_requires_super_admin() {
+        assert_eq!(
+            required_permission(&Method::POST, "/api/import/resolve"),
+            Some(RequiredPermission::SuperAdmin)
+        );
     }
 
     #[test]

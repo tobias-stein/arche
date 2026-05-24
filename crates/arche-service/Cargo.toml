@@ -24,6 +24,8 @@ sqlx.workspace = true
 bcrypt.workspace = true
 rand.workspace = true
 redis = { version = "0.25", features = ["tokio-comp"] }
+dashmap = "6"
+zip = "2"
 
 [dev-dependencies]
 proptest = "1"

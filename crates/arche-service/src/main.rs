@@ -2,6 +2,7 @@ pub mod auth;
 mod bootstrap;
 mod config;
 pub mod generation;
+pub mod import;
 mod schema;
 pub mod cache;
 pub mod pagination;
@@ -10,7 +11,7 @@ pub mod redis_pubsub;
 
 use axum::extract::State;
 use axum::middleware;
-use axum::{routing::get, Json, Router};
+use axum::{routing::{get, post}, Json, Router};
 use arche_types::crud::BootstrapResponse;
 use serde_json::{json, Value};
 use sqlx::postgres::PgPoolOptions;
@@ -26,6 +27,7 @@ use tracing::warn;
 use bootstrap::bootstrap_super_admin;
 use cache::Cache;
 use config::Config;
+use import::ImportStaging;
 use redis_pubsub::RedisPubSubHandle;
 use schema::{get_affixes_schema, get_blueprints_schema, get_generate_schema};
 
@@ -35,6 +37,7 @@ pub(crate) struct AppState {
     cache: Arc<RwLock<Cache>>,
     pool: Arc<PgPool>,
     redis: Option<RedisPubSubHandle>,
+    pub(crate) import_staging: Arc<ImportStaging>,
 }
 
 impl axum::extract::FromRef<AppState> for Arc<PgPool> {
@@ -73,6 +76,8 @@ fn build_router(state: AppState) -> Router {
         .route("/api/schema/blueprints", get(get_blueprints_schema))
         .route("/api/schema/affixes", get(get_affixes_schema))
         .route("/api/schema/generate", get(get_generate_schema))
+        .route("/api/import", post(import::import_parse_handler))
+        .route("/api/import/resolve", post(import::import_resolve_handler))
         .layer(TraceLayer::new_for_http())
         .layer(middleware::from_fn_with_state(
             state.clone(),
@@ -163,7 +168,7 @@ async fn main() {
         None
     };
 
-    let state = AppState { cache, pool, redis: redis_handle };
+    let state = AppState { cache, pool, redis: redis_handle, import_staging: Arc::new(ImportStaging::new()) };
     let router = build_router(state);
 
     let addr: SocketAddr = config.bind_addr().parse().expect("invalid bind address");
@@ -235,6 +240,7 @@ mod tests {
             ))),
             pool: Arc::new(PgPool::connect_lazy("postgres://localhost/test").expect("lazy pool")),
             redis: None,
+            import_staging: Arc::new(ImportStaging::new()),
         }
     }
 

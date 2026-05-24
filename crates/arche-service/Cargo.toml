@@ -12,6 +12,7 @@ chrono.workspace = true
 thiserror.workspace = true
 axum.workspace = true
 tokio.workspace = true
+tokio-stream.workspace = true
 tower.workspace = true
 tower-http.workspace = true
 tracing.workspace = true
@@ -22,6 +23,7 @@ once_cell.workspace = true
 sqlx.workspace = true
 bcrypt.workspace = true
 rand.workspace = true
+redis = { version = "0.25", features = ["tokio-comp"] }
 
 [dev-dependencies]
 proptest = "1"

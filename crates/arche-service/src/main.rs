@@ -5,6 +5,7 @@ mod schema;
 pub mod cache;
 pub mod pagination;
 pub mod error;
+pub mod redis_pubsub;
 
 use axum::extract::State;
 use axum::{routing::get, Json, Router};
@@ -18,16 +19,20 @@ use tokio::signal;
 use tokio::sync::RwLock;
 use tower_http::trace::TraceLayer;
 use tracing::info;
+use tracing::warn;
 
 use bootstrap::bootstrap_super_admin;
 use cache::Cache;
 use config::Config;
+use redis_pubsub::RedisPubSubHandle;
 use schema::{get_affixes_schema, get_blueprints_schema, get_generate_schema};
 
 #[derive(Clone)]
+#[allow(dead_code)]
 struct AppState {
     cache: Arc<RwLock<Cache>>,
     pool: Arc<PgPool>,
+    redis: Option<RedisPubSubHandle>,
 }
 
 async fn health_check() -> Json<Value> {
@@ -125,12 +130,28 @@ async fn main() {
     let cache = Arc::new(RwLock::new(cache));
 
     let _poll_handle = cache::start_cache_poller(
-        pool.clone(),
+        (*pool).clone(),
         cache.clone(),
         config.cache_poll_interval_ms,
     );
 
-    let state = AppState { cache, pool };
+    let redis_handle = if let Some(ref redis_url) = config.redis_url {
+        match redis_pubsub::connect_redis(redis_url).await {
+            Ok(client) => {
+                info!("redis: connected, starting pub/sub");
+                let handle = redis_pubsub::start_redis_pubsub(client, pool.clone(), cache.clone());
+                Some(handle)
+            }
+            Err(e) => {
+                warn!(error = %e, "redis: connection failed, falling back to polling-only mode");
+                None
+            }
+        }
+    } else {
+        None
+    };
+
+    let state = AppState { cache, pool, redis: redis_handle };
     let router = build_router(state);
 
     let addr: SocketAddr = config.bind_addr().parse().expect("invalid bind address");
@@ -201,6 +222,7 @@ mod tests {
                 std::collections::HashMap::new(),
             ))),
             pool: Arc::new(PgPool::connect_lazy("postgres://localhost/test").expect("lazy pool")),
+            redis: None,
         }
     }
 

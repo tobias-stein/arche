@@ -1,6 +1,6 @@
 ---
 title: JSON Schema introspection endpoints
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

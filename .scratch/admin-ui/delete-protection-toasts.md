@@ -1,6 +1,6 @@
 ---
 title: Delete protection modals + toast notifications
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

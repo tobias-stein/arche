@@ -1,0 +1,207 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "GenerateSchemas",
+  "description": "Fallback schema for /api/schema/generate. Auto-generated from Rust types.",
+  "type": "object",
+  "required": [
+    "request",
+    "response"
+  ],
+  "properties": {
+    "request": {
+      "$ref": "#/$defs/GenerateRequest"
+    },
+    "response": {
+      "$ref": "#/$defs/GenerateResponse"
+    }
+  },
+  "$defs": {
+    "GenerateRequest": {
+      "type": "object",
+      "properties": {
+        "archetype": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "seed": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "constraints": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "$ref": "#/$defs/ConstraintValue"
+          }
+        },
+        "affixes": {
+          "$ref": "#/$defs/AffixConstraints"
+        }
+      }
+    },
+    "GenerateResponse": {
+      "type": "object",
+      "required": [
+        "seed",
+        "name",
+        "nameParts",
+        "blueprintId",
+        "blueprintAttributes",
+        "affixAttributes"
+      ],
+      "properties": {
+        "seed": {
+          "type": "integer"
+        },
+        "name": {
+          "type": "string"
+        },
+        "nameParts": {
+          "$ref": "#/$defs/NameParts"
+        },
+        "blueprintId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "blueprintAttributes": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "affixAttributes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AffixAttributeEntry"
+          }
+        }
+      }
+    },
+    "NameParts": {
+      "type": "object",
+      "required": [
+        "base"
+      ],
+      "properties": {
+        "base": {
+          "type": "string"
+        },
+        "prefixes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "suffixes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "AffixAttributeEntry": {
+      "type": "object",
+      "required": [
+        "affixId",
+        "affixName"
+      ],
+      "properties": {
+        "affixId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "affixName": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "ConstraintValue": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/ConstraintConfig"
+        },
+        {
+          "description": "Bare value (boolean, number, string)"
+        }
+      ]
+    },
+    "ConstraintConfig": {
+      "type": "object",
+      "properties": {
+        "gte": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "lte": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "in": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "contains": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "eq": {
+          "description": "Any JSON value"
+        }
+      }
+    },
+    "AffixConstraints": {
+      "type": "object",
+      "required": [
+        "minPrefixes",
+        "maxPrefixes",
+        "minSuffixes",
+        "maxSuffixes"
+      ],
+      "properties": {
+        "minPrefixes": {
+          "type": "integer"
+        },
+        "maxPrefixes": {
+          "type": "integer"
+        },
+        "minSuffixes": {
+          "type": "integer"
+        },
+        "maxSuffixes": {
+          "type": "integer"
+        },
+        "require": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "block": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      }
+    }
+  }
+}

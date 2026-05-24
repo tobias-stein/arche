@@ -1,0 +1,6 @@
+---
+source: crates/arche-cli/src/output.rs
+assertion_line: 531
+expression: output
+---
+"[\n  {\n    \"id\": \"00000000-0000-0000-0000-000000000001\",\n    \"name\": \"My Game\",\n    \"createdAt\": \"1970-01-01T00:00:00Z\",\n    \"apiKeys\": []\n  }\n]\n"

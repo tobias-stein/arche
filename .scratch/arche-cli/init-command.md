@@ -1,6 +1,6 @@
 ---
 title: arche init command
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

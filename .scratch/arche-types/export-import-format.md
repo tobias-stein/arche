@@ -1,6 +1,6 @@
 ---
 title: arche-types — export/import format & conflict schema
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

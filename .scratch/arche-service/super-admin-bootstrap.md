@@ -1,6 +1,6 @@
 ---
 title: Bootstrap — super admin key auto-generation
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

@@ -1,0 +1,5 @@
+---
+source: crates/arche-cli/src/output.rs
+expression: output
+---
+"{\n  \"seed\": 12345,\n  \"name\": \"Fire Longsword of the Bear\",\n  \"nameParts\": {\n    \"base\": \"Longsword\",\n    \"prefixes\": [\n      \"Fire\"\n    ],\n    \"suffixes\": [\n      \"of the Bear\"\n    ]\n  },\n  \"blueprintId\": \"00000000-0000-0000-0000-000000000001\",\n  \"blueprintAttributes\": {\n    \"damage\": 27.3,\n    \"weight\": 3.5\n  },\n  \"affixAttributes\": [\n    {\n      \"affixId\": \"00000000-0000-0000-0000-000000000002\",\n      \"affixName\": \"Fire\",\n      \"fireDamage\": 12.7\n    }\n  ]\n}\n"

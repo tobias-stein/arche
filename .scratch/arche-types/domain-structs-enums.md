@@ -1,6 +1,6 @@
 ---
 title: arche-types — domain structs & enums
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

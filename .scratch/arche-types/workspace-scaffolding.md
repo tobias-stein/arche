@@ -1,6 +1,6 @@
 ---
 title: Arche workspace & CI scaffolding
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

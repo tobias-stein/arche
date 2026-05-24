@@ -1,6 +1,6 @@
 ---
 title: arche-types — request/response types
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

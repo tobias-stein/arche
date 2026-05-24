@@ -1,6 +1,6 @@
 ---
 title: Cache — single-instance polling invalidation
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

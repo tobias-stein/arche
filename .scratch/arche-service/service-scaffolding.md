@@ -1,6 +1,6 @@
 ---
 title: Service scaffolding
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

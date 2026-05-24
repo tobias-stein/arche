@@ -1,6 +1,6 @@
 ---
 title: CLI output formatting
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

@@ -1,6 +1,6 @@
 ---
 title: Pagination utilities
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

@@ -1,6 +1,6 @@
 ---
 title: Auth middleware — API key extractor
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

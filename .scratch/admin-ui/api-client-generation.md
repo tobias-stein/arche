@@ -1,6 +1,6 @@
 ---
 title: API client generation
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

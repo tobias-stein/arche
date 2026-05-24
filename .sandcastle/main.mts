@@ -1,7 +1,7 @@
 import * as sandcastle from "@ai-hero/sandcastle";
 import { docker } from "@ai-hero/sandcastle/sandboxes/docker";
 
-const MAX_ITERATIONS = 10;
+const MAX_ITERATIONS = 3;
 const MAX_PARALLEL = 1;
 
 for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
@@ -92,6 +92,11 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
               BRANCH: issue.branch,
             },
           });
+        } else {
+          console.log(
+            `  - ${issue.id}: no commits produced, skipping review.` +
+              ` Check logs/implementer-${issue.id.replace("/", "-")}.log`,
+          );
         }
 
         return result;

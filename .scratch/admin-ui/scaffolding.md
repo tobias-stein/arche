@@ -1,6 +1,10 @@
 ---
 title: Admin UI scaffolding
-status: ready-for-agent
+status: ready-for-human
+
+## Result
+
+Merged via `6f96e2d` on `sandcastle/admin-ui/scaffolding` → `main` (commit `3d29e14`). 42 files, 5589 insertions. All ACs met — builds and lints clean.
 ---
 
 ## Parent

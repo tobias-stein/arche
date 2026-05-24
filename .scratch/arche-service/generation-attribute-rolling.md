@@ -1,6 +1,6 @@
 ---
 title: Generation engine — attribute resolution & rolling
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

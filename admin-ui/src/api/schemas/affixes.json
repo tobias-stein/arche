@@ -1,0 +1,150 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AffixSchemas",
+  "description": "Fallback schema for /api/schema/affixes. Auto-generated from Rust types.",
+  "type": "object",
+  "required": [
+    "createRequest",
+    "response"
+  ],
+  "properties": {
+    "createRequest": {
+      "$ref": "#/$defs/CreateAffixRequest"
+    },
+    "response": {
+      "$ref": "#/$defs/Affix"
+    }
+  },
+  "$defs": {
+    "CreateAffixRequest": {
+      "type": "object",
+      "required": [
+        "name",
+        "type",
+        "attribute"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/$defs/AffixLocation"
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "attribute": {
+          "$ref": "#/$defs/AffixAttribute"
+        }
+      }
+    },
+    "Affix": {
+      "type": "object",
+      "required": [
+        "id",
+        "clientId",
+        "name",
+        "location",
+        "attribute",
+        "createdAt",
+        "updatedAt"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "clientId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "name": {
+          "type": "string"
+        },
+        "location": {
+          "$ref": "#/$defs/AffixLocation"
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "attribute": {
+          "$ref": "#/$defs/AffixAttribute"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "AffixLocation": {
+      "type": "string",
+      "enum": [
+        "prefix",
+        "suffix"
+      ]
+    },
+    "AffixAttribute": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/AffixInlineAttributeDef"
+        },
+        {
+          "$ref": "#/$defs/RefAttribute"
+        }
+      ]
+    },
+    "AffixInlineAttributeDef": {
+      "type": "object",
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "valueType": {
+          "$ref": "#/$defs/ValueType"
+        }
+      }
+    },
+    "RefAttribute": {
+      "type": "object",
+      "required": [
+        "$ref_id"
+      ],
+      "properties": {
+        "$ref_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ValueType": {
+      "type": "string",
+      "enum": [
+        "single",
+        "enum",
+        "range",
+        "string",
+        "boolean"
+      ]
+    }
+  }
+}

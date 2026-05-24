@@ -6,9 +6,12 @@ pub mod cache;
 pub mod pagination;
 pub mod error;
 
+use axum::extract::State;
 use axum::{routing::get, Json, Router};
+use arche_types::crud::BootstrapResponse;
 use serde_json::{json, Value};
 use sqlx::postgres::PgPoolOptions;
+use sqlx::PgPool;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::signal;
@@ -24,15 +27,36 @@ use schema::{get_affixes_schema, get_blueprints_schema, get_generate_schema};
 #[derive(Clone)]
 struct AppState {
     cache: Arc<RwLock<Cache>>,
+    pool: Arc<PgPool>,
 }
 
 async fn health_check() -> Json<Value> {
     Json(json!({ "status": "ok" }))
 }
 
+async fn bootstrap_handler(State(state): State<AppState>) -> Json<BootstrapResponse> {
+    let key = bootstrap_super_admin(&state.pool).await;
+    if let Some(raw_key) = key {
+        Json(BootstrapResponse {
+            bootstrapped: true,
+            key: Some(raw_key),
+            message: None,
+        })
+    } else {
+        Json(BootstrapResponse {
+            bootstrapped: false,
+            key: None,
+            message: Some(
+                "Already bootstrapped. Super admin key available in server logs.".into(),
+            ),
+        })
+    }
+}
+
 fn build_router(state: AppState) -> Router {
     Router::new()
         .route("/health", get(health_check))
+        .route("/api/bootstrap", get(bootstrap_handler))
         .route("/api/schema/blueprints", get(get_blueprints_schema))
         .route("/api/schema/affixes", get(get_affixes_schema))
         .route("/api/schema/generate", get(get_generate_schema))
@@ -71,6 +95,8 @@ async fn main() {
         .await
         .expect("failed to run database migrations");
 
+    let pool = Arc::new(pool);
+
     let super_admin_key = bootstrap_super_admin(&pool).await;
 
     if let Some(ref key) = super_admin_key {
@@ -104,7 +130,7 @@ async fn main() {
         config.cache_poll_interval_ms,
     );
 
-    let state = AppState { cache };
+    let state = AppState { cache, pool };
     let router = build_router(state);
 
     let addr: SocketAddr = config.bind_addr().parse().expect("invalid bind address");
@@ -174,6 +200,7 @@ mod tests {
                 std::collections::HashMap::new(),
                 std::collections::HashMap::new(),
             ))),
+            pool: Arc::new(PgPool::connect_lazy("postgres://localhost/test").expect("lazy pool")),
         }
     }
 

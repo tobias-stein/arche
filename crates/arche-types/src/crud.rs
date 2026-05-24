@@ -97,3 +97,13 @@ pub struct ApiKeyResponse {
     pub name: String,
     pub permissions: Vec<Permission>,
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct BootstrapResponse {
+    pub bootstrapped: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub key: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
+}

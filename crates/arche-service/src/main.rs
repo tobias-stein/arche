@@ -5,10 +5,14 @@ pub mod cache;
 pub mod pagination;
 pub mod error;
 
+use axum::extract::State;
 use axum::{routing::get, Json, Router};
+use arche_types::crud::BootstrapResponse;
 use serde_json::{json, Value};
 use sqlx::postgres::PgPoolOptions;
+use sqlx::PgPool;
 use std::net::SocketAddr;
+use std::sync::Arc;
 use tokio::signal;
 use tower_http::trace::TraceLayer;
 use tracing::info;
@@ -21,12 +25,33 @@ async fn health_check() -> Json<Value> {
     Json(json!({ "status": "ok" }))
 }
 
-fn build_router() -> Router {
+async fn bootstrap_handler(State(pool): State<Arc<PgPool>>) -> Json<BootstrapResponse> {
+    let key = bootstrap_super_admin(&pool).await;
+    if let Some(raw_key) = key {
+        Json(BootstrapResponse {
+            bootstrapped: true,
+            key: Some(raw_key),
+            message: None,
+        })
+    } else {
+        Json(BootstrapResponse {
+            bootstrapped: false,
+            key: None,
+            message: Some(
+                "Already bootstrapped. Super admin key available in server logs.".into(),
+            ),
+        })
+    }
+}
+
+fn build_router(pool: Arc<PgPool>) -> Router {
     Router::new()
         .route("/health", get(health_check))
+        .route("/api/bootstrap", get(bootstrap_handler))
         .route("/api/schema/blueprints", get(get_blueprints_schema))
         .route("/api/schema/affixes", get(get_affixes_schema))
         .route("/api/schema/generate", get(get_generate_schema))
+        .with_state(pool)
         .layer(TraceLayer::new_for_http())
 }
 
@@ -61,6 +86,8 @@ async fn main() {
         .await
         .expect("failed to run database migrations");
 
+    let pool = Arc::new(pool);
+
     let super_admin_key = bootstrap_super_admin(&pool).await;
 
     if let Some(ref key) = super_admin_key {
@@ -75,7 +102,7 @@ async fn main() {
         println!();
     }
 
-    let router = build_router();
+    let router = build_router(pool.clone());
 
     let addr: SocketAddr = config.bind_addr().parse().expect("invalid bind address");
     let listener = tokio::net::TcpListener::bind(addr)
@@ -135,9 +162,13 @@ mod tests {
     };
     use tower::ServiceExt;
 
+    fn test_pool() -> Arc<PgPool> {
+        Arc::new(PgPool::connect_lazy("postgres://localhost/test").expect("lazy pool"))
+    }
+
     #[tokio::test]
     async fn test_health_check() {
-        let router = build_router();
+        let router = build_router(test_pool());
 
         let response = router
             .oneshot(

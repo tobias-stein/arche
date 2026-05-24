@@ -905,6 +905,51 @@ mod tests {
     }
 
     #[test]
+    fn test_bootstrap_response_round_trip() {
+        let resp = BootstrapResponse {
+            bootstrapped: true,
+            key: Some("arche_k_abc123".into()),
+            message: None,
+        };
+        let value = serde_json::to_value(&resp).unwrap();
+        assert_eq!(value, json!({"bootstrapped": true, "key": "arche_k_abc123"}));
+        let deserialized: BootstrapResponse = serde_json::from_value(value).unwrap();
+        assert_eq!(deserialized, resp);
+    }
+
+    #[test]
+    fn test_bootstrap_response_already_bootstrapped() {
+        let resp = BootstrapResponse {
+            bootstrapped: false,
+            key: None,
+            message: Some("Already bootstrapped. Key available in server logs.".into()),
+        };
+        let value = serde_json::to_value(&resp).unwrap();
+        assert_eq!(
+            value,
+            json!({"bootstrapped": false, "message": "Already bootstrapped. Key available in server logs."})
+        );
+        let deserialized: BootstrapResponse = serde_json::from_value(value).unwrap();
+        assert_eq!(deserialized, resp);
+    }
+
+    #[test]
+    fn test_bootstrap_response_camel_case() {
+        let resp = BootstrapResponse {
+            bootstrapped: true,
+            key: Some("arche_k_abc123".into()),
+            message: None,
+        };
+        let obj = serde_json::to_value(&resp)
+            .unwrap()
+            .as_object()
+            .unwrap()
+            .clone();
+        assert!(obj.contains_key("bootstrapped"));
+        assert!(obj.contains_key("key"));
+    }
+
+    #[test]
     fn test_problem_json_round_trip() {
         let problem = ProblemJson {
             type_: "/errors/not-found".into(),
@@ -1015,5 +1060,6 @@ mod tests {
         assert_traits::<ProblemJson>();
         assert_traits::<BlueprintListQuery>();
         assert_traits::<AuditLogListQuery>();
+        assert_traits::<BootstrapResponse>();
     }
 }

@@ -2,7 +2,6 @@ import { Outlet } from 'react-router-dom'
 import { Menu, Moon, PanelRightClose, PanelRightOpen, Search, Sun } from 'lucide-react'
 import { useTheme } from '@/stores/theme'
 import { useUi } from '@/stores/ui'
-import { cn } from '@/lib/utils'
 import { NavigationDrawer } from './NavigationDrawer'
 import { ActivityPanel } from './ActivityPanel'
 
@@ -64,7 +63,7 @@ export function AppShell() {
       <Header />
       <div className="flex pt-16">
         <NavigationDrawer />
-        <main className={cn('flex-1 min-w-0 transition-[margin] duration-300')}>
+        <main className="flex-1 min-w-0 transition-[margin] duration-300">
           <div className="p-4">
             <Outlet />
           </div>

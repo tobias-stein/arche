@@ -29,6 +29,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 
+const buttonClass =
+  'flex w-full items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors'
+
 const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/blueprints', icon: Box, label: 'Blueprints' },
@@ -155,26 +158,17 @@ export function NavigationDrawer() {
             API Keys
           </NavLink>
           {isAuthenticated ? (
-            <button
-              onClick={handleLogout}
-              className="flex w-full items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
-            >
+            <button onClick={handleLogout} className={buttonClass}>
               <LogOut className="h-4 w-4" />
               Logout
             </button>
           ) : (
-            <button
-              onClick={handleLogin}
-              className="flex w-full items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
-            >
+            <button onClick={handleLogin} className={buttonClass}>
               <LogIn className="h-4 w-4" />
               Login
             </button>
           )}
-          <button
-            onClick={toggleTheme}
-            className="flex w-full items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
-          >
+          <button onClick={toggleTheme} className={buttonClass}>
             {mode === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             <span>{mode === 'dark' ? 'Light mode' : 'Dark mode'}</span>
           </button>

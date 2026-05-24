@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { History, X } from 'lucide-react'
 import { useUi } from '@/stores/ui'
-import { cn } from '@/lib/utils'
 
 export function ActivityPanel() {
   const { closePanel } = useUi()
@@ -20,10 +19,7 @@ export function ActivityPanel() {
   return (
     <div
       ref={panelRef}
-      className={cn(
-        'fixed top-16 right-0 bottom-0 z-30 w-80 border-l bg-background shadow-lg',
-        'animate-in slide-in-from-right',
-      )}
+      className="fixed top-16 right-0 bottom-0 z-30 w-80 border-l bg-background shadow-lg animate-in slide-in-from-right"
     >
       <div className="flex items-center justify-between px-4 h-12 border-b">
         <div className="flex items-center gap-2 text-sm font-medium">

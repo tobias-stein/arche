@@ -1,6 +1,6 @@
 ---
 title: Audit log — query endpoint
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

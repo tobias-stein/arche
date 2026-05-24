@@ -1,5 +1,6 @@
 mod config;
 mod schema;
+pub mod cache;
 pub mod pagination;
 pub mod error;
 

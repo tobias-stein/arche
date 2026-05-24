@@ -78,14 +78,7 @@ export const reducer = (state: State, action: Action): State => {
       } else {
         state.toasts.forEach((t) => addToRemoveQueue(t.id))
       }
-      return {
-        ...state,
-        toasts: state.toasts.map((t) =>
-          t.id === toastId || toastId === undefined
-            ? { ...t }
-            : t,
-        ),
-      }
+      return { ...state }
     }
     case 'REMOVE_TOAST':
       if (action.toastId === undefined) {

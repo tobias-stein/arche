@@ -46,6 +46,13 @@ export function DeleteResourceDialog({
 }: DeleteResourceDialogProps) {
   const hasReferences = referencingResources.length > 0
 
+  let buttonLabel = 'Delete'
+  if (isDeleting) {
+    buttonLabel = 'Deleting...'
+  } else if (hasReferences) {
+    buttonLabel = 'Force Delete'
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
@@ -94,23 +101,13 @@ export function DeleteResourceDialog({
           <DialogClose asChild>
             <Button variant="outline">Cancel</Button>
           </DialogClose>
-          {hasReferences ? (
-            <Button
-              variant="destructive"
-              onClick={onForceDelete}
-              disabled={isDeleting}
-            >
-              {isDeleting ? 'Deleting...' : 'Force Delete'}
-            </Button>
-          ) : (
-            <Button
-              variant="destructive"
-              onClick={onForceDelete}
-              disabled={isDeleting}
-            >
-              {isDeleting ? 'Deleting...' : 'Delete'}
-            </Button>
-          )}
+          <Button
+            variant="destructive"
+            onClick={onForceDelete}
+            disabled={isDeleting}
+          >
+            {buttonLabel}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

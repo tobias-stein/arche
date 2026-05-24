@@ -20,6 +20,12 @@ Here are the last 10 commits:
 
 </issue>
 
+<implementer-summary>
+
+{{IMPLEMENTER_SUMMARY}}
+
+</implementer-summary>
+
 <diff-to-main>
 
 !`git diff main..HEAD`
@@ -49,6 +55,8 @@ Here are the last 10 commits:
 4. **Apply project standards**: Follow the established coding standards in the project at @.sandcastle/CODING_STANDARDS.md.
 
 5. **Preserve functionality**: Never change what the code does - only how it does it. All original features, outputs, and behaviors must remain intact.
+
+6. **Handle empty/no-op issues**: If the diff is empty and the implementer's summary states no changes are needed (issue already resolved, out of scope, duplicate, or not actionable), output `<close-issue>true</close-issue>` so the issue tracker can close it. Do NOT output this tag if any code changes were made or if the issue still needs work.
 
 # EXECUTION
 

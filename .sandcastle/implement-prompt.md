@@ -63,6 +63,16 @@ Do not change the issue status — this will be done during merge.
 
 Once complete, output <promise>COMPLETE</promise>.
 
+# SUMMARY
+
+After completing the task (or determining no work is needed), output a brief summary wrapped in `<summary>` tags:
+
+<summary>
+- What was done (or why no changes were needed)
+- Key files modified (or "none")
+- Any decisions or blockers
+</summary>
+
 # FINAL RULES
 
 ONLY WORK ON A SINGLE TASK.

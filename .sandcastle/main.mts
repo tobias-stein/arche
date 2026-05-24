@@ -1,8 +1,9 @@
+import { readFileSync, writeFileSync } from "fs";
 import * as sandcastle from "@ai-hero/sandcastle";
 import { docker } from "@ai-hero/sandcastle/sandboxes/docker";
 
 const MAX_ITERATIONS = 3;
-const MAX_PARALLEL = 1;
+const MAX_PARALLEL = 4;
 
 for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
   console.log(`\n=== Iteration ${iteration}/${MAX_ITERATIONS} ===\n`);
@@ -80,22 +81,50 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
           },
         });
 
-        if (result.commits.length > 0) {
-          await sandbox.run({
-            name: "Reviewer " + issue.id,
-            agent: sandcastle.opencode("opencode/big-pickle"),
-            promptFile: "./.sandcastle/review-prompt.md",
-            promptArgs: {
-              ISSUE_ID: issue.id,
-              ISSUE_TITLE: issue.title,
-              ISSUE_PATH: issue.path,
-              BRANCH: issue.branch,
-            },
-          });
+        const summaryMatch = result.stdout.match(
+          /<summary>([\s\S]*?)<\/summary>/,
+        );
+        const implementerSummary = summaryMatch
+          ? summaryMatch[1].trim()
+          : "(no summary provided)";
+
+        const commitCount = result.commits.length;
+        if (commitCount > 0) {
+          console.log(
+            `  - ${issue.id}: ${commitCount} commit(s), summary: ${implementerSummary}`,
+          );
         } else {
           console.log(
-            `  - ${issue.id}: no commits produced, skipping review.` +
-              ` Check logs/implementer-${issue.id.replace("/", "-")}.log`,
+            `  - ${issue.id}: no commits, summary: ${implementerSummary}`,
+          );
+        }
+
+        const reviewResult = await sandbox.run({
+          name: "Reviewer " + issue.id,
+          agent: sandcastle.opencode("opencode/big-pickle"),
+          promptFile: "./.sandcastle/review-prompt.md",
+          promptArgs: {
+            ISSUE_ID: issue.id,
+            ISSUE_TITLE: issue.title,
+            ISSUE_PATH: issue.path,
+            BRANCH: issue.branch,
+            IMPLEMENTER_SUMMARY: implementerSummary,
+          },
+        });
+
+        const closeMatch = reviewResult.stdout.match(
+          /<close-issue>\s*true\s*<\/close-issue>/,
+        );
+        if (closeMatch) {
+          const issuePath = issue.path;
+          let content = readFileSync(issuePath, "utf-8");
+          content = content.replace(
+            /^status: ready-for-agent$/m,
+            "status: closed\nresolution: no-work-needed",
+          );
+          writeFileSync(issuePath, content);
+          console.log(
+            `  ✓ ${issue.id}: closed (no work needed per reviewer)`,
           );
         }
 

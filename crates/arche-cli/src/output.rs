@@ -566,6 +566,7 @@ mod tests {
                     value_type: ValueType::Range,
                 }],
             }],
+            import_token: "test-token-1".into(),
         };
         writer.write_import_conflicts(&conflict).unwrap();
         let output = writer.stdout().contents();
@@ -742,6 +743,7 @@ mod tests {
                     value_type: ValueType::Range,
                 }],
             }],
+            import_token: "test-token-2".into(),
         };
         writer.write_import_conflicts(&conflict).unwrap();
         let output = writer.stdout().contents();
@@ -760,6 +762,7 @@ mod tests {
                 detail: None,
             },
             conflicts: vec![],
+            import_token: "test-token-3".into(),
         };
         writer.write_import_conflicts(&conflict).unwrap();
         assert!(writer.stdout().contents().is_empty());

@@ -8,6 +8,8 @@ Here are the open issues in the local file-based tracker:
 
 Read each issue file listed above using the `read` tool. For each issue, understand what it requires and whether it **blocks** or **is blocked by** any other open issue (look at the "Blocked by" section in each issue).
 
+For each issue, derive its proposed branch name using the format `sandcastle/<feature>/<issue-slug>` (from its file path under `.scratch/`). Run `git branch --list '<proposed-branch>'` to check if that branch already exists. If it does, **skip the issue** — it was already attempted in a prior iteration. Do not include it in the plan.
+
 An issue B is **blocked by** issue A if:
 - B lists A (by its `.scratch/<feature>/<slug>.md` path) in its "Blocked by" section
 - B requires code or infrastructure that A introduces
@@ -16,7 +18,7 @@ An issue B is **blocked by** issue A if:
 
 An issue is **unblocked** if it has zero blocking dependencies on other open issues.
 
-For each unblocked issue, assign a branch name using the format `sandcastle/<feature>/<issue-slug>` (derived from its file path under `.scratch/`).
+Use that same branch name for each unblocked issue in your output.
 
 If the issue appears to be a PRD and it has implementation issues which link to it, the PRD cannot be worked on.
 

@@ -345,7 +345,7 @@ fn apply_per_attribute_resolution(
             }
             ResolutionStrategy::PerAttribute => {
                 return Err(ProblemResponse::validation_error(
-                    "Nested perAttribute is not supported".into(),
+                    "Nested perAttribute is not supported",
                     vec![],
                 ));
             }
@@ -683,7 +683,7 @@ async fn detect_client_conflicts(
                         value_type: ValueType::String,
                     }],
                 };
-                if !conflicts.iter().any(|c| c.resource_id == cid) {
+                if !conflicts.iter().any(|c: &ConflictDetail| c.resource_id == cid) {
                     conflicts.push(detail);
                 }
             }

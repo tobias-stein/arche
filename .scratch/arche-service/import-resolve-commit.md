@@ -1,6 +1,6 @@
 ---
 title: Import — resolve & commit
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

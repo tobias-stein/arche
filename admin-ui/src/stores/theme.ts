@@ -7,20 +7,16 @@ type Mode = 'light' | 'dark'
 function getInitialMode(): Mode {
   const stored = localStorage.getItem(STORAGE_KEY)
   if (stored === 'dark' || stored === 'light') return stored
-  if (window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark'
-  return 'light'
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
 }
 
-function applyClass(mode: Mode) {
+function applyMode(mode: Mode) {
   document.documentElement.classList.toggle('dark', mode === 'dark')
-}
-
-function persist(mode: Mode) {
   localStorage.setItem(STORAGE_KEY, mode)
 }
 
 const initial = getInitialMode()
-applyClass(initial)
+applyMode(initial)
 
 interface ThemeState {
   mode: Mode
@@ -32,14 +28,12 @@ export const useTheme = create<ThemeState>((set) => ({
   mode: initial,
   toggle: () =>
     set((state) => {
-      const next: Mode = state.mode === 'light' ? 'dark' : 'light'
-      persist(next)
-      applyClass(next)
+      const next = state.mode === 'light' ? 'dark' : 'light'
+      applyMode(next)
       return { mode: next }
     }),
   setMode: (mode: Mode) => {
-    persist(mode)
-    applyClass(mode)
+    applyMode(mode)
     set({ mode })
   },
 }))

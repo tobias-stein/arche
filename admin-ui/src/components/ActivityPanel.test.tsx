@@ -1,63 +1,300 @@
-import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { describe, expect, it, vi } from 'vitest'
 import { ActivityPanel } from '@/components/ActivityPanel'
 
+const mockNavigate = vi.fn()
+
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual('react-router-dom')
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+  }
+})
+
+vi.mock('@/api/generated/hooks', async () => {
+  const actual = await vi.importActual('@/api/generated/hooks')
+  return {
+    ...actual,
+    useAuditLog: vi.fn(),
+  }
+})
+
 function renderPanel() {
-  return render(<ActivityPanel />)
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  })
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={['/dashboard']}>
+        <ActivityPanel />
+      </MemoryRouter>
+    </QueryClientProvider>,
+  )
+}
+
+async function setStoreState(overrides: Record<string, unknown>) {
+  const { useUi } = await import('@/stores/ui')
+  useUi.setState({ ...useUi.getState(), ...overrides })
+}
+
+const mockEntry = {
+  id: 'entry-1',
+  timestamp: new Date(Date.now() - 120000).toISOString(),
+  actorKeyId: 'key-1',
+  actorKeyName: 'admin-key',
+  clientId: 'client-1',
+  resourceType: 'blueprint',
+  resourceId: 'bp-abc',
+  action: 'created' as const,
+  before: null,
+  after: null,
+}
+
+const mockEntries = [
+  mockEntry,
+  {
+    id: 'entry-2',
+    timestamp: new Date(Date.now() - 300000).toISOString(),
+    actorKeyId: 'key-2',
+    actorKeyName: 'editor-key',
+    clientId: 'client-1',
+    resourceType: 'affix',
+    resourceId: 'aff-xyz',
+    action: 'updated' as const,
+    before: null,
+    after: null,
+  },
+  {
+    id: 'entry-3',
+    timestamp: new Date(Date.now() - 3600000).toISOString(),
+    actorKeyId: 'key-1',
+    actorKeyName: 'admin-key',
+    clientId: 'client-1',
+    resourceType: 'blueprint',
+    resourceId: 'bp-def',
+    action: 'deleted' as const,
+    before: null,
+    after: null,
+  },
+  {
+    id: 'entry-4',
+    timestamp: new Date(Date.now() - 86400000 * 2).toISOString(),
+    actorKeyId: 'key-1',
+    actorKeyName: 'admin-key',
+    clientId: null,
+    resourceType: 'global_meta_attribute',
+    resourceId: 'gma-1',
+    action: 'adjusted' as const,
+    before: null,
+    after: null,
+  },
+]
+
+function makeQueryResult(data: typeof mockEntries) {
+  return {
+    data: { data, total: data.length },
+    isLoading: false,
+    isError: false,
+    error: null,
+    dataUpdatedAt: Date.now(),
+    isPending: false,
+    isSuccess: true,
+    status: 'success' as const,
+    isLoadingError: false,
+    isRefetchError: false,
+    isFetching: false,
+    isPaused: false,
+    isRefetching: false,
+    isStale: true,
+    isFetched: true,
+    isFetchedAfterMount: true,
+    isPlaceholderData: false,
+    isInitialLoading: false,
+    isEnabled: true,
+    fetchStatus: 'idle' as const,
+    refetch: vi.fn(),
+    promise: Promise.resolve({ data, total: data.length }),
+    failureCount: 0,
+    failureReason: null,
+    errorUpdateCount: 0,
+    errorUpdatedAt: 0,
+  } as ReturnType<typeof import('@/api/generated/hooks').useAuditLog>
 }
 
 describe('ActivityPanel', () => {
   beforeEach(async () => {
-    const { useUi } = await import('@/stores/ui')
-    useUi.setState({ panelOpen: true })
+    vi.clearAllMocks()
+    await setStoreState({ panelOpen: true, panelDocked: false, selectedClientId: null })
+    const { useAuditLog } = await import('@/api/generated/hooks')
+    vi.mocked(useAuditLog).mockReturnValue(makeQueryResult(mockEntries))
   })
 
-  it('renders the activity panel', () => {
+  it('renders the activity panel header', () => {
     renderPanel()
-
     expect(screen.getByText('Activity')).toBeInTheDocument()
-    expect(screen.getByText('Activity log will appear here.')).toBeInTheDocument()
+  })
+
+  it('renders audit log entries', () => {
+    renderPanel()
+    expect(screen.getAllByText('admin-key')).toHaveLength(3)
+    expect(screen.getByText('editor-key')).toBeInTheDocument()
+  })
+
+  it('renders relative timestamps', () => {
+    renderPanel()
+    expect(screen.getByText('2 min ago')).toBeInTheDocument()
+    expect(screen.getByText('5 min ago')).toBeInTheDocument()
+    expect(screen.getByText('2 days ago')).toBeInTheDocument()
+  })
+
+  it('renders action badges with correct text', () => {
+    renderPanel()
+    expect(screen.getByText('created')).toBeInTheDocument()
+    expect(screen.getByText('updated')).toBeInTheDocument()
+    expect(screen.getByText('deleted')).toBeInTheDocument()
+    expect(screen.getByText('adjusted')).toBeInTheDocument()
+  })
+
+  it('renders resource type and id for each entry', () => {
+    renderPanel()
+    expect(screen.getAllByText('blueprint')).toHaveLength(2)
+    expect(screen.getByText('affix')).toBeInTheDocument()
+    expect(screen.getByText('global_meta_attribute')).toBeInTheDocument()
+    expect(screen.getByText('bp-abc')).toBeInTheDocument()
+    expect(screen.getByText('aff-xyz')).toBeInTheDocument()
   })
 
   it('has a close button', () => {
     renderPanel()
-
-    const closeButton = screen.getByLabelText('Close activity panel')
-    expect(closeButton).toBeInTheDocument()
+    expect(screen.getByLabelText('Close activity panel')).toBeInTheDocument()
   })
 
   it('closes panel on close button click', async () => {
     const { useUi } = await import('@/stores/ui')
-    useUi.setState({ panelOpen: true })
+    await setStoreState({ panelOpen: true })
 
     renderPanel()
 
-    const closeButton = screen.getByLabelText('Close activity panel')
-    fireEvent.click(closeButton)
-
+    fireEvent.click(screen.getByLabelText('Close activity panel'))
     expect(useUi.getState().panelOpen).toBe(false)
   })
 
-  it('closes panel on outside click', async () => {
+  it('closes panel on outside click when floating', async () => {
     const { useUi } = await import('@/stores/ui')
-    useUi.setState({ panelOpen: true })
+    await setStoreState({ panelOpen: true, panelDocked: false })
 
     renderPanel()
 
     fireEvent.mouseDown(document.body)
-
     expect(useUi.getState().panelOpen).toBe(false)
   })
 
   it('does not close when clicking inside the panel', async () => {
     const { useUi } = await import('@/stores/ui')
-    useUi.setState({ panelOpen: true })
+    await setStoreState({ panelOpen: true, panelDocked: false })
 
     renderPanel()
 
-    const panelContent = screen.getByText('Activity')
-    fireEvent.mouseDown(panelContent)
-
+    fireEvent.mouseDown(screen.getByText('Activity'))
     expect(useUi.getState().panelOpen).toBe(true)
+  })
+
+  it('does not close on outside click when docked', async () => {
+    const { useUi } = await import('@/stores/ui')
+    await setStoreState({ panelOpen: true, panelDocked: true })
+
+    renderPanel()
+
+    fireEvent.mouseDown(document.body)
+    expect(useUi.getState().panelOpen).toBe(true)
+  })
+
+  it('has a pin button when floating', () => {
+    renderPanel()
+    expect(screen.getByLabelText('Pin panel')).toBeInTheDocument()
+  })
+
+  it('has an unpin button when docked', async () => {
+    await setStoreState({ panelDocked: true })
+    renderPanel()
+    expect(screen.getByLabelText('Unpin panel')).toBeInTheDocument()
+  })
+
+  it('pins the panel on pin button click', async () => {
+    const { useUi } = await import('@/stores/ui')
+    await setStoreState({ panelDocked: false })
+
+    renderPanel()
+
+    fireEvent.click(screen.getByLabelText('Pin panel'))
+    expect(useUi.getState().panelDocked).toBe(true)
+  })
+
+  it('unpins the panel on unpin button click', async () => {
+    const { useUi } = await import('@/stores/ui')
+    await setStoreState({ panelDocked: true })
+
+    renderPanel()
+
+    fireEvent.click(screen.getByLabelText('Unpin panel'))
+    expect(useUi.getState().panelDocked).toBe(false)
+  })
+
+  it('has a "View all" link', () => {
+    renderPanel()
+    expect(screen.getByText('View all')).toBeInTheDocument()
+  })
+
+  it('navigates to audit log on "View all" click', () => {
+    renderPanel()
+    fireEvent.click(screen.getByText('View all'))
+    expect(mockNavigate).toHaveBeenCalledWith('/audit-log')
+  })
+
+  it('navigates to blueprint detail on blueprint entry click', () => {
+    renderPanel()
+
+    const entries = screen.getAllByText('blueprint')
+    fireEvent.click(entries[0].closest('button')!)
+    expect(mockNavigate).toHaveBeenCalledWith('/blueprints/bp-abc')
+  })
+
+  it('navigates to affix detail on affix entry click', () => {
+    renderPanel()
+
+    fireEvent.click(screen.getByText('aff-xyz').closest('button')!)
+    expect(mockNavigate).toHaveBeenCalledWith('/affixes/aff-xyz')
+  })
+
+  it('navigates to global meta attribute detail on GMA entry click', () => {
+    renderPanel()
+
+    fireEvent.click(screen.getByText('gma-1').closest('button')!)
+    expect(mockNavigate).toHaveBeenCalledWith('/global-meta-attributes/gma-1')
+  })
+
+  it('shows empty state when no entries', async () => {
+    const { useAuditLog } = await import('@/api/generated/hooks')
+    vi.mocked(useAuditLog).mockReturnValue(makeQueryResult([]))
+
+    renderPanel()
+    expect(screen.getByText('No recent activity.')).toBeInTheDocument()
+  })
+
+  it('filters by selectedClientId when set', async () => {
+    const { useAuditLog } = await import('@/api/generated/hooks')
+    await setStoreState({ selectedClientId: 'client-1' })
+
+    renderPanel()
+
+    await waitFor(() => {
+      expect(useAuditLog).toHaveBeenCalledWith({
+        clientId: 'client-1',
+        limit: 50,
+      })
+    })
   })
 })

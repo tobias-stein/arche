@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
   Box,
@@ -44,7 +43,7 @@ const navItems = [
 
 function ClientSwitcher() {
   const { data, isLoading } = useClientsList()
-  const [selectedClientId, setSelectedClientId] = useState<string | null>(null)
+  const { selectedClientId, setSelectedClientId } = useUi()
 
   if (isLoading) {
     return (

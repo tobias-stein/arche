@@ -89,7 +89,7 @@ describe('AppShell', () => {
   it('does not render activity panel when closed', () => {
     renderShell()
 
-    expect(screen.queryByText('Activity log will appear here.')).not.toBeInTheDocument()
+    expect(screen.queryByText('Activity')).not.toBeInTheDocument()
   })
 
   it('renders activity panel when open', async () => {
@@ -98,7 +98,8 @@ describe('AppShell', () => {
 
     renderShell()
 
-    expect(screen.getByText('Activity log will appear here.')).toBeInTheDocument()
+    expect(screen.getByText('Activity')).toBeInTheDocument()
+    expect(screen.getByText('No recent activity.')).toBeInTheDocument()
   })
 
   it('toggles drawer when hamburger is clicked', async () => {

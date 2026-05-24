@@ -14,6 +14,7 @@ describe('useUi store', () => {
         panelOpen: false,
         panelDocked: false,
         searchOpen: false,
+        selectedClientId: null,
       })
     })
   })
@@ -23,6 +24,10 @@ describe('useUi store', () => {
     expect(state.drawerOpen).toBe(false)
     expect(state.panelOpen).toBe(false)
     expect(state.panelDocked).toBe(false)
+  })
+
+  it('starts with no selected client', () => {
+    expect(getState().selectedClientId).toBeNull()
   })
 
   it('toggleDrawer opens the drawer when closed', () => {
@@ -81,6 +86,18 @@ describe('useUi store', () => {
       getState().setPanelDocked(false)
     })
     expect(getState().panelDocked).toBe(false)
+  })
+
+  it('setSelectedClientId updates client id', () => {
+    act(() => {
+      getState().setSelectedClientId('client-1')
+    })
+    expect(getState().selectedClientId).toBe('client-1')
+
+    act(() => {
+      getState().setSelectedClientId(null)
+    })
+    expect(getState().selectedClientId).toBeNull()
   })
 
   it('toggle does not affect panel when toggling drawer', () => {

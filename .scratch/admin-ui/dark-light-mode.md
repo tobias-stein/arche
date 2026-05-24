@@ -1,6 +1,6 @@
 ---
 title: Dark/light mode toggle
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

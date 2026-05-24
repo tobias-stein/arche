@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { MouseEvent as ReactMouseEvent } from 'react'
 import { ChevronLeft, ChevronRight, Pencil, Trash2 } from 'lucide-react'
 
@@ -344,7 +344,7 @@ export default function Affixes() {
   const batchDeleteMutation = useBatchDeleteAffixes()
 
   const [showBlueprintPicker, setShowBlueprintPicker] = useState(false)
-  const pickerOpenCountRef = useRef(0)
+  const [pickerKey, setPickerKey] = useState(0)
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -539,7 +539,7 @@ export default function Affixes() {
               size="sm"
               variant="secondary"
               onClick={() => {
-                pickerOpenCountRef.current++
+                setPickerKey(k => k + 1)
                 setShowBlueprintPicker(true)
               }}
             >
@@ -838,7 +838,7 @@ export default function Affixes() {
 
       {/* Blueprint picker dialog */}
       <BlueprintPickerDialog
-        key={pickerOpenCountRef.current}
+        key={pickerKey}
         open={showBlueprintPicker}
         onOpenChange={setShowBlueprintPicker}
         selectedAffixIds={Array.from(selectedIds)}

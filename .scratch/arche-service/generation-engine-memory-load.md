@@ -1,6 +1,6 @@
 ---
 title: Generation engine — in-memory data loading
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

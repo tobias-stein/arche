@@ -1080,6 +1080,8 @@ mod tests {
             resource_type: Some("blueprint".into()),
             action: None,
             actor_key_id: Some(uuid::Uuid::nil()),
+            from: None,
+            to: None,
         };
         let obj = serde_json::to_value(&q)
             .unwrap()

@@ -56,4 +56,8 @@ pub struct AuditLogListQuery {
     pub action: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub actor_key_id: Option<uuid::Uuid>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub from: Option<chrono::DateTime<chrono::Utc>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub to: Option<chrono::DateTime<chrono::Utc>>,
 }

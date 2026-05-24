@@ -9,6 +9,7 @@ import { AuthGuard } from '@/components/AuthGuard'
 import { Toaster } from '@/components/ui/toaster'
 import Affixes from '@/pages/Affixes'
 import AffixDetail from '@/pages/AffixDetail'
+import BlueprintDetail from '@/pages/BlueprintDetail'
 import AuditLog from '@/pages/AuditLog'
 import Blueprints from '@/pages/Blueprints'
 import Clients from '@/pages/Clients'
@@ -54,7 +55,7 @@ export default function App() {
             <Route element={<AppShell />}>
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/blueprints" element={<Blueprints />} />
-              <Route path="/blueprints/:id" element={<Blueprints />} />
+              <Route path="/blueprints/:id" element={<BlueprintDetail />} />
               <Route path="/affixes" element={<Affixes />} />
               <Route path="/affixes/:id" element={<AffixDetail />} />
               <Route path="/global-meta-attributes" element={<GlobalMetaAttributes />} />

@@ -26,15 +26,13 @@ pub async fn bootstrap_super_admin(pool: &PgPool) -> Option<String> {
     let key_hash =
         bcrypt::hash(&raw_key, bcrypt::DEFAULT_COST).expect("failed to hash super admin key");
 
-    let permissions: Vec<String> = vec!["admin".to_string()];
-
     sqlx::query(
         "INSERT INTO api_keys (name, key_hash, permissions, is_super, client_id) \
          VALUES ($1, $2, $3, $4, $5)",
     )
     .bind("Super Admin")
     .bind(&key_hash)
-    .bind(&permissions)
+    .bind(vec!["admin".to_string()])
     .bind(true)
     .bind(None::<uuid::Uuid>)
     .execute(pool)

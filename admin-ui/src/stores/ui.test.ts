@@ -13,6 +13,7 @@ describe('useUi store', () => {
         drawerOpen: false,
         panelOpen: false,
         panelDocked: false,
+        searchOpen: false,
       })
     })
   })
@@ -87,6 +88,35 @@ describe('useUi store', () => {
       useUi.setState({ panelOpen: true })
       getState().toggleDrawer()
     })
+    expect(getState().drawerOpen).toBe(true)
+    expect(getState().panelOpen).toBe(true)
+  })
+
+  it('starts with search closed', () => {
+    expect(getState().searchOpen).toBe(false)
+  })
+
+  it('openSearch sets searchOpen to true', () => {
+    act(() => {
+      getState().openSearch()
+    })
+    expect(getState().searchOpen).toBe(true)
+  })
+
+  it('closeSearch sets searchOpen to false', () => {
+    act(() => {
+      useUi.setState({ searchOpen: true })
+      getState().closeSearch()
+    })
+    expect(getState().searchOpen).toBe(false)
+  })
+
+  it('opening search does not affect drawer or panel state', () => {
+    act(() => {
+      useUi.setState({ drawerOpen: true, panelOpen: true })
+      getState().openSearch()
+    })
+    expect(getState().searchOpen).toBe(true)
     expect(getState().drawerOpen).toBe(true)
     expect(getState().panelOpen).toBe(true)
   })

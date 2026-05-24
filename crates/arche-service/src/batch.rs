@@ -63,6 +63,13 @@ pub async fn batch_edit_blueprints(
         ));
     }
 
+    let patch = Value::Object(
+        req.attributes
+            .iter()
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect(),
+    );
+
     let mut to_update: Vec<(Uuid, Value)> = Vec::new();
 
     for row in &rows {
@@ -92,18 +99,24 @@ pub async fn batch_edit_blueprints(
 
                     match (existing_type, new_type) {
                         (Some(et), Some(nt)) if et == nt => {}
-                        _ => {
-                            let detail = if existing_type.is_none() {
+                        (None, _) => {
+                            return Err(ProblemResponse::validation_error(
                                 format!(
                                     "Blueprint {bp_id} attribute '{key}' is a $ref_id reference and cannot be batch-edited"
-                                )
-                            } else {
-                                format!(
-                                    "Blueprint {bp_id} attribute '{key}' type mismatch: existing {existing_type:?} != {new_type:?}"
-                                )
-                            };
+                                ),
+                                vec![FieldError {
+                                    path: format!("attributes.{key}"),
+                                    message: "value_type mismatch".into(),
+                                }],
+                            ));
+                        }
+                        _ => {
+                            let et = existing_type.unwrap_or("<none>");
+                            let nt = new_type.unwrap_or("<none>");
                             return Err(ProblemResponse::validation_error(
-                                detail,
+                                format!(
+                                    "Blueprint {bp_id} attribute '{key}' type mismatch: existing '{et}' != '{nt}'"
+                                ),
                                 vec![FieldError {
                                     path: format!("attributes.{key}"),
                                     message: "value_type mismatch".into(),
@@ -116,13 +129,7 @@ pub async fn batch_edit_blueprints(
         }
 
         if has_all_keys {
-            let merged = Value::Object(
-                req.attributes
-                    .iter()
-                    .map(|(k, v)| (k.clone(), v.clone()))
-                    .collect(),
-            );
-            to_update.push((bp_id, merged));
+            to_update.push((bp_id, patch.clone()));
         }
     }
 

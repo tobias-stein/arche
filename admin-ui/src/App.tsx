@@ -1,9 +1,9 @@
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom'
-import { Moon, Sun } from 'lucide-react'
-
-import { Button } from '@/components/ui/button'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { ArcheClient } from '@/api/generated/client'
+import { setClient } from '@/api/generated/hooks'
+import { AppShell } from '@/components/AppShell'
 import { Toaster } from '@/components/ui/toaster'
-import { useTheme } from '@/stores/theme'
 import Affixes from '@/pages/Affixes'
 import AuditLog from '@/pages/AuditLog'
 import Blueprints from '@/pages/Blueprints'
@@ -14,52 +14,40 @@ import GlobalMetaAttributes from '@/pages/GlobalMetaAttributes'
 import ImportPage from '@/pages/Import'
 import Login from '@/pages/Login'
 
-function ThemeToggle() {
-  const { mode, toggle } = useTheme()
-  return (
-    <Button
-      variant="ghost"
-      size="icon"
-      onClick={toggle}
-      aria-label={mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-    >
-      {mode === 'dark' ? <Sun className="h-[1.2rem] w-[1.2rem]" /> : <Moon className="h-[1.2rem] w-[1.2rem]" />}
-    </Button>
-  )
-}
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: false,
+      refetchOnWindowFocus: false,
+    },
+  },
+})
 
-function AppShell() {
-  return (
-    <div className="min-h-screen bg-background text-foreground">
-      <header className="border-b px-4 py-2 flex items-center gap-4">
-        <h1 className="text-lg font-bold">Arche Admin</h1>
-        <div className="ml-auto flex items-center gap-2">
-          <ThemeToggle />
-        </div>
-      </header>
-      <main className="p-4">
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/blueprints" element={<Blueprints />} />
-          <Route path="/affixes" element={<Affixes />} />
-          <Route path="/global-meta-attributes" element={<GlobalMetaAttributes />} />
-          <Route path="/clients" element={<Clients />} />
-          <Route path="/audit-log" element={<AuditLog />} />
-          <Route path="/export" element={<ExportPage />} />
-          <Route path="/import" element={<ImportPage />} />
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
-        </Routes>
-      </main>
-    </div>
-  )
-}
+const archeClient = new ArcheClient({
+  baseUrl: import.meta.env.VITE_ARCHE_API_URL || 'http://localhost:3000',
+})
+setClient(archeClient)
 
 export default function App() {
   return (
-    <HashRouter>
-      <AppShell />
-      <Toaster />
-    </HashRouter>
+    <QueryClientProvider client={queryClient}>
+      <HashRouter>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route element={<AppShell />}>
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/blueprints" element={<Blueprints />} />
+            <Route path="/affixes" element={<Affixes />} />
+            <Route path="/global-meta-attributes" element={<GlobalMetaAttributes />} />
+            <Route path="/clients" element={<Clients />} />
+            <Route path="/audit-log" element={<AuditLog />} />
+            <Route path="/export" element={<ExportPage />} />
+            <Route path="/import" element={<ImportPage />} />
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          </Route>
+        </Routes>
+        <Toaster />
+      </HashRouter>
+    </QueryClientProvider>
   )
 }

@@ -261,6 +261,8 @@ export interface AuditLogListQuery {
   resourceType?: string;
   action?: string;
   actorKeyId?: string;
+  from?: string;
+  to?: string;
 }
 
 // --- Pagination ---

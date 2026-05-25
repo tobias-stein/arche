@@ -1,6 +1,6 @@
 ---
 title: Dashboard — Quick Generate playground
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

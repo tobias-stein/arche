@@ -1,6 +1,6 @@
 ---
 title: arche generate command
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

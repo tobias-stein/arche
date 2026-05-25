@@ -4,6 +4,7 @@ pub mod batch;
 mod bootstrap;
 pub mod blueprints;
 mod config;
+pub mod generate;
 pub mod generation;
 pub mod import;
 mod schema;
@@ -85,6 +86,7 @@ fn build_router(state: AppState) -> Router {
         .route("/api/blueprints/batch/delete", post(batch::batch_delete_blueprints))
         .route("/api/affixes/batch/delete", post(batch::batch_delete_affixes))
         .route("/api/audit-log", get(audit_log::list_audit_log))
+        .route("/api/generate", post(generate::generate_handler))
         .route("/api/import", post(import::import_parse_handler))
         .route("/api/import/resolve", post(import::import_resolve_handler))
         .layer(TraceLayer::new_for_http())

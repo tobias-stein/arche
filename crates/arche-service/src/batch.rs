@@ -168,6 +168,17 @@ pub async fn batch_edit_blueprints(
     }))
 }
 
+#[allow(clippy::result_large_err)]
+fn can_access_client(user: &crate::auth::AuthenticatedKey, item_client_id: Uuid) -> Result<bool, ProblemResponse> {
+    if user.is_super {
+        return Ok(true);
+    }
+    let user_cid = user.client_id.ok_or_else(|| {
+        ProblemResponse::forbidden("Access denied: key is not associated with any client")
+    })?;
+    Ok(item_client_id == user_cid)
+}
+
 pub async fn batch_delete_blueprints(
     State(state): State<crate::AppState>,
     CurrentUser(user): CurrentUser,
@@ -194,23 +205,14 @@ pub async fn batch_delete_blueprints(
         ProblemResponse::unprocessable_entity("Failed to fetch blueprints for batch delete")
     })?;
 
-    let found: HashSet<Uuid> = rows.iter().map(|r| r.get("id")).collect();
-
     let mut to_delete: Vec<Uuid> = Vec::new();
 
     for row in &rows {
         let bp_id: Uuid = row.get("id");
         let bp_client_id: Uuid = row.get("client_id");
 
-        if !user.is_super {
-            let user_cid = user.client_id.ok_or_else(|| {
-                ProblemResponse::forbidden(
-                    "Access denied: key is not associated with any client",
-                )
-            })?;
-            if bp_client_id != user_cid {
-                continue;
-            }
+        if !can_access_client(&user, bp_client_id)? {
+            continue;
         }
 
         let count: i64 = sqlx::query(
@@ -232,12 +234,6 @@ pub async fn batch_delete_blueprints(
         }
 
         to_delete.push(bp_id);
-    }
-
-    for id in &req.ids {
-        if !found.contains(id) {
-            tracing::debug!(bp_id = %id, "batch delete: skipping non-existent blueprint");
-        }
     }
 
     if to_delete.is_empty() {
@@ -296,23 +292,14 @@ pub async fn batch_delete_affixes(
         ProblemResponse::unprocessable_entity("Failed to fetch affixes for batch delete")
     })?;
 
-    let found: HashSet<Uuid> = rows.iter().map(|r| r.get("id")).collect();
-
     let mut to_delete: Vec<Uuid> = Vec::new();
 
     for row in &rows {
         let affix_id: Uuid = row.get("id");
         let affix_client_id: Uuid = row.get("client_id");
 
-        if !user.is_super {
-            let user_cid = user.client_id.ok_or_else(|| {
-                ProblemResponse::forbidden(
-                    "Access denied: key is not associated with any client",
-                )
-            })?;
-            if affix_client_id != user_cid {
-                continue;
-            }
+        if !can_access_client(&user, affix_client_id)? {
+            continue;
         }
 
         let count: i64 = sqlx::query(
@@ -334,12 +321,6 @@ pub async fn batch_delete_affixes(
         }
 
         to_delete.push(affix_id);
-    }
-
-    for id in &req.ids {
-        if !found.contains(id) {
-            tracing::debug!(affix_id = %id, "batch delete: skipping non-existent affix");
-        }
     }
 
     if to_delete.is_empty() {

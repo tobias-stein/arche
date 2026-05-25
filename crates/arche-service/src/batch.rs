@@ -1,4 +1,6 @@
-use arche_types::batch::{BatchEditRequest, BatchEditResponse};
+use arche_types::batch::{
+    BatchDeleteRequest, BatchDeleteResponse, BatchEditRequest, BatchEditResponse,
+};
 use axum::extract::State;
 use axum::Json;
 use serde_json::Value;
@@ -166,6 +168,210 @@ pub async fn batch_edit_blueprints(
     }))
 }
 
+pub async fn batch_delete_blueprints(
+    State(state): State<crate::AppState>,
+    CurrentUser(user): CurrentUser,
+    Json(req): Json<BatchDeleteRequest>,
+) -> Result<Json<BatchDeleteResponse>, ProblemResponse> {
+    if req.ids.is_empty() {
+        return Err(ProblemResponse::validation_error(
+            "ids must not be empty",
+            vec![FieldError {
+                path: "ids".into(),
+                message: "must provide at least one blueprint ID".into(),
+            }],
+        ));
+    }
+
+    let rows = sqlx::query(
+        "SELECT id, client_id FROM blueprints WHERE id = ANY($1)",
+    )
+    .bind(&req.ids)
+    .fetch_all(&*state.pool)
+    .await
+    .map_err(|e| {
+        tracing::error!(error = %e, "batch delete: fetch blueprints query failed");
+        ProblemResponse::unprocessable_entity("Failed to fetch blueprints for batch delete")
+    })?;
+
+    let found: HashSet<Uuid> = rows.iter().map(|r| r.get("id")).collect();
+
+    let mut to_delete: Vec<Uuid> = Vec::new();
+
+    for row in &rows {
+        let bp_id: Uuid = row.get("id");
+        let bp_client_id: Uuid = row.get("client_id");
+
+        if !user.is_super {
+            let user_cid = user.client_id.ok_or_else(|| {
+                ProblemResponse::forbidden(
+                    "Access denied: key is not associated with any client",
+                )
+            })?;
+            if bp_client_id != user_cid {
+                continue;
+            }
+        }
+
+        let count: i64 = sqlx::query(
+            "SELECT COUNT(*) FROM blueprint_affixes WHERE blueprint_id = $1",
+        )
+        .bind(bp_id)
+        .fetch_one(&*state.pool)
+        .await
+        .map_err(|e| {
+            tracing::error!(error = %e, "batch delete: check references failed");
+            ProblemResponse::unprocessable_entity("Failed to check blueprint references")
+        })?
+        .get(0);
+
+        if count > 0 {
+            return Err(ProblemResponse::delete_referenced_resource(format!(
+                "Blueprint {bp_id} is referenced by {count} affix pool entries and cannot be deleted"
+            )));
+        }
+
+        to_delete.push(bp_id);
+    }
+
+    for id in &req.ids {
+        if !found.contains(id) {
+            tracing::debug!(bp_id = %id, "batch delete: skipping non-existent blueprint");
+        }
+    }
+
+    if to_delete.is_empty() {
+        return Ok(Json(BatchDeleteResponse { count: 0 }));
+    }
+
+    let mut tx = state.pool.begin().await.map_err(|e| {
+        tracing::error!(error = %e, "batch delete: begin transaction failed");
+        ProblemResponse::unprocessable_entity("Failed to begin transaction for batch delete")
+    })?;
+
+    for bp_id in &to_delete {
+        sqlx::query("DELETE FROM blueprints WHERE id = $1")
+            .bind(bp_id)
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| {
+                tracing::error!(error = %e, bp_id = %bp_id, "batch delete: delete query failed");
+                ProblemResponse::unprocessable_entity("Failed to delete blueprint in batch")
+            })?;
+    }
+
+    tx.commit().await.map_err(|e| {
+        tracing::error!(error = %e, "batch delete: commit transaction failed");
+        ProblemResponse::unprocessable_entity("Failed to commit batch delete transaction")
+    })?;
+
+    Ok(Json(BatchDeleteResponse {
+        count: to_delete.len() as i64,
+    }))
+}
+
+pub async fn batch_delete_affixes(
+    State(state): State<crate::AppState>,
+    CurrentUser(user): CurrentUser,
+    Json(req): Json<BatchDeleteRequest>,
+) -> Result<Json<BatchDeleteResponse>, ProblemResponse> {
+    if req.ids.is_empty() {
+        return Err(ProblemResponse::validation_error(
+            "ids must not be empty",
+            vec![FieldError {
+                path: "ids".into(),
+                message: "must provide at least one affix ID".into(),
+            }],
+        ));
+    }
+
+    let rows = sqlx::query(
+        "SELECT id, client_id FROM affixes WHERE id = ANY($1)",
+    )
+    .bind(&req.ids)
+    .fetch_all(&*state.pool)
+    .await
+    .map_err(|e| {
+        tracing::error!(error = %e, "batch delete: fetch affixes query failed");
+        ProblemResponse::unprocessable_entity("Failed to fetch affixes for batch delete")
+    })?;
+
+    let found: HashSet<Uuid> = rows.iter().map(|r| r.get("id")).collect();
+
+    let mut to_delete: Vec<Uuid> = Vec::new();
+
+    for row in &rows {
+        let affix_id: Uuid = row.get("id");
+        let affix_client_id: Uuid = row.get("client_id");
+
+        if !user.is_super {
+            let user_cid = user.client_id.ok_or_else(|| {
+                ProblemResponse::forbidden(
+                    "Access denied: key is not associated with any client",
+                )
+            })?;
+            if affix_client_id != user_cid {
+                continue;
+            }
+        }
+
+        let count: i64 = sqlx::query(
+            "SELECT COUNT(*) FROM blueprint_affixes WHERE affix_id = $1",
+        )
+        .bind(affix_id)
+        .fetch_one(&*state.pool)
+        .await
+        .map_err(|e| {
+            tracing::error!(error = %e, "batch delete: check affix references failed");
+            ProblemResponse::unprocessable_entity("Failed to check affix references")
+        })?
+        .get(0);
+
+        if count > 0 {
+            return Err(ProblemResponse::delete_referenced_resource(format!(
+                "Affix {affix_id} is referenced by {count} blueprint pool entries and cannot be deleted"
+            )));
+        }
+
+        to_delete.push(affix_id);
+    }
+
+    for id in &req.ids {
+        if !found.contains(id) {
+            tracing::debug!(affix_id = %id, "batch delete: skipping non-existent affix");
+        }
+    }
+
+    if to_delete.is_empty() {
+        return Ok(Json(BatchDeleteResponse { count: 0 }));
+    }
+
+    let mut tx = state.pool.begin().await.map_err(|e| {
+        tracing::error!(error = %e, "batch delete: begin transaction failed");
+        ProblemResponse::unprocessable_entity("Failed to begin transaction for batch delete")
+    })?;
+
+    for affix_id in &to_delete {
+        sqlx::query("DELETE FROM affixes WHERE id = $1")
+            .bind(affix_id)
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| {
+                tracing::error!(error = %e, affix_id = %affix_id, "batch delete: delete affix query failed");
+                ProblemResponse::unprocessable_entity("Failed to delete affix in batch")
+            })?;
+    }
+
+    tx.commit().await.map_err(|e| {
+        tracing::error!(error = %e, "batch delete: commit transaction failed");
+        ProblemResponse::unprocessable_entity("Failed to commit batch delete transaction")
+    })?;
+
+    Ok(Json(BatchDeleteResponse {
+        count: to_delete.len() as i64,
+    }))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -310,6 +516,14 @@ mod tests {
                     "/api/blueprints/batch/edit",
                     axum::routing::post(super::batch_edit_blueprints),
                 )
+                .route(
+                    "/api/blueprints/batch/delete",
+                    axum::routing::post(super::batch_delete_blueprints),
+                )
+                .route(
+                    "/api/affixes/batch/delete",
+                    axum::routing::post(super::batch_delete_affixes),
+                )
                 .with_state(state)
         }
 
@@ -352,6 +566,46 @@ mod tests {
             id
         }
 
+        async fn insert_test_affix(
+            pool: &PgPool,
+            client_id: Uuid,
+            name: &str,
+            location: &str,
+        ) -> Uuid {
+            let id = Uuid::new_v4();
+            sqlx::query(
+                "INSERT INTO affixes (id, client_id, name, type, attribute) \
+                 VALUES ($1, $2, $3, $4::affix_location, $5)",
+            )
+            .bind(id)
+            .bind(client_id)
+            .bind(name)
+            .bind(location)
+            .bind(&json!({"value_type": "single", "value": 1.0}))
+            .execute(pool)
+            .await
+            .unwrap();
+            id
+        }
+
+        async fn insert_test_blueprint_affix(
+            pool: &PgPool,
+            blueprint_id: Uuid,
+            affix_id: Uuid,
+            location: &str,
+        ) {
+            sqlx::query(
+                "INSERT INTO blueprint_affixes (blueprint_id, affix_id, weight, location, sort_order) \
+                 VALUES ($1, $2, 1.0, $3::affix_location, 0)",
+            )
+            .bind(blueprint_id)
+            .bind(affix_id)
+            .bind(location)
+            .execute(pool)
+            .await
+            .unwrap();
+        }
+
         fn make_super_admin_key() -> crate::auth::AuthenticatedKey {
             crate::auth::AuthenticatedKey {
                 id: Uuid::new_v4(),
@@ -373,6 +627,31 @@ mod tests {
                 .unwrap();
             req.extensions_mut().insert(make_super_admin_key());
             req
+        }
+
+        fn make_batch_delete_request(
+            uri: &str,
+            body: serde_json::Value,
+            key: crate::auth::AuthenticatedKey,
+        ) -> Request<Body> {
+            let mut req = Request::builder()
+                .method(Method::POST)
+                .uri(uri)
+                .header("content-type", "application/json")
+                .body(Body::from(serde_json::to_string(&body).unwrap()))
+                .unwrap();
+            req.extensions_mut().insert(key);
+            req
+        }
+
+        fn make_client_key(client_id: Uuid) -> crate::auth::AuthenticatedKey {
+            crate::auth::AuthenticatedKey {
+                id: Uuid::new_v4(),
+                name: "test-client-key".into(),
+                client_id: Some(client_id),
+                permissions: vec![arche_types::Permission::Delete],
+                is_super: false,
+            }
         }
 
         #[tokio::test]
@@ -793,6 +1072,477 @@ mod tests {
                     .unwrap();
             let parsed: BatchEditResponse = serde_json::from_slice(&response_body).unwrap();
             assert_eq!(parsed.updated_count, 0);
+        }
+
+        #[tokio::test]
+        async fn test_batch_delete_blueprints_no_references_succeeds() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_id = insert_test_client(&pool).await;
+            let attrs = json!({"damage": {"value_type": "range", "min": 1.0, "max": 10.0}});
+            let bp_a = insert_test_blueprint(&pool, client_id, "Sword A", attrs.clone(), &["damage"]).await;
+            let bp_b = insert_test_blueprint(&pool, client_id, "Sword B", attrs, &["damage"]).await;
+
+            let body = json!({"ids": [bp_a, bp_b]});
+            let state = build_test_state(pool.clone());
+            let router = build_router(state);
+            let key = make_super_admin_key();
+
+            let response = router
+                .oneshot(make_batch_delete_request("/api/blueprints/batch/delete", body, key))
+                .await
+                .unwrap();
+
+            assert_eq!(response.status(), StatusCode::OK);
+            let response_body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+            let parsed: BatchDeleteResponse = serde_json::from_slice(&response_body).unwrap();
+            assert_eq!(parsed.count, 2);
+
+            let remaining: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM blueprints WHERE client_id = $1")
+                .bind(client_id)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+            assert_eq!(remaining, 0);
+
+            sqlx::query("DELETE FROM clients WHERE id = $1").bind(client_id).execute(&pool).await.unwrap();
+        }
+
+        #[tokio::test]
+        async fn test_batch_delete_blueprints_referenced_returns_409() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_id = insert_test_client(&pool).await;
+            let attrs = json!({"damage": {"value_type": "range", "min": 1.0, "max": 10.0}});
+            let bp_a = insert_test_blueprint(&pool, client_id, "Sword A", attrs.clone(), &["damage"]).await;
+            let bp_b = insert_test_blueprint(&pool, client_id, "Sword B", attrs, &["damage"]).await;
+            let affix = insert_test_affix(&pool, client_id, "Fire", "prefix").await;
+            insert_test_blueprint_affix(&pool, bp_a, affix, "prefix").await;
+
+            let body = json!({"ids": [bp_a, bp_b]});
+            let state = build_test_state(pool.clone());
+            let router = build_router(state);
+            let key = make_super_admin_key();
+
+            let response = router
+                .oneshot(make_batch_delete_request("/api/blueprints/batch/delete", body, key))
+                .await
+                .unwrap();
+
+            assert_eq!(response.status(), StatusCode::CONFLICT);
+            let response_body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+            let parsed: serde_json::Value = serde_json::from_slice(&response_body).unwrap();
+            assert!(parsed["detail"].as_str().unwrap().contains("Blueprint"));
+            assert!(parsed["detail"].as_str().unwrap().contains("referenced by 1"));
+
+            let remaining: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM blueprints WHERE client_id = $1")
+                .bind(client_id)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+            assert_eq!(remaining, 2);
+
+            sqlx::query("DELETE FROM blueprint_affixes WHERE blueprint_id = $1").bind(bp_a).execute(&pool).await.unwrap();
+            sqlx::query("DELETE FROM blueprints WHERE client_id = $1").bind(client_id).execute(&pool).await.unwrap();
+            sqlx::query("DELETE FROM affixes WHERE client_id = $1").bind(client_id).execute(&pool).await.unwrap();
+            sqlx::query("DELETE FROM clients WHERE id = $1").bind(client_id).execute(&pool).await.unwrap();
+        }
+
+        #[tokio::test]
+        async fn test_batch_delete_blueprints_nonexistent_ids_skipped() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_id = insert_test_client(&pool).await;
+            let attrs = json!({"damage": {"value_type": "range", "min": 1.0, "max": 10.0}});
+            let bp = insert_test_blueprint(&pool, client_id, "Sword A", attrs, &["damage"]).await;
+            let nonexistent = Uuid::new_v4();
+
+            let body = json!({"ids": [bp, nonexistent]});
+            let state = build_test_state(pool.clone());
+            let router = build_router(state);
+            let key = make_super_admin_key();
+
+            let response = router
+                .oneshot(make_batch_delete_request("/api/blueprints/batch/delete", body, key))
+                .await
+                .unwrap();
+
+            assert_eq!(response.status(), StatusCode::OK);
+            let response_body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+            let parsed: BatchDeleteResponse = serde_json::from_slice(&response_body).unwrap();
+            assert_eq!(parsed.count, 1);
+
+            let remaining: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM blueprints WHERE client_id = $1")
+                .bind(client_id)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+            assert_eq!(remaining, 0);
+
+            sqlx::query("DELETE FROM clients WHERE id = $1").bind(client_id).execute(&pool).await.unwrap();
+        }
+
+        #[tokio::test]
+        async fn test_batch_delete_blueprints_all_nonexistent_returns_zero() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_id = insert_test_client(&pool).await;
+            let nonexistent_a = Uuid::new_v4();
+            let nonexistent_b = Uuid::new_v4();
+
+            let body = json!({"ids": [nonexistent_a, nonexistent_b]});
+            let state = build_test_state(pool.clone());
+            let router = build_router(state);
+            let key = make_super_admin_key();
+
+            let response = router
+                .oneshot(make_batch_delete_request("/api/blueprints/batch/delete", body, key))
+                .await
+                .unwrap();
+
+            assert_eq!(response.status(), StatusCode::OK);
+            let response_body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+            let parsed: BatchDeleteResponse = serde_json::from_slice(&response_body).unwrap();
+            assert_eq!(parsed.count, 0);
+
+            sqlx::query("DELETE FROM clients WHERE id = $1").bind(client_id).execute(&pool).await.unwrap();
+        }
+
+        #[tokio::test]
+        async fn test_batch_delete_blueprints_wrong_client_skipped() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_a = insert_test_client(&pool).await;
+            let client_b = insert_test_client(&pool).await;
+            let attrs = json!({"damage": {"value_type": "range", "min": 1.0, "max": 10.0}});
+            let bp = insert_test_blueprint(&pool, client_a, "Sword A", attrs, &["damage"]).await;
+
+            let body = json!({"ids": [bp]});
+            let state = build_test_state(pool.clone());
+            let router = build_router(state);
+            let client_key = make_client_key(client_b);
+
+            let response = router
+                .oneshot(make_batch_delete_request("/api/blueprints/batch/delete", body, client_key))
+                .await
+                .unwrap();
+
+            assert_eq!(response.status(), StatusCode::OK);
+            let response_body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+            let parsed: BatchDeleteResponse = serde_json::from_slice(&response_body).unwrap();
+            assert_eq!(parsed.count, 0);
+
+            let remaining: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM blueprints WHERE id = $1")
+                .bind(bp)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+            assert_eq!(remaining, 1);
+
+            sqlx::query("DELETE FROM blueprints WHERE id = $1").bind(bp).execute(&pool).await.unwrap();
+            sqlx::query("DELETE FROM clients WHERE id = $1").bind(client_a).execute(&pool).await.unwrap();
+            sqlx::query("DELETE FROM clients WHERE id = $1").bind(client_b).execute(&pool).await.unwrap();
+        }
+
+        #[tokio::test]
+        async fn test_batch_delete_blueprints_empty_ids_error() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let body = json!({"ids": []});
+            let state = build_test_state(pool);
+            let router = build_router(state);
+            let key = make_super_admin_key();
+
+            let response = router
+                .oneshot(make_batch_delete_request("/api/blueprints/batch/delete", body, key))
+                .await
+                .unwrap();
+
+            assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        }
+
+        #[tokio::test]
+        async fn test_batch_delete_blueprints_all_or_nothing_transaction() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_id = insert_test_client(&pool).await;
+            let attrs = json!({"damage": {"value_type": "range", "min": 1.0, "max": 10.0}});
+            let bp_a = insert_test_blueprint(&pool, client_id, "Sword A", attrs.clone(), &["damage"]).await;
+            let bp_b = insert_test_blueprint(&pool, client_id, "Sword B", attrs, &["damage"]).await;
+            let affix = insert_test_affix(&pool, client_id, "Fire", "prefix").await;
+            insert_test_blueprint_affix(&pool, bp_b, affix, "prefix").await;
+
+            let body = json!({"ids": [bp_a, bp_b]});
+            let state = build_test_state(pool.clone());
+            let router = build_router(state);
+            let key = make_super_admin_key();
+
+            let response = router
+                .oneshot(make_batch_delete_request("/api/blueprints/batch/delete", body, key))
+                .await
+                .unwrap();
+
+            assert_eq!(response.status(), StatusCode::CONFLICT);
+
+            let remaining: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM blueprints WHERE client_id = $1")
+                .bind(client_id)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+            assert_eq!(remaining, 2);
+
+            sqlx::query("DELETE FROM blueprint_affixes WHERE blueprint_id = $1").bind(bp_b).execute(&pool).await.unwrap();
+            sqlx::query("DELETE FROM blueprints WHERE client_id = $1").bind(client_id).execute(&pool).await.unwrap();
+            sqlx::query("DELETE FROM affixes WHERE client_id = $1").bind(client_id).execute(&pool).await.unwrap();
+            sqlx::query("DELETE FROM clients WHERE id = $1").bind(client_id).execute(&pool).await.unwrap();
+        }
+
+        #[tokio::test]
+        async fn test_batch_delete_affixes_no_references_succeeds() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_id = insert_test_client(&pool).await;
+            let affix_a = insert_test_affix(&pool, client_id, "Fire", "prefix").await;
+            let affix_b = insert_test_affix(&pool, client_id, "Ice", "suffix").await;
+
+            let body = json!({"ids": [affix_a, affix_b]});
+            let state = build_test_state(pool.clone());
+            let router = build_router(state);
+            let key = make_super_admin_key();
+
+            let response = router
+                .oneshot(make_batch_delete_request("/api/affixes/batch/delete", body, key))
+                .await
+                .unwrap();
+
+            assert_eq!(response.status(), StatusCode::OK);
+            let response_body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+            let parsed: BatchDeleteResponse = serde_json::from_slice(&response_body).unwrap();
+            assert_eq!(parsed.count, 2);
+
+            let remaining: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM affixes WHERE client_id = $1")
+                .bind(client_id)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+            assert_eq!(remaining, 0);
+
+            sqlx::query("DELETE FROM clients WHERE id = $1").bind(client_id).execute(&pool).await.unwrap();
+        }
+
+        #[tokio::test]
+        async fn test_batch_delete_affixes_referenced_returns_409() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_id = insert_test_client(&pool).await;
+            let attrs = json!({"damage": {"value_type": "range", "min": 1.0, "max": 10.0}});
+            let bp = insert_test_blueprint(&pool, client_id, "Sword", attrs, &["damage"]).await;
+            let affix_a = insert_test_affix(&pool, client_id, "Fire", "prefix").await;
+            let affix_b = insert_test_affix(&pool, client_id, "Ice", "suffix").await;
+            insert_test_blueprint_affix(&pool, bp, affix_a, "prefix").await;
+
+            let body = json!({"ids": [affix_a, affix_b]});
+            let state = build_test_state(pool.clone());
+            let router = build_router(state);
+            let key = make_super_admin_key();
+
+            let response = router
+                .oneshot(make_batch_delete_request("/api/affixes/batch/delete", body, key))
+                .await
+                .unwrap();
+
+            assert_eq!(response.status(), StatusCode::CONFLICT);
+            let response_body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+            let parsed: serde_json::Value = serde_json::from_slice(&response_body).unwrap();
+            assert!(parsed["detail"].as_str().unwrap().contains("Affix"));
+            assert!(parsed["detail"].as_str().unwrap().contains("referenced by 1"));
+
+            let remaining: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM affixes WHERE client_id = $1")
+                .bind(client_id)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+            assert_eq!(remaining, 2);
+
+            sqlx::query("DELETE FROM blueprint_affixes WHERE blueprint_id = $1").bind(bp).execute(&pool).await.unwrap();
+            sqlx::query("DELETE FROM blueprints WHERE client_id = $1").bind(client_id).execute(&pool).await.unwrap();
+            sqlx::query("DELETE FROM affixes WHERE client_id = $1").bind(client_id).execute(&pool).await.unwrap();
+            sqlx::query("DELETE FROM clients WHERE id = $1").bind(client_id).execute(&pool).await.unwrap();
+        }
+
+        #[tokio::test]
+        async fn test_batch_delete_affixes_nonexistent_ids_skipped() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_id = insert_test_client(&pool).await;
+            let affix = insert_test_affix(&pool, client_id, "Fire", "prefix").await;
+            let nonexistent = Uuid::new_v4();
+
+            let body = json!({"ids": [affix, nonexistent]});
+            let state = build_test_state(pool.clone());
+            let router = build_router(state);
+            let key = make_super_admin_key();
+
+            let response = router
+                .oneshot(make_batch_delete_request("/api/affixes/batch/delete", body, key))
+                .await
+                .unwrap();
+
+            assert_eq!(response.status(), StatusCode::OK);
+            let response_body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+            let parsed: BatchDeleteResponse = serde_json::from_slice(&response_body).unwrap();
+            assert_eq!(parsed.count, 1);
+
+            let remaining: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM affixes WHERE client_id = $1")
+                .bind(client_id)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+            assert_eq!(remaining, 0);
+
+            sqlx::query("DELETE FROM clients WHERE id = $1").bind(client_id).execute(&pool).await.unwrap();
+        }
+
+        #[tokio::test]
+        async fn test_batch_delete_affixes_all_nonexistent_returns_zero() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_id = insert_test_client(&pool).await;
+            let nonexistent_a = Uuid::new_v4();
+            let nonexistent_b = Uuid::new_v4();
+
+            let body = json!({"ids": [nonexistent_a, nonexistent_b]});
+            let state = build_test_state(pool.clone());
+            let router = build_router(state);
+            let key = make_super_admin_key();
+
+            let response = router
+                .oneshot(make_batch_delete_request("/api/affixes/batch/delete", body, key))
+                .await
+                .unwrap();
+
+            assert_eq!(response.status(), StatusCode::OK);
+            let response_body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+            let parsed: BatchDeleteResponse = serde_json::from_slice(&response_body).unwrap();
+            assert_eq!(parsed.count, 0);
+
+            sqlx::query("DELETE FROM clients WHERE id = $1").bind(client_id).execute(&pool).await.unwrap();
+        }
+
+        #[tokio::test]
+        async fn test_batch_delete_affixes_wrong_client_skipped() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_a = insert_test_client(&pool).await;
+            let client_b = insert_test_client(&pool).await;
+            let affix = insert_test_affix(&pool, client_a, "Fire", "prefix").await;
+
+            let body = json!({"ids": [affix]});
+            let state = build_test_state(pool.clone());
+            let router = build_router(state);
+            let client_key = make_client_key(client_b);
+
+            let response = router
+                .oneshot(make_batch_delete_request("/api/affixes/batch/delete", body, client_key))
+                .await
+                .unwrap();
+
+            assert_eq!(response.status(), StatusCode::OK);
+            let response_body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+            let parsed: BatchDeleteResponse = serde_json::from_slice(&response_body).unwrap();
+            assert_eq!(parsed.count, 0);
+
+            let remaining: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM affixes WHERE id = $1")
+                .bind(affix)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+            assert_eq!(remaining, 1);
+
+            sqlx::query("DELETE FROM affixes WHERE id = $1").bind(affix).execute(&pool).await.unwrap();
+            sqlx::query("DELETE FROM clients WHERE id = $1").bind(client_a).execute(&pool).await.unwrap();
+            sqlx::query("DELETE FROM clients WHERE id = $1").bind(client_b).execute(&pool).await.unwrap();
+        }
+
+        #[tokio::test]
+        async fn test_batch_delete_affixes_empty_ids_error() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let body = json!({"ids": []});
+            let state = build_test_state(pool);
+            let router = build_router(state);
+            let key = make_super_admin_key();
+
+            let response = router
+                .oneshot(make_batch_delete_request("/api/affixes/batch/delete", body, key))
+                .await
+                .unwrap();
+
+            assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        }
+
+        #[tokio::test]
+        async fn test_batch_delete_affixes_all_or_nothing_transaction() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_id = insert_test_client(&pool).await;
+            let attrs = json!({"damage": {"value_type": "range", "min": 1.0, "max": 10.0}});
+            let bp = insert_test_blueprint(&pool, client_id, "Sword", attrs, &["damage"]).await;
+            let affix_a = insert_test_affix(&pool, client_id, "Fire", "prefix").await;
+            let affix_b = insert_test_affix(&pool, client_id, "Ice", "suffix").await;
+            insert_test_blueprint_affix(&pool, bp, affix_a, "prefix").await;
+
+            let body = json!({"ids": [affix_a, affix_b]});
+            let state = build_test_state(pool.clone());
+            let router = build_router(state);
+            let key = make_super_admin_key();
+
+            let response = router
+                .oneshot(make_batch_delete_request("/api/affixes/batch/delete", body, key))
+                .await
+                .unwrap();
+
+            assert_eq!(response.status(), StatusCode::CONFLICT);
+
+            let remaining: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM affixes WHERE client_id = $1")
+                .bind(client_id)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+            assert_eq!(remaining, 2);
+
+            sqlx::query("DELETE FROM blueprint_affixes WHERE blueprint_id = $1").bind(bp).execute(&pool).await.unwrap();
+            sqlx::query("DELETE FROM blueprints WHERE client_id = $1").bind(client_id).execute(&pool).await.unwrap();
+            sqlx::query("DELETE FROM affixes WHERE client_id = $1").bind(client_id).execute(&pool).await.unwrap();
+            sqlx::query("DELETE FROM clients WHERE id = $1").bind(client_id).execute(&pool).await.unwrap();
         }
     }
 }

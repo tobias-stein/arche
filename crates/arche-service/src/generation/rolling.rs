@@ -106,6 +106,29 @@ fn roll_range<R: Rng + ?Sized>(
     }
 }
 
+pub fn resolve_and_roll_affix_attribute(
+    affix: &Affix,
+    client_cache: &ClientCache,
+    rng: &mut impl Rng,
+) -> Option<(String, serde_json::Value)> {
+    let affix_attr: AffixAttribute = serde_json::from_value(affix.attribute.clone()).ok()?;
+
+    let (attr_name, payload) = match affix_attr {
+        AffixAttribute::Inline(inline_def) => (inline_def.name, inline_def.payload),
+        AffixAttribute::Ref { ref_id } => {
+            let gma = client_cache
+                .global_meta_attributes
+                .iter()
+                .find(|g| g.id == ref_id)?;
+            let payload: AttributePayload = serde_json::from_value(gma.payload.clone()).ok()?;
+            (gma.name.clone(), payload)
+        }
+    };
+
+    let rolled = roll_attribute(&payload, rng);
+    Some((attr_name, rolled))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -559,5 +582,147 @@ mod tests {
             };
             prop_assert!(values.contains(&result));
         }
+    }
+
+    // --- Affix attribute resolution + rolling tests ---
+
+    fn make_affix(name: &str, location: AffixLocation, attribute: serde_json::Value) -> Affix {
+        Affix {
+            id: Uuid::new_v4(),
+            client_id: Uuid::nil(),
+            name: name.into(),
+            location,
+            description: None,
+            attribute,
+            created_at: ts(),
+            updated_at: ts(),
+        }
+    }
+
+    #[test]
+    fn test_resolve_and_roll_affix_inline_range() {
+        let affix = make_affix(
+            "Fire",
+            AffixLocation::Prefix,
+            serde_json::json!({"name": "fireDamage", "value_type": "range", "min": 5.0, "max": 15.0}),
+        );
+
+        let cache = make_client_cache(vec![]);
+        let mut rng = StdRng::seed_from_u64(42);
+
+        let result = resolve_and_roll_affix_attribute(&affix, &cache, &mut rng);
+        assert!(result.is_some());
+        let (name, value) = result.unwrap();
+        assert_eq!(name, "fireDamage");
+        assert!(value.is_number());
+    }
+
+    #[test]
+    fn test_resolve_and_roll_affix_inline_enum() {
+        let affix = make_affix(
+            "Rare",
+            AffixLocation::Suffix,
+            serde_json::json!({"name": "rarity", "value_type": "enum", "values": ["common", "rare", "legendary"]}),
+        );
+
+        let cache = make_client_cache(vec![]);
+        let mut rng = StdRng::seed_from_u64(99);
+
+        let result = resolve_and_roll_affix_attribute(&affix, &cache, &mut rng);
+        assert!(result.is_some());
+        let (name, value) = result.unwrap();
+        assert_eq!(name, "rarity");
+        assert!(value.is_string());
+    }
+
+    #[test]
+    fn test_resolve_and_roll_affix_inline_single() {
+        let affix = make_affix(
+            "Blessed",
+            AffixLocation::Prefix,
+            serde_json::json!({"name": "blessingPower", "value_type": "single", "value": 42.0}),
+        );
+
+        let cache = make_client_cache(vec![]);
+        let mut rng = StdRng::seed_from_u64(1);
+
+        let result = resolve_and_roll_affix_attribute(&affix, &cache, &mut rng);
+        assert!(result.is_some());
+        let (name, value) = result.unwrap();
+        assert_eq!(name, "blessingPower");
+        assert_eq!(value, serde_json::json!(42.0));
+    }
+
+    #[test]
+    fn test_resolve_and_roll_affix_ref_id() {
+        let gma_id = Uuid::new_v4();
+        let gma = make_global(
+            "globalDamage",
+            gma_id,
+            serde_json::json!({"value_type": "range", "min": 20.0, "max": 30.0}),
+        );
+
+        let affix = make_affix(
+            "Powerful",
+            AffixLocation::Prefix,
+            serde_json::json!({"$ref_id": gma_id.to_string()}),
+        );
+
+        let cache = make_client_cache(vec![gma]);
+        let mut rng = StdRng::seed_from_u64(42);
+
+        let result = resolve_and_roll_affix_attribute(&affix, &cache, &mut rng);
+        assert!(result.is_some());
+        let (name, value) = result.unwrap();
+        assert_eq!(name, "globalDamage");
+        assert!(value.is_number());
+    }
+
+    #[test]
+    fn test_resolve_and_roll_affix_missing_ref_returns_none() {
+        let affix = make_affix(
+            "Orphan",
+            AffixLocation::Prefix,
+            serde_json::json!({"$ref_id": Uuid::new_v4().to_string()}),
+        );
+
+        let cache = make_client_cache(vec![]);
+        let mut rng = StdRng::seed_from_u64(1);
+
+        let result = resolve_and_roll_affix_attribute(&affix, &cache, &mut rng);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_resolve_and_roll_affix_deterministic() {
+        let affix = make_affix(
+            "Fire",
+            AffixLocation::Prefix,
+            serde_json::json!({"name": "fireDamage", "value_type": "range", "min": 5.0, "max": 15.0}),
+        );
+
+        let cache = make_client_cache(vec![]);
+        let mut rng1 = StdRng::seed_from_u64(123);
+        let result1 = resolve_and_roll_affix_attribute(&affix, &cache, &mut rng1);
+
+        let mut rng2 = StdRng::seed_from_u64(123);
+        let result2 = resolve_and_roll_affix_attribute(&affix, &cache, &mut rng2);
+
+        assert_eq!(result1, result2);
+    }
+
+    #[test]
+    fn test_resolve_and_roll_affix_invalid_json_returns_none() {
+        let affix = make_affix(
+            "Bad",
+            AffixLocation::Prefix,
+            serde_json::json!("not_an_affix_attribute"),
+        );
+
+        let cache = make_client_cache(vec![]);
+        let mut rng = StdRng::seed_from_u64(1);
+
+        let result = resolve_and_roll_affix_attribute(&affix, &cache, &mut rng);
+        assert!(result.is_none());
     }
 }

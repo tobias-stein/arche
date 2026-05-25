@@ -162,7 +162,7 @@ fn select_by_type(
 
     for entry in &required_entries {
         if let Some(affix) = affix_by_id.get(&entry.affix_id) {
-            result.push(((*affix).clone(), entry.sort_order));
+            result.push((affix.clone(), entry.sort_order));
         }
     }
 
@@ -197,7 +197,7 @@ fn weighted_select_without_replacement(
         let pick = dist.sample(rng);
         let idx = indices[pick];
         if let Some(affix) = affix_by_id.get(&pool[idx].affix_id) {
-            result.push(((*affix).clone(), pool[idx].sort_order));
+            result.push((affix.clone(), pool[idx].sort_order));
         }
         indices.remove(pick);
     }

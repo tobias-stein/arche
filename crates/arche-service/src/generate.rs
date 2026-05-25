@@ -6,6 +6,7 @@ use axum::Json;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 use std::collections::HashMap;
+use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::auth::permission::CurrentUser;
@@ -52,17 +53,17 @@ pub async fn generate_handler(
             blueprints: data
                 .blueprints
                 .values()
-                .map(|bp| std::sync::Arc::new(bp.clone()))
+                .map(|bp| Arc::new(bp.clone()))
                 .collect(),
             affixes: data
                 .affixes
                 .values()
-                .map(|a| std::sync::Arc::new(a.clone()))
+                .map(|a| Arc::new(a.clone()))
                 .collect(),
             global_meta_attributes: data
                 .global_meta_attributes
                 .values()
-                .map(|gma| std::sync::Arc::new(gma.clone()))
+                .map(|gma| Arc::new(gma.clone()))
                 .collect(),
         };
     } else {
@@ -146,7 +147,7 @@ pub async fn generate_handler(
 }
 
 fn build_no_match_detail(req: &GenerateRequest) -> String {
-    let mut parts: Vec<String> = Vec::new();
+    let mut parts = Vec::new();
     if let Some(ref archetype) = req.archetype {
         parts.push(format!("archetype '{}'", archetype));
     }
@@ -168,7 +169,7 @@ fn build_no_match_detail(req: &GenerateRequest) -> String {
 fn constraint_describe(constraint: &ConstraintValue) -> String {
     match constraint {
         ConstraintValue::Config(config) => {
-            let mut parts: Vec<String> = Vec::new();
+            let mut parts = Vec::new();
             if let Some(gte) = config.gte {
                 parts.push(format!(">= {}", gte));
             }

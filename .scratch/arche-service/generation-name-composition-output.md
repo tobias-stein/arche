@@ -1,6 +1,6 @@
 ---
 title: Generation engine — name composition & output assembly
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

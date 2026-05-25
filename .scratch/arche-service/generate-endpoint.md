@@ -1,6 +1,6 @@
 ---
 title: Generate endpoint — POST /api/generate
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

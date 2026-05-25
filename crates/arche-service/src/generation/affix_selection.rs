@@ -162,7 +162,7 @@ fn select_by_type(
 
     for entry in &required_entries {
         if let Some(affix) = affix_by_id.get(&entry.affix_id) {
-            result.push((affix.clone(), entry.sort_order));
+            result.push((Arc::clone(*affix), entry.sort_order));
         }
     }
 
@@ -197,7 +197,7 @@ fn weighted_select_without_replacement(
         let pick = dist.sample(rng);
         let idx = indices[pick];
         if let Some(affix) = affix_by_id.get(&pool[idx].affix_id) {
-            result.push((affix.clone(), pool[idx].sort_order));
+            result.push((Arc::clone(*affix), pool[idx].sort_order));
         }
         indices.remove(pick);
     }
@@ -349,7 +349,7 @@ mod tests {
         let all_affixes = vec![Arc::new(affix1), Arc::new(affix2)];
 
         let mut rng1 = StdRng::seed_from_u64(123);
-        let result1 = select_affixes(&[ba1, ba2], &all_affixes, &bp, None, &mut rng1).unwrap();
+        let result1 = select_affixes(&[ba1.clone(), ba2.clone()], &all_affixes, &bp, None, &mut rng1).unwrap();
 
         let mut rng2 = StdRng::seed_from_u64(123);
         let result2 = select_affixes(&[ba1, ba2], &all_affixes, &bp, None, &mut rng2).unwrap();
@@ -381,7 +381,7 @@ mod tests {
         for seed in 0..trials {
             let mut rng = StdRng::seed_from_u64(seed);
             let result =
-                select_affixes(&[ba_high, ba_low], &all_affixes, &bp, None, &mut rng).unwrap();
+                select_affixes(&[ba_high.clone(), ba_low.clone()], &all_affixes, &bp, None, &mut rng).unwrap();
             if result[0].0.id == high_id {
                 high_count += 1;
             }

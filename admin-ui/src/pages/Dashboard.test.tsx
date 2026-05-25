@@ -252,7 +252,7 @@ describe('Dashboard Quick Generate', () => {
 
     expect(screen.getByPlaceholderText('Value')).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: '' })) // trash button
+    fireEvent.click(screen.getByRole('button', { name: /Remove constraint/i }))
   })
 
   it('populates attribute key dropdown from blueprint attributes', () => {

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { Dices, Loader2, Plus, RotateCcw, Trash2 } from 'lucide-react'
 
 import {
@@ -175,7 +175,7 @@ export default function Dashboard() {
 
   const [archetype, setArchetype] = useState<string>('')
   const [constraints, setConstraints] = useState<ConstraintRow[]>([])
-  const [nextConstraintId, setNextConstraintId] = useState(1)
+  const constraintIdRef = useRef(1)
   const [minPrefixes, setMinPrefixes] = useState(0)
   const [maxPrefixes, setMaxPrefixes] = useState(0)
   const [minSuffixes, setMinSuffixes] = useState(0)
@@ -187,9 +187,9 @@ export default function Dashboard() {
   const [genError, setGenError] = useState<string | null>(null)
 
   const addConstraint = useCallback(() => {
-    setConstraints((prev) => [...prev, { id: nextConstraintId, key: '', operator: 'eq', value: '' }])
-    setNextConstraintId((n) => n + 1)
-  }, [nextConstraintId])
+    const id = constraintIdRef.current++
+    setConstraints((prev) => [...prev, { id, key: '', operator: 'eq', value: '' }])
+  }, [])
 
   const updateConstraint = useCallback(
     (id: number, field: keyof ConstraintRow, value: string) => {
@@ -219,7 +219,7 @@ export default function Dashboard() {
   function handleClear() {
     setArchetype('')
     setConstraints([])
-    setNextConstraintId(1)
+    constraintIdRef.current = 1
     setMinPrefixes(0)
     setMaxPrefixes(0)
     setMinSuffixes(0)
@@ -245,7 +245,7 @@ export default function Dashboard() {
     }
 
     const request: GenerateRequest = {
-      archetype: archetype || null,
+      archetype: !archetype || archetype === 'any' ? null : archetype,
       seed: seed.trim() ? Number(seed.trim()) : null,
       constraints: buildConstraints(constraints),
       affixes: affixConstraints,
@@ -416,6 +416,7 @@ export default function Dashboard() {
                       <Button
                         variant="ghost"
                         size="icon"
+                        aria-label="Remove constraint"
                         onClick={() => removeConstraint(row.id)}
                         className="shrink-0"
                       >
@@ -598,8 +599,8 @@ export default function Dashboard() {
                   Affix Attributes
                 </Label>
                 <div className="space-y-2">
-                  {result.affixAttributes.map((entry, idx) => (
-                    <Card key={idx} className="p-3">
+                  {result.affixAttributes.map((entry) => (
+                    <Card key={entry.affixId} className="p-3">
                       <div className="flex items-center gap-2 mb-1">
                         <Badge variant="outline">{entry.affixName}</Badge>
                       </div>

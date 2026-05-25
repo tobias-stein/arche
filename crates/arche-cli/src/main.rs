@@ -179,20 +179,15 @@ fn cmd_generate(args: &cli::GenerateArgs, config: &Config) -> Result<(), CliErro
 }
 
 fn build_generate_request(args: &cli::GenerateArgs) -> Result<GenerateRequest, CliError> {
-    let constraints: Option<HashMap<String, ConstraintValue>> =
-        if let Some(ref json_str) = args.constraints {
-            Some(serde_json::from_str(json_str)
-                .map_err(|e| CliError::Args(format!("Invalid constraints JSON: {e}")))?)
-        } else {
-            None
-        };
+    let constraints = args.constraints.as_deref().map(|json_str| {
+        serde_json::from_str::<HashMap<String, ConstraintValue>>(json_str)
+            .map_err(|e| CliError::Args(format!("Invalid constraints JSON: {e}")))
+    }).transpose()?;
 
-    let affixes: Option<AffixConstraints> = if let Some(ref json_str) = args.affixes {
-        Some(serde_json::from_str(json_str)
-            .map_err(|e| CliError::Args(format!("Invalid affixes JSON: {e}")))?)
-    } else {
-        None
-    };
+    let affixes = args.affixes.as_deref().map(|json_str| {
+        serde_json::from_str::<AffixConstraints>(json_str)
+            .map_err(|e| CliError::Args(format!("Invalid affixes JSON: {e}")))
+    }).transpose()?;
 
     Ok(GenerateRequest {
         archetype: args.archetype.clone(),
@@ -610,10 +605,7 @@ mod generate_tests {
 
     #[tokio::test]
     async fn test_generate_invalid_constraints_json_returns_args_error() {
-        let mock_server = MockServer::start().await;
-        let uri = mock_server.uri();
-
-        let config = make_config(&uri, false, false);
+        let config = make_config("http://localhost:1", false, false);
         let args = make_args(None, Some("not json"), None, None, "json");
         let result = run_generate(args, config).await;
         assert!(result.is_err());
@@ -628,10 +620,7 @@ mod generate_tests {
 
     #[tokio::test]
     async fn test_generate_invalid_affixes_json_returns_args_error() {
-        let mock_server = MockServer::start().await;
-        let uri = mock_server.uri();
-
-        let config = make_config(&uri, false, false);
+        let config = make_config("http://localhost:1", false, false);
         let args = make_args(None, None, None, Some("{bad json"), "json");
         let result = run_generate(args, config).await;
         assert!(result.is_err());
@@ -646,10 +635,7 @@ mod generate_tests {
 
     #[tokio::test]
     async fn test_generate_invalid_format_returns_args_error() {
-        let mock_server = MockServer::start().await;
-        let uri = mock_server.uri();
-
-        let config = make_config(&uri, false, false);
+        let config = make_config("http://localhost:1", false, false);
         let args = make_args(None, None, None, None, "invalid");
         let result = run_generate(args, config).await;
         assert!(result.is_err());

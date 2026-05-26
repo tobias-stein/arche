@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io::Cursor;
 use std::time::{Duration, Instant};
 
@@ -173,9 +173,7 @@ pub async fn import_parse_handler(
         validate_ref_ids(&client_import, &existing_cache)?;
         let conflicts =
             detect_client_conflicts(&client_import, &existing_cache).await?;
-        if !conflicts.is_empty() {
-            all_conflicts.extend(conflicts);
-        }
+        all_conflicts.extend(conflicts);
         client_imports.push(client_import);
     }
 
@@ -456,7 +454,7 @@ pub(crate) fn parse_zip(body: Bytes) -> Result<Vec<Vec<(String, Vec<u8>)>>, Stri
     let cursor = Cursor::new(body.as_ref());
     let mut archive = ZipArchive::new(cursor).map_err(|e| format!("Failed to read ZIP: {}", e))?;
 
-    if archive.len() == 0 {
+    if archive.is_empty() {
         return Err("ZIP archive is empty".into());
     }
 
@@ -528,7 +526,6 @@ pub(crate) fn parse_zip(body: Bytes) -> Result<Vec<Vec<(String, Vec<u8>)>>, Stri
         return Err("No client folders found in archive".into());
     }
 
-    // Validate each folder has required files
     for (folder_name, files) in &client_folders {
         let file_names: Vec<&str> = files.iter().map(|(n, _)| n.as_str()).collect();
         if !file_names.contains(&"client.json") {
@@ -705,7 +702,7 @@ pub(crate) fn build_client_import(files: &[(String, Vec<u8>)]) -> Result<ClientI
 }
 
 fn validate_ref_ids(import: &ClientImport, cache: &Cache) -> Result<(), ProblemResponse> {
-    let mut import_gma_ids: std::collections::HashSet<Uuid> = import
+    let mut import_gma_ids: HashSet<Uuid> = import
         .global_meta_attributes
         .iter()
         .map(|g| g.id)
@@ -791,7 +788,6 @@ pub(crate) async fn detect_client_conflicts(
         }
     }
 
-    // Detect name collisions: different UUID or no UUID but same client name
     for (existing_id, existing_client) in &cache.clients {
         if existing_client.name == import.client_name {
             let is_same_client = client_id == Some(*existing_id);
@@ -1199,7 +1195,7 @@ fn count_resources(clients: &[ClientImport]) -> i64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
     fn ts() -> chrono::DateTime<chrono::Utc> {
         chrono::Utc::now()
@@ -1941,11 +1937,11 @@ mod db_tests {
     fn test_state(pool: Arc<PgPool>) -> crate::AppState {
         crate::AppState {
             cache: Arc::new(tokio::sync::RwLock::new(crate::cache::Cache::new(
-                std::collections::HashMap::new(),
-                std::collections::HashMap::new(),
-                std::collections::HashMap::new(),
-                std::collections::HashMap::new(),
-                std::collections::HashMap::new(),
+            HashMap::new(),
+            HashMap::new(),
+            HashMap::new(),
+            HashMap::new(),
+            HashMap::new(),
             ))),
             pool,
             redis: None,
@@ -2256,20 +2252,9 @@ mod db_tests {
 
         {
             let cache = crate::cache::Cache::load(&pool).await.unwrap();
-            let _state_with_cache = crate::AppState {
-                cache: Arc::new(tokio::sync::RwLock::new(cache)),
-                pool: state.pool.clone(),
-                redis: None,
-                import_staging: Arc::new(ImportStaging::new()),
-            };
-
-            let conflicts = detect_client_conflicts(
-                &modified_import,
-                &*_state_with_cache.cache.read().await,
-            )
-            .await
-            .unwrap();
-
+            let conflicts = detect_client_conflicts(&modified_import, &cache)
+                .await
+                .unwrap();
             assert!(!conflicts.is_empty(), "should detect conflicts on modified import");
         }
 

@@ -197,7 +197,9 @@ export function BatchEditDialog({
   function hasChanges(): boolean {
     return mergedAttrs.some((attr) => {
       const current = formValues[attr.name]
-      return current !== null && current !== attr.commonValue
+      if (current === null && attr.commonValue === null) return false
+      if (current === null || attr.commonValue === null) return true
+      return !inlineAttrsEqual(current, attr.commonValue)
     })
   }
 

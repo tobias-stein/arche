@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, Pencil, Trash2 } from 'lucide-react'
 
 import {
@@ -402,7 +403,12 @@ export default function GlobalMetaAttributes() {
                     return (
                       <TableRow key={gma.id}>
                         <TableCell className="font-medium">
-                          {gma.name}
+                          <Link
+                            to={`/global-meta-attributes/${gma.id}`}
+                            className="text-primary hover:underline"
+                          >
+                            {gma.name}
+                          </Link>
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline">{gma.valueType}</Badge>
@@ -459,7 +465,12 @@ export default function GlobalMetaAttributes() {
                 return (
                   <div key={gma.id} className="px-4 py-3 space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="font-medium">{gma.name}</span>
+                      <Link
+                        to={`/global-meta-attributes/${gma.id}`}
+                        className="font-medium text-primary hover:underline"
+                      >
+                        {gma.name}
+                      </Link>
                       <div className="flex gap-1">
                         <Button
                           size="icon"

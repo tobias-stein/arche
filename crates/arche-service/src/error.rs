@@ -134,51 +134,6 @@ impl ProblemResponse {
             references: None,
         }
     }
-    }
-
-    pub fn unauthorized(detail: impl Into<String>) -> Self {
-        Self {
-            type_: "/errors/unauthorized".into(),
-            title: "Unauthorized".into(),
-            status: 401,
-            detail: Some(detail.into()),
-            instance: None,
-            errors: None,
-        }
-    }
-
-    pub fn forbidden(detail: impl Into<String>) -> Self {
-        Self {
-            type_: "/errors/forbidden".into(),
-            title: "Forbidden".into(),
-            status: 403,
-            detail: Some(detail.into()),
-            instance: None,
-            errors: None,
-        }
-    }
-
-    pub fn not_found(detail: impl Into<String>) -> Self {
-        Self {
-            type_: "/errors/not-found".into(),
-            title: "Not Found".into(),
-            status: 404,
-            detail: Some(detail.into()),
-            instance: None,
-            errors: None,
-        }
-    }
-
-    pub fn no_matching_blueprints(detail: impl Into<String>) -> Self {
-        Self {
-            type_: "/errors/no-matching-blueprints".into(),
-            title: "No Matching Blueprints".into(),
-            status: 404,
-            detail: Some(detail.into()),
-            instance: None,
-            errors: None,
-        }
-    }
 
     pub fn delete_referenced_resource(detail: impl Into<String>) -> Self {
         Self {
@@ -204,39 +159,6 @@ impl ProblemResponse {
             instance: None,
             errors: None,
             references: Some(references),
-        }
-    }
-
-    pub fn conflict(detail: impl Into<String>) -> Self {
-        Self {
-            type_: "/errors/conflict".into(),
-            title: "Conflict".into(),
-            status: 409,
-            detail: Some(detail.into()),
-            instance: None,
-            errors: None,
-        }
-    }
-
-    pub fn import_conflict(detail: impl Into<String>) -> Self {
-        Self {
-            type_: "/errors/import-conflict".into(),
-            title: "Import Conflict".into(),
-            status: 409,
-            detail: Some(detail.into()),
-            instance: None,
-            errors: None,
-        }
-    }
-
-    pub fn unprocessable_entity(detail: impl Into<String>) -> Self {
-        Self {
-            type_: "/errors/unprocessable-entity".into(),
-            title: "Unprocessable Entity".into(),
-            status: 422,
-            detail: Some(detail.into()),
-            instance: None,
-            errors: None,
         }
     }
 }

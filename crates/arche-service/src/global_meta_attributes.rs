@@ -4,6 +4,7 @@ use serde::Deserialize;
 use sqlx::Row;
 use uuid::Uuid;
 
+use crate::audit_log::record_audit;
 use crate::auth::permission::CurrentUser;
 use crate::error::{ProblemResponse, ReferenceInfo};
 
@@ -37,6 +38,19 @@ pub async fn delete_global_meta_attribute(
     })?;
 
     let gma_client_id: Uuid = row.get("client_id");
+    let gma_name: String = row.get("name");
+    let gma_description: Option<String> = row.get("description");
+    let gma_value_type: String = row.get("value_type");
+    let gma_payload: serde_json::Value = row.get("payload");
+
+    let before_snapshot = serde_json::json!({
+        "id": id,
+        "client_id": gma_client_id,
+        "name": &gma_name,
+        "description": &gma_description,
+        "value_type": &gma_value_type,
+        "payload": &gma_payload,
+    });
 
     if !user.is_super {
         let user_cid = user.client_id.ok_or_else(|| {
@@ -198,6 +212,22 @@ pub async fn delete_global_meta_attribute(
                 ProblemResponse::unprocessable_entity("Failed to delete global meta attribute")
             })?;
 
+        record_audit(
+            &mut *tx,
+            &user,
+            Some(gma_client_id),
+            "global_meta_attribute",
+            id,
+            "force_deleted",
+            Some(before_snapshot),
+            None,
+        )
+        .await
+        .map_err(|e| {
+            tracing::error!(error = %e, "gma: audit log insert failed");
+            ProblemResponse::unprocessable_entity("Failed to write audit log")
+        })?;
+
         tx.commit().await.map_err(|e| {
             tracing::error!(error = %e, "gma: commit transaction failed");
             ProblemResponse::unprocessable_entity("Failed to commit force delete transaction")
@@ -211,6 +241,21 @@ pub async fn delete_global_meta_attribute(
                 tracing::error!(error = %e, "gma: delete gma failed");
                 ProblemResponse::unprocessable_entity("Failed to delete global meta attribute")
             })?;
+
+        if let Err(e) = record_audit(
+            &*state.pool,
+            &user,
+            Some(gma_client_id),
+            "global_meta_attribute",
+            id,
+            "deleted",
+            Some(before_snapshot),
+            None,
+        )
+        .await
+        {
+            tracing::error!(error = %e, "gma: audit log insert failed");
+        }
     }
 
     Ok(Json(serde_json::json!({"deleted": true})))

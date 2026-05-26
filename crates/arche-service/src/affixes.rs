@@ -4,6 +4,7 @@ use serde::Deserialize;
 use sqlx::Row;
 use uuid::Uuid;
 
+use crate::audit_log::record_audit;
 use crate::auth::permission::CurrentUser;
 use crate::error::{ProblemResponse, ReferenceInfo};
 
@@ -35,6 +36,19 @@ pub async fn delete_affix(
     .ok_or_else(|| ProblemResponse::not_found(format!("Affix not found: {id}")))?;
 
     let affix_client_id: Uuid = row.get("client_id");
+    let affix_name: String = row.get("name");
+    let affix_type: String = row.get("type");
+    let affix_description: Option<String> = row.get("description");
+    let affix_attribute: serde_json::Value = row.get("attribute");
+
+    let before_snapshot = serde_json::json!({
+        "id": id,
+        "client_id": affix_client_id,
+        "name": &affix_name,
+        "type": &affix_type,
+        "description": &affix_description,
+        "attribute": &affix_attribute,
+    });
 
     if !user.is_super {
         let user_cid = user.client_id.ok_or_else(|| {
@@ -222,6 +236,22 @@ pub async fn delete_affix(
                 ProblemResponse::unprocessable_entity("Failed to delete affix")
             })?;
 
+        record_audit(
+            &mut *tx,
+            &user,
+            Some(affix_client_id),
+            "affix",
+            id,
+            "force_deleted",
+            Some(before_snapshot),
+            None,
+        )
+        .await
+        .map_err(|e| {
+            tracing::error!(error = %e, "affixes: audit log insert failed");
+            ProblemResponse::unprocessable_entity("Failed to write audit log")
+        })?;
+
         tx.commit().await.map_err(|e| {
             tracing::error!(error = %e, "affixes: commit transaction failed");
             ProblemResponse::unprocessable_entity("Failed to commit force delete transaction")
@@ -235,6 +265,21 @@ pub async fn delete_affix(
                 tracing::error!(error = %e, "affixes: delete affix failed");
                 ProblemResponse::unprocessable_entity("Failed to delete affix")
             })?;
+
+        if let Err(e) = record_audit(
+            &*state.pool,
+            &user,
+            Some(affix_client_id),
+            "affix",
+            id,
+            "deleted",
+            Some(before_snapshot),
+            None,
+        )
+        .await
+        {
+            tracing::error!(error = %e, "affixes: audit log insert failed");
+        }
     }
 
     Ok(Json(serde_json::json!({"deleted": true})))

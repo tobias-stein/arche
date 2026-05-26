@@ -25,14 +25,14 @@ Follows same patterns as other list pages (multi-select not needed here — no b
 
 ## Acceptance criteria
 
-- [ ] Table renders with all global meta attributes
-- [ ] Value type filter works (dropdown)
-- [ ] Search by name works
-- [ ] Usage count column shows correct references (blueprints + affixes)
-- [ ] Row actions: Edit, Delete
-- [ ] Delete shows confirmation with usage count details
-- [ ] Pagination works
-- [ ] Loading skeletons, empty state
+- [x] Table renders with all global meta attributes
+- [x] Value type filter works (dropdown)
+- [x] Search by name works
+- [x] Usage count column shows correct references (blueprints + affixes)
+- [x] Row actions: Edit, Delete
+- [x] Delete shows confirmation with usage count details
+- [x] Pagination works
+- [x] Loading skeletons, empty state
 
 ## Blocked by
 

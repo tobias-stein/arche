@@ -419,6 +419,472 @@ describe('Blueprints list page', () => {
 
   // --- Responsive ---
 
+  it('opens batch edit dialog when Batch Edit is clicked', async () => {
+    const bps = [
+      makeBlueprint({
+        id: '1',
+        name: 'Sword',
+        attributes: { damage: { valueType: 'single', value: 10 } },
+        attributeOrder: ['damage'],
+      }),
+      makeBlueprint({
+        id: '2',
+        name: 'Shield',
+        attributes: { damage: { valueType: 'single', value: 20 } },
+        attributeOrder: ['damage'],
+      }),
+    ]
+    setBlueprints(bps)
+
+    renderBlueprints()
+
+    const desktop = getDesktopContainer()
+    fireEvent.click(within(desktop).getByLabelText('Select Sword'))
+    fireEvent.click(within(desktop).getByLabelText('Select Shield'))
+
+    fireEvent.click(screen.getByText('Batch Edit'))
+
+    await waitFor(() => {
+      expect(screen.getByText('Batch Edit Blueprints')).toBeInTheDocument()
+    })
+  })
+
+  it('shows selected blueprint names in batch edit dialog', async () => {
+    const bps = [
+      makeBlueprint({
+        id: '1',
+        name: 'Sword',
+        attributes: { damage: { valueType: 'single', value: 10 } },
+        attributeOrder: ['damage'],
+      }),
+      makeBlueprint({
+        id: '2',
+        name: 'Shield',
+        attributes: { damage: { valueType: 'single', value: 20 } },
+        attributeOrder: ['damage'],
+      }),
+    ]
+    setBlueprints(bps)
+
+    renderBlueprints()
+
+    const desktop = getDesktopContainer()
+    fireEvent.click(within(desktop).getByLabelText('Select Sword'))
+    fireEvent.click(within(desktop).getByLabelText('Select Shield'))
+    fireEvent.click(screen.getByText('Batch Edit'))
+
+    await waitFor(() => {
+      const dialog = screen.getByRole('dialog')
+      expect(within(dialog).getByText(/Editing 2 blueprints/)).toBeInTheDocument()
+    })
+  })
+
+  it('shows common attributes in batch edit dialog', async () => {
+    const bps = [
+      makeBlueprint({
+        id: '1',
+        name: 'Sword',
+        attributes: { damage: { valueType: 'single', value: 10 } },
+        attributeOrder: ['damage'],
+      }),
+      makeBlueprint({
+        id: '2',
+        name: 'Shield',
+        attributes: { damage: { valueType: 'single', value: 10 } },
+        attributeOrder: ['damage'],
+      }),
+    ]
+    setBlueprints(bps)
+
+    renderBlueprints()
+
+    const desktop = getDesktopContainer()
+    fireEvent.click(within(desktop).getByLabelText('Select Sword'))
+    fireEvent.click(within(desktop).getByLabelText('Select Shield'))
+    fireEvent.click(screen.getByText('Batch Edit'))
+
+    await waitFor(() => {
+      expect(screen.getByText('damage')).toBeInTheDocument()
+      expect(screen.getByText('single')).toBeInTheDocument()
+    })
+  })
+
+  it('shows no common attributes message when none exist', async () => {
+    const bps = [
+      makeBlueprint({
+        id: '1',
+        name: 'Sword',
+        attributes: { damage: { valueType: 'single', value: 10 } },
+        attributeOrder: ['damage'],
+      }),
+      makeBlueprint({
+        id: '2',
+        name: 'Shield',
+        attributes: { defense: { valueType: 'range', min: 1, max: 10 } },
+        attributeOrder: ['defense'],
+      }),
+    ]
+    setBlueprints(bps)
+
+    renderBlueprints()
+
+    const desktop = getDesktopContainer()
+    fireEvent.click(within(desktop).getByLabelText('Select Sword'))
+    fireEvent.click(within(desktop).getByLabelText('Select Shield'))
+    fireEvent.click(screen.getByText('Batch Edit'))
+
+    await waitFor(() => {
+      expect(
+        screen.getByText('No common attributes found across selected blueprints'),
+      ).toBeInTheDocument()
+    })
+  })
+
+  it('shows blank fields when attribute values differ', async () => {
+    const bps = [
+      makeBlueprint({
+        id: '1',
+        name: 'Sword',
+        attributes: { damage: { valueType: 'single', value: 10 } },
+        attributeOrder: ['damage'],
+      }),
+      makeBlueprint({
+        id: '2',
+        name: 'Shield',
+        attributes: { damage: { valueType: 'single', value: 20 } },
+        attributeOrder: ['damage'],
+      }),
+    ]
+    setBlueprints(bps)
+
+    renderBlueprints()
+
+    const desktop = getDesktopContainer()
+    fireEvent.click(within(desktop).getByLabelText('Select Sword'))
+    fireEvent.click(within(desktop).getByLabelText('Select Shield'))
+    fireEvent.click(screen.getByText('Batch Edit'))
+
+    await waitFor(() => {
+      expect(screen.getByText(/values differ/)).toBeInTheDocument()
+    })
+  })
+
+  it('excludes attributes with different value types', async () => {
+    const bps = [
+      makeBlueprint({
+        id: '1',
+        name: 'Sword',
+        attributes: { damage: { valueType: 'single', value: 10 } },
+        attributeOrder: ['damage'],
+      }),
+      makeBlueprint({
+        id: '2',
+        name: 'Shield',
+        attributes: { damage: { valueType: 'range', min: 1, max: 10 } },
+        attributeOrder: ['damage'],
+      }),
+    ]
+    setBlueprints(bps)
+
+    renderBlueprints()
+
+    const desktop = getDesktopContainer()
+    fireEvent.click(within(desktop).getByLabelText('Select Sword'))
+    fireEvent.click(within(desktop).getByLabelText('Select Shield'))
+    fireEvent.click(screen.getByText('Batch Edit'))
+
+    await waitFor(() => {
+      expect(
+        screen.getByText('No common attributes found across selected blueprints'),
+      ).toBeInTheDocument()
+    })
+  })
+
+  it('submits batch edit with edited values', async () => {
+    const mutateAsync = vi.fn().mockResolvedValue(undefined)
+    mockBatchEditBlueprints.mockReturnValue({ mutateAsync, isPending: false })
+
+    const bps = [
+      makeBlueprint({
+        id: '1',
+        name: 'Sword',
+        attributes: { damage: { valueType: 'single', value: 10 } },
+        attributeOrder: ['damage'],
+      }),
+      makeBlueprint({
+        id: '2',
+        name: 'Shield',
+        attributes: { damage: { valueType: 'single', value: 10 } },
+        attributeOrder: ['damage'],
+      }),
+    ]
+    setBlueprints(bps)
+
+    renderBlueprints()
+
+    const desktop = getDesktopContainer()
+    fireEvent.click(within(desktop).getByLabelText('Select Sword'))
+    fireEvent.click(within(desktop).getByLabelText('Select Shield'))
+    fireEvent.click(screen.getByText('Batch Edit'))
+
+    await waitFor(() => {
+      expect(screen.getByText('Batch Edit Blueprints')).toBeInTheDocument()
+    })
+
+    const valueInput = screen.getByPlaceholderText('Enter a number')
+    fireEvent.change(valueInput, { target: { value: '50' } })
+
+    const dialog = screen.getByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: /Update/ }))
+
+    await waitFor(() => {
+      expect(mutateAsync).toHaveBeenCalledWith({
+        blueprintIds: ['bp-1', 'bp-2'],
+        attributes: expect.objectContaining({
+          damage: expect.objectContaining({ valueType: 'single', value: 50 }),
+        }),
+      })
+    })
+  })
+
+  it('clears selection after successful batch edit', async () => {
+    const mutateAsync = vi.fn().mockResolvedValue(undefined)
+    mockBatchEditBlueprints.mockReturnValue({ mutateAsync, isPending: false })
+
+    const bps = [
+      makeBlueprint({
+        id: '1',
+        name: 'Sword',
+        attributes: { damage: { valueType: 'single', value: 10 } },
+        attributeOrder: ['damage'],
+      }),
+    ]
+    setBlueprints(bps)
+
+    renderBlueprints()
+
+    const desktop = getDesktopContainer()
+    fireEvent.click(within(desktop).getByLabelText('Select Sword'))
+    fireEvent.click(screen.getByText('Batch Edit'))
+
+    await waitFor(() => {
+      expect(screen.getByText('Batch Edit Blueprints')).toBeInTheDocument()
+    })
+
+    const valueInput = screen.getByPlaceholderText('Enter a number')
+    fireEvent.change(valueInput, { target: { value: '999' } })
+
+    const dialog = screen.getByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: /Update/ }))
+
+    await waitFor(() => {
+      expect(screen.queryByText(/selected/)).not.toBeInTheDocument()
+    })
+  })
+
+  it('shows error toast on batch edit failure', async () => {
+    const mutateAsync = vi.fn().mockRejectedValue(new Error('Server error'))
+    mockBatchEditBlueprints.mockReturnValue({ mutateAsync, isPending: false })
+
+    const bps = [
+      makeBlueprint({
+        id: '1',
+        name: 'Sword',
+        attributes: { damage: { valueType: 'single', value: 10 } },
+        attributeOrder: ['damage'],
+      }),
+    ]
+    setBlueprints(bps)
+
+    renderBlueprints()
+
+    const desktop = getDesktopContainer()
+    fireEvent.click(within(desktop).getByLabelText('Select Sword'))
+    fireEvent.click(screen.getByText('Batch Edit'))
+
+    await waitFor(() => {
+      expect(screen.getByText('Batch Edit Blueprints')).toBeInTheDocument()
+    })
+
+    const valueInput = screen.getByPlaceholderText('Enter a number')
+    fireEvent.change(valueInput, { target: { value: '999' } })
+
+    const dialog = screen.getByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: /Update/ }))
+
+    await waitFor(() => {
+      expect(mutateAsync).toHaveBeenCalled()
+    })
+  })
+
+  it('dialog submit button shows update count when not pending', async () => {
+    mockBatchEditBlueprints.mockReturnValue({ mutateAsync: vi.fn(), isPending: false })
+
+    const bps = [
+      makeBlueprint({
+        id: '1',
+        name: 'Sword',
+        attributes: { damage: { valueType: 'single', value: 10 } },
+        attributeOrder: ['damage'],
+      }),
+    ]
+    setBlueprints(bps)
+
+    renderBlueprints()
+
+    const desktop = getDesktopContainer()
+    fireEvent.click(within(desktop).getByLabelText('Select Sword'))
+    fireEvent.click(screen.getByText('Batch Edit'))
+
+    await waitFor(() => {
+      expect(screen.getByText('Batch Edit Blueprints')).toBeInTheDocument()
+    })
+
+    const dialog = screen.getByRole('dialog')
+    expect(
+      within(dialog).getByRole('button', { name: /Update \(1 blueprint\)/ }),
+    ).toBeInTheDocument()
+  })
+
+  it('disables batch edit toolbar button when mutation is pending', async () => {
+    mockBatchEditBlueprints.mockReturnValue({ mutateAsync: vi.fn(), isPending: true })
+
+    setBlueprints([makeBlueprint({ id: '1', name: 'Sword' })])
+
+    renderBlueprints()
+
+    const desktop = getDesktopContainer()
+    fireEvent.click(within(desktop).getByLabelText('Select Sword'))
+
+    const batchEditBtn = screen.getByText('Batch Edit')
+    expect(batchEditBtn).toBeDisabled()
+  })
+
+  it('handles boolean attributes in batch edit', async () => {
+    const bps = [
+      makeBlueprint({
+        id: '1',
+        name: 'Sword',
+        attributes: { magic: { valueType: 'boolean', value: true } },
+        attributeOrder: ['magic'],
+      }),
+      makeBlueprint({
+        id: '2',
+        name: 'Shield',
+        attributes: { magic: { valueType: 'boolean', value: false } },
+        attributeOrder: ['magic'],
+      }),
+    ]
+    setBlueprints(bps)
+
+    renderBlueprints()
+
+    const desktop = getDesktopContainer()
+    fireEvent.click(within(desktop).getByLabelText('Select Sword'))
+    fireEvent.click(within(desktop).getByLabelText('Select Shield'))
+    fireEvent.click(screen.getByText('Batch Edit'))
+
+    await waitFor(() => {
+      expect(screen.getByText('magic')).toBeInTheDocument()
+      expect(screen.getByText(/values differ/)).toBeInTheDocument()
+    })
+  })
+
+  it('handles enum attributes in batch edit', async () => {
+    const bps = [
+      makeBlueprint({
+        id: '1',
+        name: 'Sword',
+        attributes: { element: { valueType: 'enum', values: ['fire', 'ice'] } },
+        attributeOrder: ['element'],
+      }),
+      makeBlueprint({
+        id: '2',
+        name: 'Shield',
+        attributes: { element: { valueType: 'enum', values: ['fire', 'ice'] } },
+        attributeOrder: ['element'],
+      }),
+    ]
+    setBlueprints(bps)
+
+    renderBlueprints()
+
+    const desktop = getDesktopContainer()
+    fireEvent.click(within(desktop).getByLabelText('Select Sword'))
+    fireEvent.click(within(desktop).getByLabelText('Select Shield'))
+    fireEvent.click(screen.getByText('Batch Edit'))
+
+    await waitFor(() => {
+      expect(screen.getByText('element')).toBeInTheDocument()
+      const enumInput = screen.getByPlaceholderText('e.g. fire, ice, lightning')
+      expect(enumInput).toBeInTheDocument()
+      expect((enumInput as HTMLInputElement).value).toBe('fire, ice')
+    })
+  })
+
+  it('handles range attributes in batch edit', async () => {
+    const bps = [
+      makeBlueprint({
+        id: '1',
+        name: 'Sword',
+        attributes: { level: { valueType: 'range', min: 1, max: 50 } },
+        attributeOrder: ['level'],
+      }),
+      makeBlueprint({
+        id: '2',
+        name: 'Shield',
+        attributes: { level: { valueType: 'range', min: 1, max: 50 } },
+        attributeOrder: ['level'],
+      }),
+    ]
+    setBlueprints(bps)
+
+    renderBlueprints()
+
+    const desktop = getDesktopContainer()
+    fireEvent.click(within(desktop).getByLabelText('Select Sword'))
+    fireEvent.click(within(desktop).getByLabelText('Select Shield'))
+    fireEvent.click(screen.getByText('Batch Edit'))
+
+    await waitFor(() => {
+      expect(screen.getByText('level')).toBeInTheDocument()
+      const minInputs = screen.getAllByPlaceholderText('Min')
+      const maxInputs = screen.getAllByPlaceholderText('Max')
+      expect(minInputs.length).toBeGreaterThan(0)
+      expect(maxInputs.length).toBeGreaterThan(0)
+    })
+  })
+
+  it('excludes ref_id attributes from batch edit', async () => {
+    const bps = [
+      makeBlueprint({
+        id: '1',
+        name: 'Sword',
+        attributes: { style: { $ref_id: 'gma-1' }, damage: { valueType: 'single', value: 10 } },
+        attributeOrder: ['style', 'damage'],
+      }),
+      makeBlueprint({
+        id: '2',
+        name: 'Shield',
+        attributes: { style: { $ref_id: 'gma-1' }, damage: { valueType: 'single', value: 20 } },
+        attributeOrder: ['style', 'damage'],
+      }),
+    ]
+    setBlueprints(bps)
+
+    renderBlueprints()
+
+    const desktop = getDesktopContainer()
+    fireEvent.click(within(desktop).getByLabelText('Select Sword'))
+    fireEvent.click(within(desktop).getByLabelText('Select Shield'))
+    fireEvent.click(screen.getByText('Batch Edit'))
+
+    await waitFor(() => {
+      expect(screen.getByText('damage')).toBeInTheDocument()
+      expect(screen.queryByText('style')).not.toBeInTheDocument()
+    })
+  })
+
   it('renders mobile card view on small screens', () => {
     setBlueprints([makeBlueprint({ id: '1', name: 'Sword' })])
 

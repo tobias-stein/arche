@@ -313,13 +313,15 @@ function CreateGlobalMetaAttributeDialog({
           valueType: 'boolean',
           value: boolVal,
         }
+      default:
+        return null
     }
   }
 
-  const canSubmit = name.trim().length > 0 && buildRequest() !== null
+  const request = buildRequest()
+  const canSubmit = request !== null
 
   const handleSubmit = async () => {
-    const request = buildRequest()
     if (!request) return
     try {
       await createMutation.mutateAsync(request)

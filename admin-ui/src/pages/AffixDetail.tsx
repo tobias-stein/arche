@@ -24,7 +24,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useToast } from '@/hooks/use-toast'
 import { AffixCreateEditDialog } from './AffixCreateEditDialog'
 
-function formatDate(dateStr: string): string {
+function formatDateTime(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'short',
@@ -97,7 +97,7 @@ function AuditLogDiff({ entry }: { entry: AuditLogEntry }) {
           by {entry.actorKeyName}
         </span>
         <span className="ml-auto text-xs text-muted-foreground">
-          {formatDate(entry.timestamp)}
+          {formatDateTime(entry.timestamp)}
         </span>
       </button>
       {expanded && (
@@ -307,11 +307,11 @@ export default function AffixDetail() {
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-muted-foreground">Created:</span>
-                <span>{formatDate(affix.createdAt)}</span>
+                <span>{formatDateTime(affix.createdAt)}</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-muted-foreground">Updated:</span>
-                <span>{formatDate(affix.updatedAt)}</span>
+                <span>{formatDateTime(affix.updatedAt)}</span>
               </div>
             </CardContent>
           </Card>

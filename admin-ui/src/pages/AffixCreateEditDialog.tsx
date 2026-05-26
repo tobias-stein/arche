@@ -84,8 +84,7 @@ function getDistribution(
   const dist = a.distribution as Record<string, unknown> | undefined
   if (!dist) return { use: false, type: 'uniform', stdDev: '', rate: '' }
   let distType: 'uniform' | 'normal' | 'exponential' = 'uniform'
-  if (dist.type === 'normal') distType = 'normal'
-  else if (dist.type === 'exponential') distType = 'exponential'
+  if (dist.type === 'normal' || dist.type === 'exponential') distType = dist.type
   return {
     use: true,
     type: distType,

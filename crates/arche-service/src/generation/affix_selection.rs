@@ -43,25 +43,27 @@ pub fn select_affixes(
     let affix_by_id: HashMap<Uuid, &Arc<Affix>> =
         all_affixes.iter().map(|a| (a.id, a)).collect();
 
-    let eff_min_prefixes = constraints
-        .and_then(|c| if c.min_prefixes > 0 { Some(c.min_prefixes) } else { None })
-        .unwrap_or(blueprint.min_prefixes);
-    let eff_max_prefixes = constraints
-        .and_then(|c| if c.max_prefixes > 0 { Some(c.max_prefixes) } else { None })
-        .unwrap_or(blueprint.max_prefixes);
-    let eff_min_suffixes = constraints
-        .and_then(|c| if c.min_suffixes > 0 { Some(c.min_suffixes) } else { None })
-        .unwrap_or(blueprint.min_suffixes);
-    let eff_max_suffixes = constraints
-        .and_then(|c| if c.max_suffixes > 0 { Some(c.max_suffixes) } else { None })
-        .unwrap_or(blueprint.max_suffixes);
+    let eff_min_prefixes = match constraints {
+        Some(c) if c.min_prefixes > 0 => c.min_prefixes,
+        _ => blueprint.min_prefixes,
+    };
+    let eff_max_prefixes = match constraints {
+        Some(c) if c.max_prefixes > 0 => c.max_prefixes,
+        _ => blueprint.max_prefixes,
+    };
+    let eff_min_suffixes = match constraints {
+        Some(c) if c.min_suffixes > 0 => c.min_suffixes,
+        _ => blueprint.min_suffixes,
+    };
+    let eff_max_suffixes = match constraints {
+        Some(c) if c.max_suffixes > 0 => c.max_suffixes,
+        _ => blueprint.max_suffixes,
+    };
 
-    let require: Vec<Uuid> = constraints
-        .map(|c| c.require.clone())
-        .unwrap_or_default();
-    let block: Vec<Uuid> = constraints
-        .map(|c| c.block.clone())
-        .unwrap_or_default();
+    let (require, block) = match constraints {
+        Some(c) => (c.require.clone(), c.block.clone()),
+        None => (vec![], vec![]),
+    };
 
     let prefix_pool: Vec<&BlueprintAffix> = blueprint_affix_entries
         .iter()
@@ -115,6 +117,7 @@ pub fn select_affixes(
     Ok(selected)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn select_by_type(
     pool: &[&BlueprintAffix],
     affix_by_id: &HashMap<Uuid, &Arc<Affix>>,
@@ -815,6 +818,63 @@ mod tests {
         .unwrap();
 
         assert_eq!(result.len(), 1);
+    }
+
+    // --- Uniform count distribution ---
+
+    #[test]
+    fn test_count_distribution_is_uniform() {
+        let bp_id = Uuid::new_v4();
+        let ids: Vec<Uuid> = (0..10).map(|_| Uuid::new_v4()).collect();
+
+        let affixes: Vec<Arc<Affix>> = ids
+            .iter()
+            .map(|&id| Arc::new(make_affix(id, "X", AffixLocation::Prefix)))
+            .collect();
+
+        let bas: Vec<BlueprintAffix> = ids
+            .iter()
+            .enumerate()
+            .map(|(i, &id)| {
+                make_ba(
+                    Uuid::new_v4(),
+                    bp_id,
+                    id,
+                    1.0,
+                    AffixLocation::Prefix,
+                    i as i32,
+                )
+            })
+            .collect();
+
+        let bp = make_blueprint(2, 5, 0, 0);
+
+        let mut counts = [0usize; 6];
+
+        let trials = 1000usize;
+        for seed in 0..trials as u64 {
+            let mut rng = StdRng::seed_from_u64(seed);
+            let result = select_affixes(&bas, &affixes, &bp, None, &mut rng).unwrap();
+            let n = result.len();
+            assert!(n >= 2 && n <= 5, "count out of range: {}", n);
+            counts[n] += 1;
+        }
+
+        let expected = trials / 4;
+        let tolerance = 80;
+        for n in 2..=5 {
+            assert!(
+                counts[n] >= expected.saturating_sub(tolerance)
+                    && counts[n] <= expected.saturating_add(tolerance),
+                "count {} appeared {} times, expected ~{} (±{})",
+                n,
+                counts[n],
+                expected,
+                tolerance
+            );
+        }
+        assert_eq!(counts[0], 0);
+        assert_eq!(counts[1], 0);
     }
 
     // --- Random without replacement exhausts pool correctly ---

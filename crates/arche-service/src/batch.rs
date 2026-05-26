@@ -10,7 +10,7 @@ use std::collections::HashSet;
 use uuid::Uuid;
 
 use crate::auth::permission::CurrentUser;
-use crate::error::{FieldError, ProblemResponse};
+use crate::error::{FieldError, ProblemResponse, ReferenceInfo};
 
 pub async fn batch_edit_blueprints(
     State(state): State<crate::AppState>,
@@ -216,22 +216,40 @@ pub async fn batch_delete_blueprints(
             continue;
         }
 
-        let count: i64 = sqlx::query(
-            "SELECT COUNT(*) FROM blueprint_affixes WHERE blueprint_id = $1",
+        let ref_rows = sqlx::query(
+            "SELECT a.id, a.name FROM blueprint_affixes ba \
+             JOIN affixes a ON a.id = ba.affix_id \
+             WHERE ba.blueprint_id = $1",
         )
         .bind(bp_id)
-        .fetch_one(&*state.pool)
+        .fetch_all(&*state.pool)
         .await
         .map_err(|e| {
             tracing::error!(error = %e, "batch delete: check references failed");
             ProblemResponse::unprocessable_entity("Failed to check blueprint references")
-        })?
-        .get(0);
+        })?;
 
-        if count > 0 {
-            return Err(ProblemResponse::delete_referenced_resource(format!(
-                "Blueprint {bp_id} is referenced by {count} affix pool entries and cannot be deleted"
-            )));
+        if !ref_rows.is_empty() {
+            let references: Vec<ReferenceInfo> = ref_rows
+                .iter()
+                .map(|r| {
+                    let affix_id: Uuid = r.get("id");
+                    let affix_name: String = r.get("name");
+                    ReferenceInfo {
+                        resource_type: "affix".into(),
+                        resource_id: affix_id,
+                        resource_name: affix_name,
+                    }
+                })
+                .collect();
+
+            return Err(ProblemResponse::delete_referenced_resource_with_refs(
+                format!(
+                    "Blueprint {bp_id} is referenced by {} affix pool entries and cannot be deleted",
+                    ref_rows.len()
+                ),
+                references,
+            ));
         }
 
         to_delete.push(bp_id);
@@ -303,22 +321,40 @@ pub async fn batch_delete_affixes(
             continue;
         }
 
-        let count: i64 = sqlx::query(
-            "SELECT COUNT(*) FROM blueprint_affixes WHERE affix_id = $1",
+        let ref_rows = sqlx::query(
+            "SELECT b.id, b.name FROM blueprint_affixes ba \
+             JOIN blueprints b ON b.id = ba.blueprint_id \
+             WHERE ba.affix_id = $1",
         )
         .bind(affix_id)
-        .fetch_one(&*state.pool)
+        .fetch_all(&*state.pool)
         .await
         .map_err(|e| {
             tracing::error!(error = %e, "batch delete: check affix references failed");
             ProblemResponse::unprocessable_entity("Failed to check affix references")
-        })?
-        .get(0);
+        })?;
 
-        if count > 0 {
-            return Err(ProblemResponse::delete_referenced_resource(format!(
-                "Affix {affix_id} is referenced by {count} blueprint pool entries and cannot be deleted"
-            )));
+        if !ref_rows.is_empty() {
+            let references: Vec<ReferenceInfo> = ref_rows
+                .iter()
+                .map(|r| {
+                    let bp_id: Uuid = r.get("id");
+                    let bp_name: String = r.get("name");
+                    ReferenceInfo {
+                        resource_type: "blueprint".into(),
+                        resource_id: bp_id,
+                        resource_name: bp_name,
+                    }
+                })
+                .collect();
+
+            return Err(ProblemResponse::delete_referenced_resource_with_refs(
+                format!(
+                    "Affix {affix_id} is referenced by {} blueprint pool entries and cannot be deleted",
+                    ref_rows.len()
+                ),
+                references,
+            ));
         }
 
         to_delete.push(affix_id);

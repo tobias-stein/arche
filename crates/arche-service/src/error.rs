@@ -1,11 +1,20 @@
 use axum::http::{header, StatusCode};
 use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct FieldError {
     pub path: String,
     pub message: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ReferenceInfo {
+    pub resource_type: String,
+    pub resource_id: Uuid,
+    pub resource_name: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -21,6 +30,8 @@ pub struct ProblemResponse {
     pub instance: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub errors: Option<Vec<FieldError>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub references: Option<Vec<ReferenceInfo>>,
 }
 
 impl ProblemResponse {
@@ -36,6 +47,7 @@ impl ProblemResponse {
             } else {
                 Some(errors)
             },
+            references: None,
         }
     }
 
@@ -47,6 +59,7 @@ impl ProblemResponse {
             detail: Some(detail.into()),
             instance: None,
             errors: None,
+            references: None,
         }
     }
 
@@ -58,6 +71,7 @@ impl ProblemResponse {
             detail: Some(detail.into()),
             instance: None,
             errors: None,
+            references: None,
         }
     }
 
@@ -69,6 +83,7 @@ impl ProblemResponse {
             detail: Some(detail.into()),
             instance: None,
             errors: None,
+            references: None,
         }
     }
 
@@ -80,17 +95,7 @@ impl ProblemResponse {
             detail: Some(detail.into()),
             instance: None,
             errors: None,
-        }
-    }
-
-    pub fn delete_referenced_resource(detail: impl Into<String>) -> Self {
-        Self {
-            type_: "/errors/delete-referenced-resource".into(),
-            title: "Delete Referenced Resource".into(),
-            status: 409,
-            detail: Some(detail.into()),
-            instance: None,
-            errors: None,
+            references: None,
         }
     }
 
@@ -102,6 +107,7 @@ impl ProblemResponse {
             detail: Some(detail.into()),
             instance: None,
             errors: None,
+            references: None,
         }
     }
 
@@ -113,6 +119,7 @@ impl ProblemResponse {
             detail: Some(detail.into()),
             instance: None,
             errors: None,
+            references: None,
         }
     }
 
@@ -124,6 +131,34 @@ impl ProblemResponse {
             detail: Some(detail.into()),
             instance: None,
             errors: None,
+            references: None,
+        }
+    }
+
+    pub fn delete_referenced_resource(detail: impl Into<String>) -> Self {
+        Self {
+            type_: "/errors/delete-referenced-resource".into(),
+            title: "Delete Referenced Resource".into(),
+            status: 409,
+            detail: Some(detail.into()),
+            instance: None,
+            errors: None,
+            references: None,
+        }
+    }
+
+    pub fn delete_referenced_resource_with_refs(
+        detail: impl Into<String>,
+        references: Vec<ReferenceInfo>,
+    ) -> Self {
+        Self {
+            type_: "/errors/delete-referenced-resource".into(),
+            title: "Delete Referenced Resource".into(),
+            status: 409,
+            detail: Some(detail.into()),
+            instance: None,
+            errors: None,
+            references: Some(references),
         }
     }
 }

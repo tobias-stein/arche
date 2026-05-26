@@ -15,6 +15,7 @@ chrono.workspace = true
 tokio = { workspace = true }
 colored = "2"
 comfy-table = "7.1, <7.2"
+dialoguer = "0.11"
 
 [dev-dependencies]
 insta = { version = "1", features = ["yaml"] }

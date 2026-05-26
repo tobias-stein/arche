@@ -179,7 +179,7 @@ pub async fn export_handler(
 
     let response = Response::builder()
         .header(header::CONTENT_TYPE, "application/zip")
-        .body(axum::body::Body::from(buf))
+        .body(axum::body::Body::from(buf.to_owned()))
         .unwrap();
 
     Ok(response)

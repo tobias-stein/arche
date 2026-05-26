@@ -8,8 +8,8 @@ pub mod output;
 use arche_types::common::{PaginatedResponse, ProblemJson};
 use arche_types::crud::{BootstrapResponse, ClientResponse, CreateClientRequest};
 use arche_types::export_import::{
-    ConflictResolutionRequest, ExportRequest, ImportConflictResponse, ImportSuccessResponse,
-    ResolutionStrategy,
+    ConflictAttribute, ConflictDetail, ConflictResolutionRequest, ExportRequest,
+    ImportConflictResponse, ImportSuccessResponse, ResolutionStrategy, ResourceResolution,
 };
 use arche_types::generate::{AffixConstraints, ConstraintValue, GenerateRequest, GenerateResponse};
 use clap::Parser;
@@ -19,6 +19,7 @@ use error::CliError;
 use output::{print_verbose, OutputFormat};
 use reqwest::Response;
 use std::collections::{HashMap, HashSet};
+use std::io::{self, Write};
 use std::process::ExitCode;
 use std::str::FromStr;
 use uuid::Uuid;
@@ -264,6 +265,216 @@ fn cmd_export(args: &cli::ExportArgs, config: &Config) -> Result<(), CliError> {
     Ok(())
 }
 
+pub(crate) trait ImportPrompter {
+    fn prompt_strategy(
+        &mut self,
+        detail: &ConflictDetail,
+        index: usize,
+        total: usize,
+        apply_all: &mut Option<ResolutionStrategy>,
+    ) -> io::Result<ResolutionStrategy>;
+
+    fn prompt_attribute(
+        &mut self,
+        attr: &ConflictAttribute,
+        apply_all_attr: &mut Option<ResolutionStrategy>,
+    ) -> io::Result<ResolutionStrategy>;
+}
+
+pub(crate) struct DialoguerPrompter {
+    theme: dialoguer::theme::ColorfulTheme,
+}
+
+impl DialoguerPrompter {
+    fn new() -> Self {
+        Self {
+            theme: dialoguer::theme::ColorfulTheme::default(),
+        }
+    }
+}
+
+impl ImportPrompter for DialoguerPrompter {
+    fn prompt_strategy(
+        &mut self,
+        detail: &ConflictDetail,
+        index: usize,
+        total: usize,
+        apply_all: &mut Option<ResolutionStrategy>,
+    ) -> io::Result<ResolutionStrategy> {
+        let _ = writeln!(
+            io::stderr(),
+            "\n\u{2500}\u{2500}\u{2500} Conflict {} of {}: {} ({}) \u{2500}\u{2500}\u{2500}",
+            index + 1,
+            total,
+            detail.resource_name,
+            detail.resource_type
+        );
+        let _ = writeln!(io::stderr(), "  ID: {}", detail.resource_id);
+
+        for attr in &detail.attributes {
+            let _ = writeln!(
+                io::stderr(),
+                "  {}  old: {}",
+                attr.key,
+                format_attr_val(&attr.old_value)
+            );
+            let _ = writeln!(
+                io::stderr(),
+                "  {}  new: {}",
+                " ".repeat(attr.key.len()),
+                format_attr_val(&attr.new_value)
+            );
+        }
+        let _ = writeln!(io::stderr());
+
+        let mut items = vec![
+            "Keep existing (keepOld)".to_string(),
+            "Use imported version (keepNew)".to_string(),
+            "Choose per-attribute (perAttribute)".to_string(),
+        ];
+
+        if *apply_all != Some(ResolutionStrategy::PerAttribute) {
+            items.push("Apply keepOld to ALL remaining".to_string());
+            items.push("Apply keepNew to ALL remaining".to_string());
+        }
+
+        let selection = dialoguer::Select::with_theme(&self.theme)
+            .with_prompt("Select resolution strategy")
+            .items(&items)
+            .default(0)
+            .interact()
+            .map_err(io::Error::other)?;
+
+        let result = match selection {
+            0 => ResolutionStrategy::KeepOld,
+            1 => ResolutionStrategy::KeepNew,
+            2 => ResolutionStrategy::PerAttribute,
+            3 => {
+                *apply_all = Some(ResolutionStrategy::KeepOld);
+                ResolutionStrategy::KeepOld
+            }
+            4 => {
+                *apply_all = Some(ResolutionStrategy::KeepNew);
+                ResolutionStrategy::KeepNew
+            }
+            _ => unreachable!(),
+        };
+
+        Ok(result)
+    }
+
+    fn prompt_attribute(
+        &mut self,
+        attr: &ConflictAttribute,
+        apply_all_attr: &mut Option<ResolutionStrategy>,
+    ) -> io::Result<ResolutionStrategy> {
+        let _ = writeln!(
+            io::stderr(),
+            "\n  Attribute: {}  (old: {} \u{2192} new: {})",
+            attr.key,
+            format_attr_val(&attr.old_value),
+            format_attr_val(&attr.new_value)
+        );
+
+        let mut items = vec![
+            "Keep old value (keepOld)".to_string(),
+            "Keep new value (keepNew)".to_string(),
+        ];
+
+        if *apply_all_attr != Some(ResolutionStrategy::PerAttribute) {
+            items.push("Apply keepOld to ALL remaining attributes".to_string());
+            items.push("Apply keepNew to ALL remaining attributes".to_string());
+        }
+
+        let selection = dialoguer::Select::with_theme(&self.theme)
+            .with_prompt(format!("Resolve attribute '{}'", attr.key))
+            .items(&items)
+            .default(0)
+            .interact()
+            .map_err(io::Error::other)?;
+
+        match selection {
+            0 => Ok(ResolutionStrategy::KeepOld),
+            1 => Ok(ResolutionStrategy::KeepNew),
+            2 => {
+                *apply_all_attr = Some(ResolutionStrategy::KeepOld);
+                Ok(ResolutionStrategy::KeepOld)
+            }
+            3 => {
+                *apply_all_attr = Some(ResolutionStrategy::KeepNew);
+                Ok(ResolutionStrategy::KeepNew)
+            }
+            _ => unreachable!(),
+        }
+    }
+}
+
+fn format_attr_val(value: &serde_json::Value) -> String {
+    match value {
+        serde_json::Value::String(s) => s.clone(),
+        other => serde_json::to_string(other).unwrap_or_default(),
+    }
+}
+
+fn resolve_interactively(
+    conflict_response: &ImportConflictResponse,
+    prompter: &mut dyn ImportPrompter,
+) -> io::Result<ConflictResolutionRequest> {
+    let _ = writeln!(
+        io::stderr(),
+        "\n{} conflict(s) detected. Interactive resolution required.\n",
+        conflict_response.conflicts.len()
+    );
+
+    let mut resolutions: HashMap<Uuid, ResourceResolution> = HashMap::new();
+    let mut apply_all: Option<ResolutionStrategy> = None;
+    let mut apply_all_attr: Option<ResolutionStrategy> = None;
+    let total = conflict_response.conflicts.len();
+
+    for (idx, conflict) in conflict_response.conflicts.iter().enumerate() {
+        let strategy = if let Some(strat) = &apply_all {
+            strat.clone()
+        } else {
+            prompter.prompt_strategy(conflict, idx, total, &mut apply_all)?
+        };
+
+        let resource_resolution = match &strategy {
+            ResolutionStrategy::KeepOld | ResolutionStrategy::KeepNew => ResourceResolution {
+                strategy,
+                attributes: None,
+            },
+            ResolutionStrategy::PerAttribute => {
+                let mut attrs: HashMap<String, ResolutionStrategy> = HashMap::new();
+                for attr in &conflict.attributes {
+                    let attr_strategy = if let Some(s) = &apply_all_attr {
+                        if *s == ResolutionStrategy::PerAttribute {
+                            prompter
+                                .prompt_attribute(attr, &mut apply_all_attr)?
+                        } else {
+                            s.clone()
+                        }
+                    } else {
+                        prompter
+                            .prompt_attribute(attr, &mut apply_all_attr)?
+                    };
+                    attrs.insert(attr.key.clone(), attr_strategy);
+                }
+                ResourceResolution {
+                    strategy: ResolutionStrategy::PerAttribute,
+                    attributes: Some(attrs),
+                }
+            }
+        };
+
+        resolutions.insert(conflict.resource_id, resource_resolution);
+    }
+
+    Ok(ConflictResolutionRequest {
+        import_token: conflict_response.import_token.clone(),
+        resolutions,
+    })
+}
+
 fn cmd_import(args: &cli::ImportArgs, config: &Config) -> Result<(), CliError> {
     let data = std::fs::read(&args.path).map_err(|e| {
         CliError::Args(format!("Failed to read import file '{}': {e}", args.path))
@@ -344,54 +555,76 @@ fn cmd_import(args: &cli::ImportArgs, config: &Config) -> Result<(), CliError> {
 
                 validate_resolutions(&resolution_request, &conflict_response)?;
 
-                let resolve_url = format!("{}/api/import/resolve", config.api_url);
-                print_verbose(
-                    &format!("Request: POST {resolve_url}"),
-                    config.verbose,
-                );
-
-                let resolve_response = rt
-                    .block_on(client.post(&resolve_url).json(&resolution_request).send())
-                    .map_err(|e| {
-                        CliError::Generic(format!("Failed to connect to API: {e}"))
-                    })?;
-
-                let resolve_status = resolve_response.status();
-                print_verbose(
-                    &format!(
-                        "Response: {} {}",
-                        resolve_status.as_u16(),
-                        resolve_status.canonical_reason().unwrap_or("")
-                    ),
-                    config.verbose,
-                );
-
-                if !resolve_status.is_success() {
-                    return Err(api_error_from_response(resolve_response, &rt));
-                }
-
-                let resolve_result: ImportSuccessResponse = rt
-                    .block_on(resolve_response.json())
-                    .map_err(|e| {
-                        CliError::Generic(format!(
-                            "Failed to parse resolve response: {e}"
-                        ))
-                    })?;
-
-                if !config.quiet {
-                    println!(
-                        "Import successful: {} clients created, {} resources imported",
-                        resolve_result.clients_created, resolve_result.resources_imported
-                    );
-                }
-
-                return Ok(());
+                return submit_resolve(config, &client, &rt, &resolution_request);
             }
 
-            Err(CliError::Api(conflict_response.problem))
+            handle_conflicts_interactively(
+                &conflict_response,
+                &mut DialoguerPrompter::new(),
+                config,
+                &client,
+                &rt,
+            )
         }
         _ => Err(api_error_from_response(response, &rt)),
     }
+}
+
+fn handle_conflicts_interactively(
+    conflict_response: &ImportConflictResponse,
+    prompter: &mut dyn ImportPrompter,
+    config: &Config,
+    client: &reqwest::Client,
+    rt: &tokio::runtime::Runtime,
+) -> Result<(), CliError> {
+    let resolution_request = resolve_interactively(conflict_response, prompter)
+        .map_err(|e| CliError::Generic(format!("Interactive resolution failed: {e}")))?;
+
+    submit_resolve(config, client, rt, &resolution_request)
+}
+
+fn submit_resolve(
+    config: &Config,
+    client: &reqwest::Client,
+    rt: &tokio::runtime::Runtime,
+    resolution_request: &ConflictResolutionRequest,
+) -> Result<(), CliError> {
+    let resolve_url = format!("{}/api/import/resolve", config.api_url);
+    print_verbose(
+        &format!("Request: POST {resolve_url}"),
+        config.verbose,
+    );
+
+    let resolve_response = rt
+        .block_on(client.post(&resolve_url).json(resolution_request).send())
+        .map_err(|e| CliError::Generic(format!("Failed to connect to API: {e}")))?;
+
+    let resolve_status = resolve_response.status();
+    print_verbose(
+        &format!(
+            "Response: {} {}",
+            resolve_status.as_u16(),
+            resolve_status.canonical_reason().unwrap_or("")
+        ),
+        config.verbose,
+    );
+
+    if !resolve_status.is_success() {
+        return Err(api_error_from_response(resolve_response, rt));
+    }
+
+    let resolve_result: ImportSuccessResponse = rt
+        .block_on(resolve_response.json())
+        .map_err(|e| CliError::Generic(format!("Failed to parse resolve response: {e}")))?;
+
+    if !config.quiet {
+        println!(
+            "Import successful: {} clients created, {} resources imported",
+            resolve_result.clients_created, resolve_result.resources_imported
+        );
+    }
+
+    Ok(())
 }
 
 fn validate_resolutions(
@@ -2023,6 +2256,289 @@ mod import_tests {
             _ => panic!("expected Args error, got {:?}", result),
         }
     }
+
+    struct MockPrompter {
+        strategies: Vec<ResolutionStrategy>,
+        attr_strategies: Vec<ResolutionStrategy>,
+        strategy_index: usize,
+        attr_index: usize,
+    }
+
+    impl MockPrompter {
+        fn new(strategies: Vec<ResolutionStrategy>, attr_strategies: Vec<ResolutionStrategy>) -> Self {
+            Self { strategies, attr_strategies, strategy_index: 0, attr_index: 0 }
+        }
+    }
+
+    impl ImportPrompter for MockPrompter {
+        fn prompt_strategy(
+            &mut self,
+            _detail: &ConflictDetail,
+            _index: usize,
+            _total: usize,
+            _apply_all: &mut Option<ResolutionStrategy>,
+        ) -> io::Result<ResolutionStrategy> {
+            let strategy = self.strategies[self.strategy_index].clone();
+            self.strategy_index += 1;
+            Ok(strategy)
+        }
+
+        fn prompt_attribute(
+            &mut self,
+            _attr: &ConflictAttribute,
+            _apply_all_attr: &mut Option<ResolutionStrategy>,
+        ) -> io::Result<ResolutionStrategy> {
+            let strategy = self.attr_strategies[self.attr_index].clone();
+            self.attr_index += 1;
+            Ok(strategy)
+        }
+    }
+
+    #[test]
+    fn test_resolve_interactively_all_keep_old() {
+        let response = conflict_response();
+        let mut prompter = MockPrompter::new(
+            vec![ResolutionStrategy::KeepOld, ResolutionStrategy::KeepOld],
+            vec![],
+        );
+
+        let result = resolve_interactively(&response, &mut prompter).unwrap();
+
+        assert_eq!(result.import_token, "test-import-token");
+        assert_eq!(result.resolutions.len(), 2);
+        let res1 = result.resolutions.get(
+            &Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap()
+        ).unwrap();
+        assert_eq!(res1.strategy, ResolutionStrategy::KeepOld);
+        assert!(res1.attributes.is_none());
+        let res2 = result.resolutions.get(
+            &Uuid::parse_str("00000000-0000-0000-0000-000000000002").unwrap()
+        ).unwrap();
+        assert_eq!(res2.strategy, ResolutionStrategy::KeepOld);
+        assert!(res2.attributes.is_none());
+    }
+
+    #[test]
+    fn test_resolve_interactively_all_keep_new() {
+        let response = conflict_response();
+        let mut prompter = MockPrompter::new(
+            vec![ResolutionStrategy::KeepNew, ResolutionStrategy::KeepNew],
+            vec![],
+        );
+
+        let result = resolve_interactively(&response, &mut prompter).unwrap();
+
+        assert_eq!(result.resolutions.len(), 2);
+        let res1 = result.resolutions.get(
+            &Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap()
+        ).unwrap();
+        assert_eq!(res1.strategy, ResolutionStrategy::KeepNew);
+    }
+
+    #[test]
+    fn test_resolve_interactively_per_attribute() {
+        let response = conflict_response();
+        let mut prompter = MockPrompter::new(
+            vec![ResolutionStrategy::PerAttribute, ResolutionStrategy::KeepNew],
+            vec![ResolutionStrategy::KeepNew],
+        );
+
+        let result = resolve_interactively(&response, &mut prompter).unwrap();
+
+        let res1 = result.resolutions.get(
+            &Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap()
+        ).unwrap();
+        assert_eq!(res1.strategy, ResolutionStrategy::PerAttribute);
+        let attrs = res1.attributes.as_ref().unwrap();
+        assert_eq!(attrs.get("damage").unwrap(), &ResolutionStrategy::KeepNew);
+    }
+
+    #[test]
+    fn test_resolve_interactively_apply_all() {
+        let response = conflict_response();
+
+        struct ApplyAllPrompter {
+            call_count: u32,
+        }
+        impl ImportPrompter for ApplyAllPrompter {
+            fn prompt_strategy(
+                &mut self,
+                _detail: &ConflictDetail,
+                _index: usize,
+                _total: usize,
+                apply_all: &mut Option<ResolutionStrategy>,
+            ) -> io::Result<ResolutionStrategy> {
+                self.call_count += 1;
+                if self.call_count == 1 {
+                    *apply_all = Some(ResolutionStrategy::KeepNew);
+                    Ok(ResolutionStrategy::KeepNew)
+                } else {
+                    panic!("prompt_strategy called more than once");
+                }
+            }
+
+            fn prompt_attribute(
+                &mut self,
+                _attr: &ConflictAttribute,
+                _apply_all_attr: &mut Option<ResolutionStrategy>,
+            ) -> io::Result<ResolutionStrategy> {
+                panic!("should not call prompt_attribute for non-PerAttribute");
+            }
+        }
+
+        let mut prompter = ApplyAllPrompter { call_count: 0 };
+        let result = resolve_interactively(&response, &mut prompter).unwrap();
+
+        assert_eq!(prompter.call_count, 1, "only first conflict should prompt, second uses apply_all");
+        assert_eq!(result.resolutions.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_import_interactive_all_keep_old_success() {
+        let mock_server = MockServer::start().await;
+        let uri = mock_server.uri();
+
+        let response = conflict_response();
+        Mock::given(method("POST"))
+            .and(path("/api/import"))
+            .respond_with(
+                ResponseTemplate::new(409)
+                    .set_body_json(serde_json::to_value(&response).unwrap()),
+            )
+            .mount(&mock_server)
+            .await;
+
+        Mock::given(method("POST"))
+            .and(path("/api/import/resolve"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(serde_json::to_value(success_response()).unwrap()),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let config = make_config(&uri, false, false);
+
+        let result = tokio::task::spawn_blocking(move || {
+            let client = client::build_client(&config);
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            let strategies = vec![ResolutionStrategy::KeepOld, ResolutionStrategy::KeepOld];
+            let mut prompter = MockPrompter::new(strategies, vec![]);
+            handle_conflicts_interactively(
+                &conflict_response(),
+                &mut prompter,
+                &config,
+                &client,
+                &rt,
+            )
+        })
+        .await
+        .unwrap();
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_import_interactive_per_attribute_success() {
+        let mock_server = MockServer::start().await;
+        let uri = mock_server.uri();
+
+        let response = conflict_response();
+        Mock::given(method("POST"))
+            .and(path("/api/import"))
+            .respond_with(
+                ResponseTemplate::new(409)
+                    .set_body_json(serde_json::to_value(&response).unwrap()),
+            )
+            .mount(&mock_server)
+            .await;
+
+        Mock::given(method("POST"))
+            .and(path("/api/import/resolve"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(serde_json::to_value(success_response()).unwrap()),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let config = make_config(&uri, false, false);
+
+        let result = tokio::task::spawn_blocking(move || {
+            let client = client::build_client(&config);
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            let mut prompter = MockPrompter::new(
+                vec![ResolutionStrategy::PerAttribute, ResolutionStrategy::KeepOld],
+                vec![ResolutionStrategy::KeepNew],
+            );
+            handle_conflicts_interactively(
+                &conflict_response(),
+                &mut prompter,
+                &config,
+                &client,
+                &rt,
+            )
+        })
+        .await
+        .unwrap();
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_import_interactive_resolve_api_error() {
+        let mock_server = MockServer::start().await;
+        let uri = mock_server.uri();
+
+        let response = conflict_response();
+        Mock::given(method("POST"))
+            .and(path("/api/import"))
+            .respond_with(
+                ResponseTemplate::new(409)
+                    .set_body_json(serde_json::to_value(&response).unwrap()),
+            )
+            .mount(&mock_server)
+            .await;
+
+        Mock::given(method("POST"))
+            .and(path("/api/import/resolve"))
+            .respond_with(
+                ResponseTemplate::new(400).set_body_json(serde_json::json!({
+                    "type": "/errors/invalid-resolution",
+                    "title": "Invalid Resolution",
+                    "status": 400,
+                    "detail": "Import token expired"
+                })),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let config = make_config(&uri, false, false);
+
+        let result = tokio::task::spawn_blocking(move || {
+            let client = client::build_client(&config);
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            let mut prompter = MockPrompter::new(
+                vec![ResolutionStrategy::KeepOld, ResolutionStrategy::KeepOld],
+                vec![],
+            );
+            handle_conflicts_interactively(
+                &conflict_response(),
+                &mut prompter,
+                &config,
+                &client,
+                &rt,
+            )
+        })
+        .await
+        .unwrap();
+        assert!(result.is_err());
+        match &result {
+            Err(CliError::Api(problem)) => {
+                assert_eq!(problem.status, 400);
+                assert_eq!(problem.detail, Some("Import token expired".into()));
+            }
+            _ => panic!("expected Api error, got {:?}", result),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -2101,17 +2617,17 @@ mod export_tests {
             .await;
 
         let output_path = write_temp_output("test_export_to_file.zip");
-        let path_str = output_path.to_str().unwrap();
+        let path_str = output_path.to_str().unwrap().to_string();
 
         let config = make_config(&uri, false, false);
-        let args = make_export_args(Some(path_str), None, false, false, false);
+        let args = make_export_args(Some(&path_str), None, false, false, false);
         let result = run_export(args, config).await;
         assert!(result.is_ok());
 
-        let written = std::fs::read(output_path).unwrap();
+        let written = std::fs::read(&output_path).unwrap();
         assert_eq!(written, b"PK\x03\x04fake-zip-content");
 
-        std::fs::remove_file(path_str).ok();
+        std::fs::remove_file(&path_str).ok();
     }
 
     #[tokio::test]

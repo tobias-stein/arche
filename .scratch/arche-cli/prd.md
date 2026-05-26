@@ -1,6 +1,6 @@
 ---
 title: Arche CLI
-status: ready-for-agent
+status: completed
 ---
 
 ## Problem Statement

@@ -1,6 +1,6 @@
 ---
 title: arche import command — interactive
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

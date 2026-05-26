@@ -1,12 +1,12 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 import { ArcheClient } from '@/api/generated/client'
 import { setClient } from '@/api/generated/hooks'
 import { BlueprintFormModal } from '@/components/BlueprintFormModal'
-import type { Blueprint } from '@/api/generated'
+import type { Blueprint, AffixPoolEntry } from '@/api/generated'
 
 setClient(new ArcheClient({ baseUrl: 'http://localhost:3000' }))
 
@@ -172,6 +172,125 @@ describe('BlueprintFormModal', () => {
       await user.click(screen.getByRole('tab', { name: 'Affixes' }))
       expect(screen.getByText('Prefix Counts')).toBeInTheDocument()
       expect(screen.getByText('Suffix Counts')).toBeInTheDocument()
+    })
+  })
+
+  describe('Dialog accessibility', () => {
+    it('renders DialogDescription in create mode', () => {
+      renderModal()
+      expect(
+        screen.getByText('Fill in the details below to define a new blueprint.'),
+      ).toBeInTheDocument()
+    })
+
+    it('renders DialogDescription in edit mode', () => {
+      renderModal(createMockBlueprint())
+      expect(
+        screen.getByText('Modify the blueprint configuration below.'),
+      ).toBeInTheDocument()
+    })
+  })
+
+  describe('Weight validation', () => {
+    it('weight input has min=1 attribute', () => {
+      renderModal()
+      const weightInput = screen.getByLabelText('Weight *')
+      expect(weightInput).toHaveAttribute('min', '1')
+    })
+  })
+
+  describe('Edit mode pool entries', () => {
+    function createBlueprintWithPools(): Blueprint {
+      const bp = createMockBlueprint()
+      const extended = bp as Blueprint & {
+        prefixes?: AffixPoolEntry[]
+        suffixes?: AffixPoolEntry[]
+      }
+      extended.prefixes = [{ affixId: 'aff-a', weight: 7 }]
+      extended.suffixes = [{ affixId: 'aff-b', weight: 2 }]
+      return extended
+    }
+
+    it('populates prefix pool from extended blueprint data', async () => {
+      const user = userEvent.setup()
+      renderModal(createBlueprintWithPools())
+      await user.click(screen.getByRole('tab', { name: 'Affixes' }))
+      expect(screen.getByDisplayValue('7')).toBeInTheDocument()
+    })
+
+    it('shows empty pools when blueprint has no pool data', async () => {
+      const user = userEvent.setup()
+      renderModal(createMockBlueprint())
+      await user.click(screen.getByRole('tab', { name: 'Affixes' }))
+      expect(screen.getByText('No prefixes in the pool')).toBeInTheDocument()
+      expect(screen.getByText('No suffixes in the pool')).toBeInTheDocument()
+    })
+  })
+
+  describe('Last attribute deletion prevention', () => {
+    it('prevents deleting the last attribute', async () => {
+      const user = userEvent.setup()
+      renderModal(createMockBlueprint())
+      await user.click(screen.getByRole('tab', { name: 'Attributes' }))
+      await user.click(screen.getByLabelText('Delete attribute damage'))
+      expect(screen.getByText('Cannot Delete')).toBeInTheDocument()
+    })
+  })
+
+  describe('Inline attribute form', () => {
+    it('shows inline attribute form when "Inline Attribute" is clicked', async () => {
+      const user = userEvent.setup()
+      renderModal()
+      await user.click(screen.getByRole('tab', { name: 'Attributes' }))
+      await user.click(screen.getByRole('button', { name: /Add Attribute/i }))
+      await user.click(screen.getByText('Inline Attribute'))
+      expect(screen.getByLabelText('Key')).toBeInTheDocument()
+      expect(screen.getByLabelText('Value Type')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Add' })).toBeInTheDocument()
+    })
+
+    it('shows value input when type is single', async () => {
+      const user = userEvent.setup()
+      renderModal()
+      await user.click(screen.getByRole('tab', { name: 'Attributes' }))
+      await user.click(screen.getByRole('button', { name: /Add Attribute/i }))
+      await user.click(screen.getByText('Inline Attribute'))
+      expect(screen.getByLabelText('Value')).toBeInTheDocument()
+    })
+  })
+
+  describe('Affixes tab pools', () => {
+    it('shows Add Prefix and Add Suffix buttons', async () => {
+      const user = userEvent.setup()
+      renderModal()
+      await user.click(screen.getByRole('tab', { name: 'Affixes' }))
+      expect(
+        screen.getByRole('button', { name: 'Add Prefix' }),
+      ).toBeInTheDocument()
+      expect(
+        screen.getByRole('button', { name: 'Add Suffix' }),
+      ).toBeInTheDocument()
+    })
+
+    it('shows min/max prefix and suffix inputs', async () => {
+      const user = userEvent.setup()
+      renderModal()
+      await user.click(screen.getByRole('tab', { name: 'Affixes' }))
+      expect(screen.getByLabelText('Min Prefixes')).toBeInTheDocument()
+      expect(screen.getByLabelText('Max Prefixes')).toBeInTheDocument()
+      expect(screen.getByLabelText('Min Suffixes')).toBeInTheDocument()
+      expect(screen.getByLabelText('Max Suffixes')).toBeInTheDocument()
+    })
+  })
+
+  describe('Form validation', () => {
+    it('shows inline validation errors when submitting empty form', async () => {
+      const user = userEvent.setup()
+      renderModal()
+      await user.click(screen.getByRole('button', { name: 'Create Blueprint' }))
+      await waitFor(() => {
+        expect(screen.getByText('Name is required')).toBeInTheDocument()
+      })
     })
   })
 })

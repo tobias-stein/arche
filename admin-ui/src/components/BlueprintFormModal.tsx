@@ -41,6 +41,7 @@ import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -672,8 +673,16 @@ export function BlueprintFormModal({
   const [maxSuffixes, setMaxSuffixes] = useState(
     sourceData?.maxSuffixes ?? 0,
   )
-  const [prefixes, setPrefixes] = useState<AffixPoolEntry[]>([])
-  const [suffixes, setSuffixes] = useState<AffixPoolEntry[]>([])
+  const extendedSource = sourceData as (typeof sourceData) & {
+    prefixes?: AffixPoolEntry[]
+    suffixes?: AffixPoolEntry[]
+  }
+  const [prefixes, setPrefixes] = useState<AffixPoolEntry[]>(
+    extendedSource?.prefixes ?? [],
+  )
+  const [suffixes, setSuffixes] = useState<AffixPoolEntry[]>(
+    extendedSource?.suffixes ?? [],
+  )
 
   const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -750,6 +759,11 @@ export function BlueprintFormModal({
 
   const handleDeleteAttribute = useCallback(() => {
     if (!deleteAttrKey) return
+    const existingKeys = attributeOrder.filter((k) => k in attributes)
+    if (existingKeys.length <= 1) {
+      setDeleteAttrKey(null)
+      return
+    }
 
     setAttributes((prev) => {
       const next = { ...prev }
@@ -758,7 +772,7 @@ export function BlueprintFormModal({
     })
     setAttributeOrder((prev) => prev.filter((k) => k !== deleteAttrKey))
     setDeleteAttrKey(null)
-  }, [deleteAttrKey])
+  }, [deleteAttrKey, attributeOrder, attributes])
 
   const handleAddAffix = useCallback(
     (affix: Affix) => {
@@ -872,8 +886,12 @@ export function BlueprintFormModal({
     setMaxPrefixes(sourceData?.maxPrefixes ?? 0)
     setMinSuffixes(sourceData?.minSuffixes ?? 0)
     setMaxSuffixes(sourceData?.maxSuffixes ?? 0)
-    setPrefixes([])
-    setSuffixes([])
+    const ext = sourceData as (typeof sourceData) & {
+      prefixes?: AffixPoolEntry[]
+      suffixes?: AffixPoolEntry[]
+    }
+    setPrefixes(ext?.prefixes ?? [])
+    setSuffixes(ext?.suffixes ?? [])
     setErrors({})
     setShowInlineForm(false)
   }, [sourceData])
@@ -912,6 +930,11 @@ export function BlueprintFormModal({
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{modalTitle}</DialogTitle>
+            <DialogDescription>
+              {isEdit
+                ? 'Modify the blueprint configuration below.'
+                : 'Fill in the details below to define a new blueprint.'}
+            </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
@@ -970,7 +993,7 @@ export function BlueprintFormModal({
                   <Input
                     id="bp-weight"
                     type="number"
-                    min={0}
+                    min={1}
                     value={weight}
                     onChange={(e) => {
                       setWeight(Number(e.target.value))
@@ -1412,14 +1435,19 @@ export function BlueprintFormModal({
         }}
         title="Delete Attribute"
         description={`Are you sure you want to delete the attribute "${deleteAttrKey}"? ${
-          attributeOrder.length <= 1
+          attributeOrder.filter((k) => k in attributes).length <= 1
             ? 'This is the last attribute and cannot be deleted.'
             : ''
         }`}
         confirmLabel={
-          attributeOrder.length <= 1 ? 'Cannot Delete' : 'Delete'
+          attributeOrder.filter((k) => k in attributes).length <= 1
+            ? 'Cannot Delete'
+            : 'Delete'
         }
         variant="destructive"
+        disabled={
+          attributeOrder.filter((k) => k in attributes).length <= 1
+        }
         onConfirm={handleDeleteAttribute}
       />
 

@@ -170,14 +170,7 @@ fn cmd_generate(args: &cli::GenerateArgs, config: &Config) -> Result<(), CliErro
         .write_generate(&generate_response)
         .map_err(|e| CliError::Generic(format!("Failed to write output: {e}")))?;
 
-    let stdout_content = writer.stdout().contents();
-    if !stdout_content.is_empty() {
-        print!("{stdout_content}");
-    }
-    let stderr_content = writer.stderr().contents();
-    if !stderr_content.is_empty() {
-        eprint!("{stderr_content}");
-    }
+    writer.flush_to_stdio();
 
     Ok(())
 }
@@ -266,14 +259,7 @@ fn cmd_import(args: &cli::ImportArgs, config: &Config) -> Result<(), CliError> {
                     .write_import_conflicts(&conflict_response)
                     .map_err(|e| CliError::Generic(format!("Failed to write output: {e}")))?;
 
-                let stdout_content = writer.stdout().contents();
-                if !stdout_content.is_empty() {
-                    print!("{stdout_content}");
-                }
-                let stderr_content = writer.stderr().contents();
-                if !stderr_content.is_empty() {
-                    eprint!("{stderr_content}");
-                }
+                writer.flush_to_stdio();
                 return Ok(());
             }
 
@@ -461,14 +447,7 @@ fn cmd_key_list(client_id: &str, config: &Config) -> Result<(), CliError> {
         .write_key_list(&keys)
         .map_err(|e| CliError::Generic(format!("Failed to write output: {e}")))?;
 
-    let stdout_content = writer.stdout().contents();
-    if !stdout_content.is_empty() {
-        print!("{stdout_content}");
-    }
-    let stderr_content = writer.stderr().contents();
-    if !stderr_content.is_empty() {
-        eprint!("{stderr_content}");
-    }
+    writer.flush_to_stdio();
 
     Ok(())
 }
@@ -587,14 +566,7 @@ fn cmd_key_revoke(client_id: &str, key_id: &str, config: &Config) -> Result<(), 
         .write_key_revoked()
         .map_err(|e| CliError::Generic(format!("Failed to write output: {e}")))?;
 
-    let stdout_content = writer.stdout().contents();
-    if !stdout_content.is_empty() {
-        print!("{stdout_content}");
-    }
-    let stderr_content = writer.stderr().contents();
-    if !stderr_content.is_empty() {
-        eprint!("{stderr_content}");
-    }
+    writer.flush_to_stdio();
 
     Ok(())
 }

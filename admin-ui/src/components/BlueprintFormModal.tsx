@@ -72,7 +72,10 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { useToast } from '@/hooks/use-toast'
-import { createBlueprintSchema } from '@/lib/blueprint-schema'
+import {
+  createBlueprintSchema,
+  editBlueprintSchema,
+} from '@/lib/blueprint-schema'
 
 type AttributeEntry = {
   key: string
@@ -847,7 +850,8 @@ export function BlueprintFormModal({
       affixes,
     }
 
-    const result = createBlueprintSchema.safeParse(formValues)
+    const schema = isEdit ? editBlueprintSchema : createBlueprintSchema
+    const result = schema.safeParse(formValues)
     if (!result.success) {
       const fieldErrors: Record<string, string> = {}
       for (const issue of result.error.issues) {

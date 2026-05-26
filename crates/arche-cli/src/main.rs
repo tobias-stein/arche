@@ -473,24 +473,6 @@ fn cmd_key_list(client_id: &str, config: &Config) -> Result<(), CliError> {
     Ok(())
 }
 
-fn parse_permissions(permissions: &str) -> Result<Vec<arche_types::Permission>, CliError> {
-    permissions
-        .split(',')
-        .map(|s| s.trim())
-        .filter(|s| !s.is_empty())
-        .map(|s| match s.to_lowercase().as_str() {
-            "read" => Ok(arche_types::Permission::Read),
-            "write" => Ok(arche_types::Permission::Write),
-            "delete" => Ok(arche_types::Permission::Delete),
-            "generate" => Ok(arche_types::Permission::Generate),
-            "admin" => Ok(arche_types::Permission::Admin),
-            other => Err(CliError::Args(format!(
-                "Invalid permission: '{other}'. Valid permissions: read, write, delete, generate, admin"
-            ))),
-        })
-        .collect()
-}
-
 fn cmd_key_create(
     client_id: &str,
     name: &str,
@@ -615,6 +597,24 @@ fn cmd_key_revoke(client_id: &str, key_id: &str, config: &Config) -> Result<(), 
     }
 
     Ok(())
+}
+
+fn parse_permissions(permissions: &str) -> Result<Vec<arche_types::Permission>, CliError> {
+    permissions
+        .split(',')
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .map(|s| match s.to_lowercase().as_str() {
+            "read" => Ok(arche_types::Permission::Read),
+            "write" => Ok(arche_types::Permission::Write),
+            "delete" => Ok(arche_types::Permission::Delete),
+            "generate" => Ok(arche_types::Permission::Generate),
+            "admin" => Ok(arche_types::Permission::Admin),
+            other => Err(CliError::Args(format!(
+                "Invalid permission: '{other}'. Valid permissions: read, write, delete, generate, admin"
+            ))),
+        })
+        .collect()
 }
 
 fn cmd_client(_sub: &ClientCommand, _config: &Config) -> Result<(), CliError> {
@@ -2179,6 +2179,7 @@ mod key_tests {
         match &result {
             Err(CliError::Api(problem)) => {
                 assert_eq!(problem.status, 404);
+                assert_eq!(problem.detail, Some("Client 'nonexistent' not found".into()));
             }
             _ => panic!("expected Api error, got {:?}", result),
         }
@@ -2214,6 +2215,7 @@ mod key_tests {
         match &result {
             Err(CliError::Api(problem)) => {
                 assert_eq!(problem.status, 403);
+                assert_eq!(problem.detail, Some("Insufficient permissions".into()));
             }
             _ => panic!("expected Api error, got {:?}", result),
         }
@@ -2262,6 +2264,7 @@ mod key_tests {
         match &result {
             Err(CliError::Api(problem)) => {
                 assert_eq!(problem.status, 404);
+                assert_eq!(problem.detail, Some("API key 'nonexistent-key' not found".into()));
             }
             _ => panic!("expected Api error, got {:?}", result),
         }
@@ -2291,6 +2294,7 @@ mod key_tests {
         match &result {
             Err(CliError::Api(problem)) => {
                 assert_eq!(problem.status, 403);
+                assert_eq!(problem.detail, Some("Insufficient permissions".into()));
             }
             _ => panic!("expected Api error, got {:?}", result),
         }
@@ -2348,12 +2352,16 @@ mod key_tests {
             .await;
 
         let config = make_config(&uri, false, false);
-
-        async fn run(mock_uri: String, config: Config) -> Result<(), CliError> {
-            tokio::task::spawn_blocking(move || cmd_key(&KeyCommand::List { client_id: "client-123".into() }, &Config { api_url: mock_uri, ..config }))
-                .await.unwrap()
-        }
-        let result = run(uri, config).await;
+        let result = tokio::task::spawn_blocking(move || {
+            cmd_key(
+                &KeyCommand::List {
+                    client_id: "client-123".into(),
+                },
+                &config,
+            )
+        })
+        .await
+        .unwrap();
         assert!(result.is_ok());
     }
 }

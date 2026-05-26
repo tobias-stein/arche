@@ -1,6 +1,6 @@
 ---
 title: Import — parse & conflict detection
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

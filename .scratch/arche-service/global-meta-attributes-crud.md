@@ -1,6 +1,6 @@
 ---
 title: Global meta attributes CRUD
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

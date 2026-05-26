@@ -1,6 +1,6 @@
 ---
 title: Missing Global Meta Attributes detail page
-status: ready-for-agent
+status: completed
 ---
 
 ## Bug Description

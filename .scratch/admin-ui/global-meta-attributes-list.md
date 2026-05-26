@@ -1,6 +1,6 @@
 ---
 title: Global meta attributes — list page
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

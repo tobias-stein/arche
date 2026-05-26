@@ -1,6 +1,6 @@
 ---
 title: API key management
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

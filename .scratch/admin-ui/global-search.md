@@ -1,6 +1,6 @@
 ---
 title: Global search (Cmd+K)
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

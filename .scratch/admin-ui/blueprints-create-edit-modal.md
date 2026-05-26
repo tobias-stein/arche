@@ -1,6 +1,6 @@
 ---
 title: Blueprints — create/edit modal
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

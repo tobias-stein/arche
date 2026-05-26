@@ -1,6 +1,6 @@
 ---
 title: Affixes CRUD
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

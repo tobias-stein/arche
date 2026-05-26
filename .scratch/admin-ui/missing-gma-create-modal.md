@@ -1,6 +1,6 @@
 ---
 title: Global Meta Attributes list page missing create button and modal
-status: ready-for-agent
+status: completed
 ---
 
 ## Bug Description

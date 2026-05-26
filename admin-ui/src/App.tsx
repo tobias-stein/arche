@@ -17,6 +17,7 @@ import ClientDetail from '@/pages/ClientDetail'
 import Dashboard from '@/pages/Dashboard'
 import ExportPage from '@/pages/Export'
 import GlobalMetaAttributes from '@/pages/GlobalMetaAttributes'
+import GlobalMetaAttributeDetail from '@/pages/GlobalMetaAttributeDetail'
 import ImportPage from '@/pages/Import'
 import Login from '@/pages/Login'
 
@@ -60,6 +61,7 @@ export default function App() {
               <Route path="/affixes" element={<Affixes />} />
               <Route path="/affixes/:id" element={<AffixDetail />} />
               <Route path="/global-meta-attributes" element={<GlobalMetaAttributes />} />
+              <Route path="/global-meta-attributes/:id" element={<GlobalMetaAttributeDetail />} />
               <Route path="/clients" element={<Clients />} />
               <Route path="/clients/:id" element={<ClientDetail />} />
               <Route path="/audit-log" element={<AuditLog />} />

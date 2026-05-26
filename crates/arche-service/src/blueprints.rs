@@ -820,7 +820,7 @@ async fn validate_affix_pool(
 
     for entry in entries {
         let affix_row = sqlx::query(
-            "SELECT id, client_id, type FROM affixes WHERE id = $1",
+            "SELECT id, client_id, type::text FROM affixes WHERE id = $1",
         )
         .bind(entry.affix_id)
         .fetch_optional(pool)

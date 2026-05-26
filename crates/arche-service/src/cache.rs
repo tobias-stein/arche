@@ -140,7 +140,7 @@ impl Cache {
 
     async fn load_affixes(pool: &PgPool) -> Result<HashMap<Uuid, Affix>, sqlx::Error> {
         let rows = sqlx::query(
-            "SELECT id, client_id, name, type, description, attribute, created_at, updated_at \
+            "SELECT id, client_id, name, type::text, description, attribute, created_at, updated_at \
              FROM affixes",
         )
         .fetch_all(pool)
@@ -522,7 +522,7 @@ impl Cache {
         client_id: Uuid,
     ) -> Result<HashMap<Uuid, Affix>, sqlx::Error> {
         let rows = sqlx::query(
-            "SELECT id, client_id, name, type, description, attribute, created_at, updated_at \
+            "SELECT id, client_id, name, type::text, description, attribute, created_at, updated_at \
              FROM affixes WHERE client_id = $1",
         )
         .bind(client_id)

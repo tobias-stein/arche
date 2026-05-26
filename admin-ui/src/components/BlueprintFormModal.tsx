@@ -167,6 +167,19 @@ function buildDistribution(distType: string, stdDev: string, rate: string) {
   return undefined
 }
 
+function getExtendedPoolData(
+  source: Blueprint | undefined | null,
+): { prefixes: AffixPoolEntry[]; suffixes: AffixPoolEntry[] } {
+  const ext = source as Blueprint & {
+    prefixes?: AffixPoolEntry[]
+    suffixes?: AffixPoolEntry[]
+  }
+  return {
+    prefixes: ext?.prefixes ?? [],
+    suffixes: ext?.suffixes ?? [],
+  }
+}
+
 function reorderPool(
   items: AffixPoolEntry[],
   setter: (items: AffixPoolEntry[]) => void,
@@ -673,15 +686,11 @@ export function BlueprintFormModal({
   const [maxSuffixes, setMaxSuffixes] = useState(
     sourceData?.maxSuffixes ?? 0,
   )
-  const extendedSource = sourceData as (typeof sourceData) & {
-    prefixes?: AffixPoolEntry[]
-    suffixes?: AffixPoolEntry[]
-  }
   const [prefixes, setPrefixes] = useState<AffixPoolEntry[]>(
-    extendedSource?.prefixes ?? [],
+    getExtendedPoolData(sourceData).prefixes,
   )
   const [suffixes, setSuffixes] = useState<AffixPoolEntry[]>(
-    extendedSource?.suffixes ?? [],
+    getExtendedPoolData(sourceData).suffixes,
   )
 
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -886,12 +895,10 @@ export function BlueprintFormModal({
     setMaxPrefixes(sourceData?.maxPrefixes ?? 0)
     setMinSuffixes(sourceData?.minSuffixes ?? 0)
     setMaxSuffixes(sourceData?.maxSuffixes ?? 0)
-    const ext = sourceData as (typeof sourceData) & {
-      prefixes?: AffixPoolEntry[]
-      suffixes?: AffixPoolEntry[]
-    }
-    setPrefixes(ext?.prefixes ?? [])
-    setSuffixes(ext?.suffixes ?? [])
+    const { prefixes: poolPrefixes, suffixes: poolSuffixes } =
+      getExtendedPoolData(sourceData)
+    setPrefixes(poolPrefixes)
+    setSuffixes(poolSuffixes)
     setErrors({})
     setShowInlineForm(false)
   }, [sourceData])
@@ -917,6 +924,7 @@ export function BlueprintFormModal({
     .map((key) => ({ key, attribute: attributes[key] }))
 
   const attrSortableIds = attributeOrder.filter((key) => key in attributes)
+  const isLastAttribute = attrSortableIds.length <= 1
 
   return (
     <>
@@ -1435,19 +1443,13 @@ export function BlueprintFormModal({
         }}
         title="Delete Attribute"
         description={`Are you sure you want to delete the attribute "${deleteAttrKey}"? ${
-          attributeOrder.filter((k) => k in attributes).length <= 1
+          isLastAttribute
             ? 'This is the last attribute and cannot be deleted.'
             : ''
         }`}
-        confirmLabel={
-          attributeOrder.filter((k) => k in attributes).length <= 1
-            ? 'Cannot Delete'
-            : 'Delete'
-        }
+        confirmLabel={isLastAttribute ? 'Cannot Delete' : 'Delete'}
         variant="destructive"
-        disabled={
-          attributeOrder.filter((k) => k in attributes).length <= 1
-        }
+        disabled={isLastAttribute}
         onConfirm={handleDeleteAttribute}
       />
 

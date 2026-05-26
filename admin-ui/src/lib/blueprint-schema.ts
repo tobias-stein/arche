@@ -63,5 +63,8 @@ export const createBlueprintSchema = z.object({
   affixes: blueprintAffixConfigSchema,
 })
 
+export const editBlueprintSchema = createBlueprintSchema.partial()
+
 export type CreateBlueprintFormValues = z.infer<typeof createBlueprintSchema>
+export type EditBlueprintFormValues = z.infer<typeof editBlueprintSchema>
 export type DistributionConfigForm = z.infer<typeof distributionConfigSchema>

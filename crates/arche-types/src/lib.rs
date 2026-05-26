@@ -727,6 +727,8 @@ mod tests {
             id: Uuid::new_v4(),
             name: "game-server-key".into(),
             permissions: vec![Permission::Read],
+            created_at: Utc::now(),
+            expires_at: None,
         };
         let value = serde_json::to_value(&resp).unwrap();
         let deserialized: ApiKeyResponse = serde_json::from_value(value).unwrap();

@@ -214,7 +214,7 @@ async fn fetch_gmas(
     client_id: Uuid,
 ) -> Result<Vec<GmaExport>, ProblemResponse> {
     let rows = sqlx::query(
-        "SELECT id, name, description, value_type, payload \
+        "SELECT id, name, description, value_type::text AS value_type, payload \
          FROM global_meta_attributes WHERE client_id = $1 ORDER BY id ASC",
     )
     .bind(client_id)

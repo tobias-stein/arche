@@ -177,7 +177,7 @@ impl Cache {
         pool: &PgPool,
     ) -> Result<HashMap<Uuid, GlobalMetaAttribute>, sqlx::Error> {
         let rows = sqlx::query(
-            "SELECT id, client_id, name, description, value_type, payload, created_at, updated_at \
+            "SELECT id, client_id, name, description, value_type::text AS value_type, payload, created_at, updated_at \
              FROM global_meta_attributes",
         )
         .fetch_all(pool)
@@ -554,7 +554,7 @@ impl Cache {
         client_id: Uuid,
     ) -> Result<HashMap<Uuid, GlobalMetaAttribute>, sqlx::Error> {
         let rows = sqlx::query(
-            "SELECT id, client_id, name, description, value_type, payload, created_at, updated_at \
+            "SELECT id, client_id, name, description, value_type::text AS value_type, payload, created_at, updated_at \
              FROM global_meta_attributes WHERE client_id = $1",
         )
         .bind(client_id)

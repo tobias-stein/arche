@@ -20,7 +20,7 @@ impl crate::pagination::HasId for GlobalMetaAttribute {
 }
 
 const GMA_COLUMNS: &str =
-    "id, client_id, name, description, value_type, payload, created_at, updated_at";
+    "id, client_id, name, description, value_type::text AS value_type, payload, created_at, updated_at";
 
 fn value_type_from_payload(payload: &AttributePayload) -> &'static str {
     match payload {

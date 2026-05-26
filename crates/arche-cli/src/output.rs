@@ -342,6 +342,17 @@ impl OutputWriter {
         }
     }
 
+    pub fn flush_to_stdio(&self) {
+        let stdout = self.stdout.contents();
+        if !stdout.is_empty() {
+            print!("{stdout}");
+        }
+        let stderr = self.stderr.contents();
+        if !stderr.is_empty() {
+            eprint!("{stderr}");
+        }
+    }
+
     pub fn write_error(&mut self, error: &crate::error::CliError) -> io::Result<()> {
         writeln!(self.stderr, "{}", error.display_message())
     }

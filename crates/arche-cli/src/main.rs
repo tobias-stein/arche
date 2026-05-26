@@ -170,14 +170,7 @@ fn cmd_generate(args: &cli::GenerateArgs, config: &Config) -> Result<(), CliErro
         .write_generate(&generate_response)
         .map_err(|e| CliError::Generic(format!("Failed to write output: {e}")))?;
 
-    let stdout_content = writer.stdout().contents();
-    if !stdout_content.is_empty() {
-        print!("{stdout_content}");
-    }
-    let stderr_content = writer.stderr().contents();
-    if !stderr_content.is_empty() {
-        eprint!("{stderr_content}");
-    }
+    writer.flush_to_stdio();
 
     Ok(())
 }
@@ -266,14 +259,7 @@ fn cmd_import(args: &cli::ImportArgs, config: &Config) -> Result<(), CliError> {
                     .write_import_conflicts(&conflict_response)
                     .map_err(|e| CliError::Generic(format!("Failed to write output: {e}")))?;
 
-                let stdout_content = writer.stdout().contents();
-                if !stdout_content.is_empty() {
-                    print!("{stdout_content}");
-                }
-                let stderr_content = writer.stderr().contents();
-                if !stderr_content.is_empty() {
-                    eprint!("{stderr_content}");
-                }
+                writer.flush_to_stdio();
                 return Ok(());
             }
 
@@ -410,8 +396,197 @@ fn api_error_from_response(
     }
 }
 
-fn cmd_key(_sub: &KeyCommand, _config: &Config) -> Result<(), CliError> {
-    Err(CliError::Generic("Not yet implemented".into()))
+fn cmd_key(sub: &KeyCommand, config: &Config) -> Result<(), CliError> {
+    match sub {
+        KeyCommand::List { client_id } => cmd_key_list(client_id, config),
+        KeyCommand::Create {
+            client_id,
+            name,
+            permissions,
+        } => cmd_key_create(client_id, name, permissions, config),
+        KeyCommand::Revoke { client_id, key_id } => cmd_key_revoke(client_id, key_id, config),
+    }
+}
+
+fn cmd_key_list(client_id: &str, config: &Config) -> Result<(), CliError> {
+    let url = format!("{}/api/clients/{client_id}/keys", config.api_url);
+    print_verbose(&format!("Request: GET {url}"), config.verbose);
+
+    let client = client::build_client(config);
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let response = rt
+        .block_on(client.get(&url).send())
+        .map_err(|e| CliError::Generic(format!("Failed to connect to API: {e}")))?;
+
+    let status = response.status();
+    print_verbose(
+        &format!(
+            "Response: {} {}",
+            status.as_u16(),
+            status.canonical_reason().unwrap_or("")
+        ),
+        config.verbose,
+    );
+
+    if !status.is_success() {
+        return Err(api_error_from_response(response, &rt));
+    }
+
+    let keys: Vec<arche_types::crud::ApiKeySummary> = rt
+        .block_on(response.json())
+        .map_err(|e| CliError::Generic(format!("Failed to parse key list response: {e}")))?;
+
+    let output_format = if config.quiet {
+        OutputFormat::Quiet
+    } else {
+        OutputFormat::Json
+    };
+
+    let mut writer = output::OutputWriter::new(output_format, config.verbose);
+    writer
+        .write_key_list(&keys)
+        .map_err(|e| CliError::Generic(format!("Failed to write output: {e}")))?;
+
+    writer.flush_to_stdio();
+
+    Ok(())
+}
+
+fn cmd_key_create(
+    client_id: &str,
+    name: &str,
+    permissions: &str,
+    config: &Config,
+) -> Result<(), CliError> {
+    let perms = parse_permissions(permissions)?;
+
+    if perms.is_empty() {
+        return Err(CliError::Args(
+            "At least one permission is required".into(),
+        ));
+    }
+
+    let req = arche_types::crud::CreateApiKeyRequest {
+        name: name.to_string(),
+        permissions: perms,
+    };
+
+    let url = format!("{}/api/clients/{client_id}/keys", config.api_url);
+    print_verbose(&format!("Request: POST {url}"), config.verbose);
+    if config.verbose {
+        if let Ok(body) = serde_json::to_string(&req) {
+            print_verbose(&format!("Request body: {body}"), config.verbose);
+        }
+    }
+
+    let client = client::build_client(config);
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let response = rt
+        .block_on(client.post(&url).json(&req).send())
+        .map_err(|e| CliError::Generic(format!("Failed to connect to API: {e}")))?;
+
+    let status = response.status();
+    print_verbose(
+        &format!(
+            "Response: {} {}",
+            status.as_u16(),
+            status.canonical_reason().unwrap_or("")
+        ),
+        config.verbose,
+    );
+
+    if !status.is_success() {
+        return Err(api_error_from_response(response, &rt));
+    }
+
+    let create_response: arche_types::crud::CreateApiKeyResponse = rt
+        .block_on(response.json())
+        .map_err(|e| {
+            CliError::Generic(format!("Failed to parse key create response: {e}"))
+        })?;
+
+    let output_format = if config.quiet {
+        OutputFormat::Quiet
+    } else {
+        OutputFormat::Json
+    };
+
+    let mut writer = output::OutputWriter::new(output_format, config.verbose);
+    writer
+        .write_key_created(&create_response)
+        .map_err(|e| CliError::Generic(format!("Failed to write output: {e}")))?;
+
+    let stdout_content = writer.stdout().contents();
+    if !stdout_content.is_empty() {
+        print!("{stdout_content}");
+    }
+
+    eprintln!("This key will not be shown again. Copy it now.");
+
+    let stderr_content = writer.stderr().contents();
+    if !stderr_content.is_empty() {
+        eprint!("{stderr_content}");
+    }
+
+    Ok(())
+}
+
+fn cmd_key_revoke(client_id: &str, key_id: &str, config: &Config) -> Result<(), CliError> {
+    let url = format!("{}/api/clients/{client_id}/keys/{key_id}", config.api_url);
+    print_verbose(&format!("Request: DELETE {url}"), config.verbose);
+
+    let client = client::build_client(config);
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let response = rt
+        .block_on(client.delete(&url).send())
+        .map_err(|e| CliError::Generic(format!("Failed to connect to API: {e}")))?;
+
+    let status = response.status();
+    print_verbose(
+        &format!(
+            "Response: {} {}",
+            status.as_u16(),
+            status.canonical_reason().unwrap_or("")
+        ),
+        config.verbose,
+    );
+
+    if !status.is_success() {
+        return Err(api_error_from_response(response, &rt));
+    }
+
+    let output_format = if config.quiet {
+        OutputFormat::Quiet
+    } else {
+        OutputFormat::Json
+    };
+
+    let mut writer = output::OutputWriter::new(output_format, config.verbose);
+    writer
+        .write_key_revoked()
+        .map_err(|e| CliError::Generic(format!("Failed to write output: {e}")))?;
+
+    writer.flush_to_stdio();
+
+    Ok(())
+}
+
+fn parse_permissions(permissions: &str) -> Result<Vec<arche_types::Permission>, CliError> {
+    permissions
+        .split(',')
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .map(|s| match s.to_lowercase().as_str() {
+            "read" => Ok(arche_types::Permission::Read),
+            "write" => Ok(arche_types::Permission::Write),
+            "delete" => Ok(arche_types::Permission::Delete),
+            "generate" => Ok(arche_types::Permission::Generate),
+            "admin" => Ok(arche_types::Permission::Admin),
+            other => Err(CliError::Args(format!(
+                "Invalid permission: '{other}'. Valid permissions: read, write, delete, generate, admin"
+            ))),
+        })
+        .collect()
 }
 
 fn cmd_client(sub: &ClientCommand, config: &Config) -> Result<(), CliError> {
@@ -2136,5 +2311,520 @@ mod client_tests {
             }
             _ => panic!("expected Generic error, got {:?}", result),
         }
+    }
+}
+
+#[cfg(test)]
+mod key_tests {
+    use super::*;
+    use arche_types::crud::{ApiKeySummary, CreateApiKeyResponse};
+    use arche_types::Permission;
+    use chrono::DateTime;
+    use wiremock::matchers::{method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+    use uuid::Uuid;
+
+    fn make_config(api_url: &str, quiet: bool, verbose: bool) -> Config {
+        Config {
+            api_url: api_url.to_string(),
+            api_key: None,
+            verbose,
+            quiet,
+        }
+    }
+
+    fn sample_key_summaries() -> Vec<ApiKeySummary> {
+        vec![
+            ApiKeySummary {
+                id: Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap(),
+                name: "ci-key".into(),
+                permissions: vec![Permission::Read, Permission::Generate],
+                created_at: DateTime::from_timestamp_millis(0).unwrap(),
+            },
+            ApiKeySummary {
+                id: Uuid::parse_str("00000000-0000-0000-0000-000000000002").unwrap(),
+                name: "admin-key".into(),
+                permissions: vec![Permission::Admin],
+                created_at: DateTime::from_timestamp_millis(1).unwrap(),
+            },
+        ]
+    }
+
+    fn sample_create_response() -> CreateApiKeyResponse {
+        CreateApiKeyResponse {
+            id: Uuid::parse_str("00000000-0000-0000-0000-000000000003").unwrap(),
+            name: "ci-key".into(),
+            permissions: vec![Permission::Read, Permission::Generate],
+            key: "arche_k_abc123secret".into(),
+        }
+    }
+
+    async fn run_key_list(
+        client_id: String,
+        config: Config,
+    ) -> Result<(), CliError> {
+        tokio::task::spawn_blocking(move || cmd_key_list(&client_id, &config))
+            .await
+            .unwrap()
+    }
+
+    async fn run_key_create(
+        client_id: String,
+        name: String,
+        permissions: String,
+        config: Config,
+    ) -> Result<(), CliError> {
+        tokio::task::spawn_blocking(move || {
+            cmd_key_create(&client_id, &name, &permissions, &config)
+        })
+        .await
+        .unwrap()
+    }
+
+    async fn run_key_revoke(
+        client_id: String,
+        key_id: String,
+        config: Config,
+    ) -> Result<(), CliError> {
+        tokio::task::spawn_blocking(move || cmd_key_revoke(&client_id, &key_id, &config))
+            .await
+            .unwrap()
+    }
+
+    #[test]
+    fn test_parse_permissions_valid() {
+        let perms = parse_permissions("read,write,delete,generate,admin").unwrap();
+        assert_eq!(
+            perms,
+            vec![
+                Permission::Read,
+                Permission::Write,
+                Permission::Delete,
+                Permission::Generate,
+                Permission::Admin,
+            ]
+        );
+    }
+
+    #[test]
+    fn test_parse_permissions_single() {
+        let perms = parse_permissions("read").unwrap();
+        assert_eq!(perms, vec![Permission::Read]);
+    }
+
+    #[test]
+    fn test_parse_permissions_with_spaces() {
+        let perms = parse_permissions("read, write , generate").unwrap();
+        assert_eq!(
+            perms,
+            vec![Permission::Read, Permission::Write, Permission::Generate]
+        );
+    }
+
+    #[test]
+    fn test_parse_permissions_invalid() {
+        let result = parse_permissions("read,invalid,generate");
+        assert!(result.is_err());
+        match &result {
+            Err(CliError::Args(msg)) => {
+                assert!(msg.contains("Invalid permission: 'invalid'"));
+                assert_eq!(CliError::Args(msg.clone()).exit_code(), 2);
+            }
+            _ => panic!("expected Args error, got {:?}", result),
+        }
+    }
+
+    #[test]
+    fn test_parse_permissions_case_insensitive() {
+        let perms = parse_permissions("Read,GENERATE,Admin").unwrap();
+        assert_eq!(
+            perms,
+            vec![Permission::Read, Permission::Generate, Permission::Admin]
+        );
+    }
+
+    #[test]
+    fn test_parse_permissions_empty_string() {
+        let perms = parse_permissions("").unwrap();
+        assert!(perms.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_key_list_success() {
+        let mock_server = MockServer::start().await;
+        let uri = mock_server.uri();
+
+        Mock::given(method("GET"))
+            .and(path("/api/clients/client-123/keys"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(serde_json::to_value(sample_key_summaries()).unwrap()),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let config = make_config(&uri, false, false);
+        let result = run_key_list("client-123".into(), config).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_key_list_client_not_found_returns_api_error() {
+        let mock_server = MockServer::start().await;
+        let uri = mock_server.uri();
+
+        Mock::given(method("GET"))
+            .and(path("/api/clients/nonexistent/keys"))
+            .respond_with(
+                ResponseTemplate::new(404).set_body_json(serde_json::json!({
+                    "type": "/errors/not-found",
+                    "title": "Client not found",
+                    "status": 404,
+                    "detail": "Client 'nonexistent' not found"
+                })),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let config = make_config(&uri, false, false);
+        let result = run_key_list("nonexistent".into(), config).await;
+        assert!(result.is_err());
+        match &result {
+            Err(CliError::Api(problem)) => {
+                assert_eq!(problem.status, 404);
+                assert_eq!(problem.detail, Some("Client 'nonexistent' not found".into()));
+            }
+            _ => panic!("expected Api error, got {:?}", result),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_key_list_permission_denied_returns_api_error() {
+        let mock_server = MockServer::start().await;
+        let uri = mock_server.uri();
+
+        Mock::given(method("GET"))
+            .and(path("/api/clients/client-123/keys"))
+            .respond_with(
+                ResponseTemplate::new(403).set_body_json(serde_json::json!({
+                    "type": "/errors/forbidden",
+                    "title": "Forbidden",
+                    "status": 403,
+                    "detail": "Insufficient permissions"
+                })),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let config = make_config(&uri, false, false);
+        let result = run_key_list("client-123".into(), config).await;
+        assert!(result.is_err());
+        match &result {
+            Err(CliError::Api(problem)) => {
+                assert_eq!(problem.status, 403);
+                assert_eq!(problem.detail, Some("Insufficient permissions".into()));
+            }
+            _ => panic!("expected Api error, got {:?}", result),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_key_list_quiet_mode_suppresses_output() {
+        let mock_server = MockServer::start().await;
+        let uri = mock_server.uri();
+
+        Mock::given(method("GET"))
+            .and(path("/api/clients/client-123/keys"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(serde_json::to_value(sample_key_summaries()).unwrap()),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let config = make_config(&uri, true, false);
+        let result = run_key_list("client-123".into(), config).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_key_create_success() {
+        let mock_server = MockServer::start().await;
+        let uri = mock_server.uri();
+
+        Mock::given(method("POST"))
+            .and(path("/api/clients/client-123/keys"))
+            .respond_with(
+                ResponseTemplate::new(201)
+                    .set_body_json(serde_json::to_value(sample_create_response()).unwrap()),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let config = make_config(&uri, false, false);
+        let result = run_key_create(
+            "client-123".into(),
+            "ci-key".into(),
+            "read,generate".into(),
+            config,
+        )
+        .await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_key_create_invalid_permissions_returns_args_error() {
+        let config = make_config("http://localhost:1", false, false);
+        let result = run_key_create(
+            "client-123".into(),
+            "ci-key".into(),
+            "read,invalid".into(),
+            config,
+        )
+        .await;
+        assert!(result.is_err());
+        match &result {
+            Err(CliError::Args(msg)) => {
+                assert!(msg.contains("Invalid permission: 'invalid'"));
+                assert_eq!(CliError::Args(msg.clone()).exit_code(), 2);
+            }
+            _ => panic!("expected Args error, got {:?}", result),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_key_create_empty_permissions_returns_args_error() {
+        let config = make_config("http://localhost:1", false, false);
+        let result = run_key_create(
+            "client-123".into(),
+            "ci-key".into(),
+            "".into(),
+            config,
+        )
+        .await;
+        assert!(result.is_err());
+        match &result {
+            Err(CliError::Args(msg)) => {
+                assert!(msg.contains("At least one permission is required"));
+                assert_eq!(CliError::Args(msg.clone()).exit_code(), 2);
+            }
+            _ => panic!("expected Args error, got {:?}", result),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_key_create_client_not_found_returns_api_error() {
+        let mock_server = MockServer::start().await;
+        let uri = mock_server.uri();
+
+        Mock::given(method("POST"))
+            .and(path("/api/clients/nonexistent/keys"))
+            .respond_with(
+                ResponseTemplate::new(404).set_body_json(serde_json::json!({
+                    "type": "/errors/not-found",
+                    "title": "Client not found",
+                    "status": 404,
+                    "detail": "Client 'nonexistent' not found"
+                })),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let config = make_config(&uri, false, false);
+        let result = run_key_create(
+            "nonexistent".into(),
+            "ci-key".into(),
+            "read,generate".into(),
+            config,
+        )
+        .await;
+        assert!(result.is_err());
+        match &result {
+            Err(CliError::Api(problem)) => {
+                assert_eq!(problem.status, 404);
+                assert_eq!(problem.detail, Some("Client 'nonexistent' not found".into()));
+            }
+            _ => panic!("expected Api error, got {:?}", result),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_key_create_permission_denied_returns_api_error() {
+        let mock_server = MockServer::start().await;
+        let uri = mock_server.uri();
+
+        Mock::given(method("POST"))
+            .and(path("/api/clients/client-123/keys"))
+            .respond_with(
+                ResponseTemplate::new(403).set_body_json(serde_json::json!({
+                    "type": "/errors/forbidden",
+                    "title": "Forbidden",
+                    "status": 403,
+                    "detail": "Insufficient permissions"
+                })),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let config = make_config(&uri, false, false);
+        let result = run_key_create(
+            "client-123".into(),
+            "ci-key".into(),
+            "read,generate".into(),
+            config,
+        )
+        .await;
+        assert!(result.is_err());
+        match &result {
+            Err(CliError::Api(problem)) => {
+                assert_eq!(problem.status, 403);
+                assert_eq!(problem.detail, Some("Insufficient permissions".into()));
+            }
+            _ => panic!("expected Api error, got {:?}", result),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_key_revoke_success() {
+        let mock_server = MockServer::start().await;
+        let uri = mock_server.uri();
+
+        Mock::given(method("DELETE"))
+            .and(path("/api/clients/client-123/keys/key-456"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(serde_json::json!({"deleted": true})),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let config = make_config(&uri, false, false);
+        let result = run_key_revoke("client-123".into(), "key-456".into(), config).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_key_revoke_not_found_returns_api_error() {
+        let mock_server = MockServer::start().await;
+        let uri = mock_server.uri();
+
+        Mock::given(method("DELETE"))
+            .and(path("/api/clients/client-123/keys/nonexistent-key"))
+            .respond_with(
+                ResponseTemplate::new(404).set_body_json(serde_json::json!({
+                    "type": "/errors/not-found",
+                    "title": "Key not found",
+                    "status": 404,
+                    "detail": "API key 'nonexistent-key' not found"
+                })),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let config = make_config(&uri, false, false);
+        let result =
+            run_key_revoke("client-123".into(), "nonexistent-key".into(), config).await;
+        assert!(result.is_err());
+        match &result {
+            Err(CliError::Api(problem)) => {
+                assert_eq!(problem.status, 404);
+                assert_eq!(problem.detail, Some("API key 'nonexistent-key' not found".into()));
+            }
+            _ => panic!("expected Api error, got {:?}", result),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_key_revoke_permission_denied_returns_api_error() {
+        let mock_server = MockServer::start().await;
+        let uri = mock_server.uri();
+
+        Mock::given(method("DELETE"))
+            .and(path("/api/clients/client-123/keys/key-456"))
+            .respond_with(
+                ResponseTemplate::new(403).set_body_json(serde_json::json!({
+                    "type": "/errors/forbidden",
+                    "title": "Forbidden",
+                    "status": 403,
+                    "detail": "Insufficient permissions"
+                })),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let config = make_config(&uri, false, false);
+        let result = run_key_revoke("client-123".into(), "key-456".into(), config).await;
+        assert!(result.is_err());
+        match &result {
+            Err(CliError::Api(problem)) => {
+                assert_eq!(problem.status, 403);
+                assert_eq!(problem.detail, Some("Insufficient permissions".into()));
+            }
+            _ => panic!("expected Api error, got {:?}", result),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_key_revoke_quiet_mode_suppresses_output() {
+        let mock_server = MockServer::start().await;
+        let uri = mock_server.uri();
+
+        Mock::given(method("DELETE"))
+            .and(path("/api/clients/client-123/keys/key-456"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(serde_json::json!({"deleted": true})),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let config = make_config(&uri, true, false);
+        let result = run_key_revoke("client-123".into(), "key-456".into(), config).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_key_list_verbose_shows_request_details() {
+        let mock_server = MockServer::start().await;
+        let uri = mock_server.uri();
+
+        Mock::given(method("GET"))
+            .and(path("/api/clients/client-123/keys"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(serde_json::to_value(sample_key_summaries()).unwrap()),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let config = make_config(&uri, false, true);
+        let result = run_key_list("client-123".into(), config).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_key_cmd_dispatches_to_list() {
+        let mock_server = MockServer::start().await;
+        let uri = mock_server.uri();
+
+        Mock::given(method("GET"))
+            .and(path("/api/clients/client-123/keys"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(serde_json::to_value(sample_key_summaries()).unwrap()),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let config = make_config(&uri, false, false);
+        let result = tokio::task::spawn_blocking(move || {
+            cmd_key(
+                &KeyCommand::List {
+                    client_id: "client-123".into(),
+                },
+                &config,
+            )
+        })
+        .await
+        .unwrap();
+        assert!(result.is_ok());
     }
 }

@@ -1,6 +1,6 @@
 ---
 title: arche export command
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

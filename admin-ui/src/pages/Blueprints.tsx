@@ -46,6 +46,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { BatchEditDialog } from '@/components/BatchEditDialog'
 import { BlueprintFormModal } from '@/components/BlueprintFormModal'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { useToast } from '@/hooks/use-toast'
@@ -273,6 +274,7 @@ export default function Blueprints() {
   const [showBatchAssign, setShowBatchAssign] = useState(false)
   const [batchAssignKey, setBatchAssignKey] = useState(0)
 
+  const [showBatchEdit, setShowBatchEdit] = useState(false)
   const batchEditMutation = useBatchEditBlueprints()
 
   useEffect(() => {
@@ -465,7 +467,10 @@ export default function Blueprints() {
 
   const selectAllLabel = allPageSelected ? 'Deselect all' : 'Select all'
 
-  const canBatchEdit = !batchEditMutation.isPending && selectedCount > 0
+  const selectedBlueprints = useMemo(
+    () => allBlueprints.filter((b) => selectedIds.has(b.id)),
+    [allBlueprints, selectedIds],
+  )
 
   return (
     <div className="space-y-4">
@@ -550,8 +555,8 @@ export default function Blueprints() {
             <Button
               size="sm"
               variant="secondary"
-              disabled={!canBatchEdit}
-              title="Batch attribute editing coming soon"
+              onClick={() => setShowBatchEdit(true)}
+              disabled={selectedCount === 0 || batchEditMutation.isPending}
             >
               Batch Edit
             </Button>
@@ -938,6 +943,15 @@ export default function Blueprints() {
         open={showBatchAssign}
         onOpenChange={setShowBatchAssign}
         selectedBlueprintIds={Array.from(selectedIds)}
+      />
+
+      {/* Batch edit dialog */}
+      <BatchEditDialog
+        key={showBatchEdit ? 'open' : 'closed'}
+        open={showBatchEdit}
+        onOpenChange={setShowBatchEdit}
+        blueprints={selectedBlueprints}
+        onSuccess={clearSelection}
       />
     </div>
   )

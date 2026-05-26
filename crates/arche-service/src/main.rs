@@ -24,6 +24,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::signal;
 use tokio::sync::RwLock;
+use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 use tracing::info;
 use tracing::warn;
@@ -89,6 +90,7 @@ fn build_router(state: AppState) -> Router {
         .route("/api/generate", post(generate::generate_handler))
         .route("/api/import", post(import::import_parse_handler))
         .route("/api/import/resolve", post(import::import_resolve_handler))
+        .layer(CorsLayer::permissive())
         .layer(TraceLayer::new_for_http())
         .layer(middleware::from_fn_with_state(
             state.clone(),
@@ -319,5 +321,51 @@ mod tests {
     #[test]
     fn test_extract_db_host_empty_after_scheme() {
         assert_eq!(extract_db_host("postgres://"), "unknown");
+    }
+
+    #[tokio::test]
+    async fn test_cors_preflight_returns_200_with_headers() {
+        let router = build_router(make_test_state());
+
+        let response = router
+            .oneshot(
+                Request::builder()
+                    .method("OPTIONS")
+                    .uri("/health")
+                    .header("Origin", "http://localhost:3000")
+                    .header("Access-Control-Request-Method", "GET")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert!(response
+            .headers()
+            .get("Access-Control-Allow-Origin")
+            .is_some());
+    }
+
+    #[tokio::test]
+    async fn test_cors_actual_response_includes_allow_origin() {
+        let router = build_router(make_test_state());
+
+        let response = router
+            .oneshot(
+                Request::builder()
+                    .uri("/health")
+                    .header("Origin", "http://localhost:3000")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert!(response
+            .headers()
+            .get("Access-Control-Allow-Origin")
+            .is_some());
     }
 }

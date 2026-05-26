@@ -1,5 +1,5 @@
 use arche_types::attribute::{AffixAttribute, AttributePayload};
-use arche_types::common::{AffixListQuery, PaginatedResponse};
+use arche_types::common::{AffixListQuery, PaginatedResponse, WriteClientQuery};
 use arche_types::crud::CreateAffixRequest;
 use arche_types::{Affix, AffixLocation};
 use axum::extract::{Path, Query, State};
@@ -138,11 +138,6 @@ fn apply_affix_filters<'a>(
         builder.push("id > ");
         builder.push_bind(c);
     }
-}
-
-#[derive(Debug, Deserialize)]
-pub struct WriteClientQuery {
-    pub client_id: Option<Uuid>,
 }
 
 #[derive(Debug, Deserialize)]

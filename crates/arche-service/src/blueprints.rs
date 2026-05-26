@@ -1,5 +1,5 @@
 use arche_types::attribute::{AffixPoolEntry, BlueprintAffixConfig, BlueprintAttribute};
-use arche_types::common::{BlueprintListQuery, PaginatedResponse};
+use arche_types::common::{BlueprintListQuery, PaginatedResponse, WriteClientQuery};
 use arche_types::crud::{BlueprintResponse, CreateBlueprintRequest};
 use arche_types::validation;
 use arche_types::{AffixLocation, Blueprint};
@@ -536,11 +536,6 @@ pub async fn update_blueprint(
 pub struct DeleteBlueprintQuery {
     #[serde(default)]
     pub force: bool,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct WriteClientQuery {
-    pub client_id: Option<Uuid>,
 }
 
 pub async fn delete_blueprint(

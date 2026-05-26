@@ -1,5 +1,5 @@
 use arche_types::attribute::AttributePayload;
-use arche_types::common::{GlobalMetaAttributeListQuery, PaginatedResponse};
+use arche_types::common::{GlobalMetaAttributeListQuery, PaginatedResponse, WriteClientQuery};
 use arche_types::crud::{CreateGlobalMetaAttributeRequest, UpdateGlobalMetaAttributeRequest};
 use arche_types::{GlobalMetaAttribute, ValueType};
 use axum::extract::{Path, Query, State};
@@ -365,11 +365,6 @@ pub async fn update_global_meta_attribute(
     };
 
     Ok(Json(gma))
-}
-
-#[derive(Debug, Deserialize)]
-pub struct WriteClientQuery {
-    pub client_id: Option<Uuid>,
 }
 
 #[derive(Debug, Deserialize)]

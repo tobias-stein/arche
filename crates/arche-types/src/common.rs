@@ -80,6 +80,11 @@ pub struct GlobalMetaAttributeListQuery {
     pub search: Option<String>,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct WriteClientQuery {
+    pub client_id: Option<uuid::Uuid>,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct AuditLogListQuery {

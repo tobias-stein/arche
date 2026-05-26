@@ -29,15 +29,15 @@ The palette should feel fast — debounce input before searching. Cache results 
 
 ## Acceptance criteria
 
-- [ ] Cmd+K opens the search palette from any page
-- [ ] Header search icon also opens palette
-- [ ] Typing shows grouped results (Blueprints, Affixes)
-- [ ] Each result shows name and type info
-- [ ] Keyboard navigation (arrows + enter) navigates to detail page
-- [ ] Escape closes palette
-- [ ] Empty state when no results
-- [ ] Debounced search (don't fire on every keystroke)
-- [ ] Results cached for session
+- [x] Cmd+K opens the search palette from any page
+- [x] Header search icon also opens palette
+- [x] Typing shows grouped results (Blueprints, Affixes)
+- [x] Each result shows name and type info
+- [x] Keyboard navigation (arrows + enter) navigates to detail page
+- [x] Escape closes palette
+- [x] Empty state when no results
+- [x] Debounced search (don't fire on every keystroke)
+- [x] Results cached for session
 
 ## Blocked by
 

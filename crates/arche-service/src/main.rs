@@ -19,7 +19,7 @@ pub mod redis_pubsub;
 
 use axum::extract::State;
 use axum::middleware;
-use axum::{routing::{delete, get, post, put}, Json, Router};
+use axum::{routing::{delete, get, post}, Json, Router};
 use arche_types::crud::BootstrapResponse;
 use serde_json::{json, Value};
 use sqlx::postgres::PgPoolOptions;

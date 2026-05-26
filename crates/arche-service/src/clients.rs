@@ -587,7 +587,6 @@ impl crate::pagination::HasId for ClientResponse {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::pagination::HasId;
 
     #[test]
     fn test_permission_to_db_all() {

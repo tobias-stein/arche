@@ -240,7 +240,7 @@ mod tests {
     #[test]
     fn test_blueprint_attribute_ref() {
         let id = Uuid::new_v4();
-        let attr = BlueprintAttribute::Ref { ref_id: id };
+        let attr = BlueprintAttribute::Ref(BlueprintRefAttribute { ref_id: id });
         let value = serde_json::to_value(&attr).unwrap();
         assert_eq!(value, json!({"$ref_id": id.to_string()}));
         let deserialized: BlueprintAttribute = serde_json::from_value(value).unwrap();

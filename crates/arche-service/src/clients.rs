@@ -6,7 +6,6 @@ use arche_types::crud::{
 use arche_types::Permission;
 use axum::extract::{Path, Query, State};
 use axum::Json;
-use chrono::{DateTime, Utc};
 use sqlx::Row;
 use uuid::Uuid;
 
@@ -364,7 +363,7 @@ pub async fn create_api_key(
             ProblemResponse::unprocessable_entity("Failed to hash API key")
         })?;
 
-    let perm_strs: Vec<String> = req.permissions.iter().map(permission_to_db).collect();
+    let perm_strs: Vec<String> = req.permissions.iter().map(|p| permission_to_db(p).to_string()).collect();
 
     let row = sqlx::query(
         "INSERT INTO api_keys (client_id, name, key_hash, permissions, is_super) \
@@ -523,6 +522,7 @@ impl crate::pagination::HasId for ClientResponse {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::pagination::HasId;
 
     #[test]
     fn test_permission_to_db_all() {

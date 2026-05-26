@@ -1,9 +1,11 @@
-use arche_types::attribute::{AffixPoolEntry, BlueprintAffixConfig};
+use arche_types::attribute::{AffixPoolEntry, BlueprintAffixConfig, BlueprintAttribute};
 use arche_types::common::{BlueprintListQuery, PaginatedResponse};
 use arche_types::crud::{BlueprintResponse, CreateBlueprintRequest};
+use arche_types::validation;
 use arche_types::{AffixLocation, Blueprint};
 use axum::extract::{Path, Query, State};
 use axum::Json;
+use chrono::Utc;
 use serde::Deserialize;
 use sqlx::postgres::PgRow;
 use sqlx::{QueryBuilder, Row};
@@ -179,6 +181,14 @@ pub async fn create_blueprint(
 
     validate_affix_config(&req.affixes)?;
 
+    validate_blueprint_attributes(
+        &req.attributes,
+        &req.attribute_order,
+        req.weight,
+        &req.affixes,
+    )?;
+    check_duplicate_name(&state.pool, client_id, &req.name, None).await?;
+
     let affix_rows = validate_affix_pool(
         &state.pool,
         client_id,
@@ -311,6 +321,14 @@ pub async fn update_blueprint(
     let client_id = existing_bp.client_id;
 
     validate_affix_config(&req.affixes)?;
+
+    validate_blueprint_attributes(
+        &req.attributes,
+        &req.attribute_order,
+        req.weight,
+        &req.affixes,
+    )?;
+    check_duplicate_name(&state.pool, client_id, &req.name, Some(id)).await?;
 
     validate_affix_pool(
         &state.pool,
@@ -916,6 +934,89 @@ fn assemble_response(bp: &Blueprint, affixes: &BlueprintAffixConfig) -> Blueprin
         affixes: affixes.clone(),
         created_at: bp.created_at,
         updated_at: bp.updated_at,
+    }
+}
+
+fn validate_blueprint_attributes(
+    attributes: &HashMap<String, BlueprintAttribute>,
+    attribute_order: &[String],
+    weight: f64,
+    affix_config: &BlueprintAffixConfig,
+) -> Result<(), ProblemResponse> {
+    let attributes_json =
+        serde_json::to_value(attributes).map_err(|e| {
+            ProblemResponse::unprocessable_entity(format!("Invalid attributes: {e}"))
+        })?;
+
+    let bp = Blueprint {
+        id: Uuid::nil(),
+        client_id: Uuid::nil(),
+        name: String::new(),
+        archetype: String::new(),
+        weight,
+        description: None,
+        attributes: attributes_json,
+        attribute_order: attribute_order.to_vec(),
+        min_prefixes: affix_config.min_prefixes,
+        max_prefixes: affix_config.max_prefixes,
+        min_suffixes: affix_config.min_suffixes,
+        max_suffixes: affix_config.max_suffixes,
+        created_at: Utc::now(),
+        updated_at: Utc::now(),
+    };
+
+    let errors: Vec<FieldError> = validation::validate_blueprint(&bp)
+        .into_iter()
+        .map(|e| FieldError {
+            path: e.path,
+            message: e.message,
+        })
+        .collect();
+
+    if !errors.is_empty() {
+        return Err(ProblemResponse::validation_error(
+            "Attribute validation failed",
+            errors,
+        ));
+    }
+
+    Ok(())
+}
+
+async fn check_duplicate_name(
+    pool: &sqlx::PgPool,
+    client_id: Uuid,
+    name: &str,
+    exclude_id: Option<Uuid>,
+) -> Result<(), ProblemResponse> {
+    let existing = if let Some(exclude) = exclude_id {
+        sqlx::query(
+            "SELECT id FROM blueprints WHERE client_id = $1 AND name = $2 AND id != $3",
+        )
+        .bind(client_id)
+        .bind(name)
+        .bind(exclude)
+        .fetch_optional(pool)
+        .await
+    } else {
+        sqlx::query("SELECT id FROM blueprints WHERE client_id = $1 AND name = $2")
+            .bind(client_id)
+            .bind(name)
+            .fetch_optional(pool)
+            .await
+    };
+
+    match existing {
+        Ok(Some(_)) => Err(ProblemResponse::conflict(format!(
+            "A blueprint named \"{name}\" already exists for this client"
+        ))),
+        Ok(None) => Ok(()),
+        Err(e) => {
+            tracing::error!(error = %e, "blueprints: duplicate name check failed");
+            Err(ProblemResponse::unprocessable_entity(
+                "Failed to check for duplicate blueprint name",
+            ))
+        }
     }
 }
 
@@ -2283,6 +2384,670 @@ mod tests {
                 .unwrap();
             sqlx::query("DELETE FROM clients WHERE id = $1")
                 .bind(client_b)
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+
+        #[tokio::test]
+        async fn test_create_blueprint_with_inline_attributes() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_id = create_test_client(&pool).await;
+
+            let mut attributes = HashMap::new();
+            attributes.insert(
+                "damage".into(),
+                BlueprintAttribute::Inline(arche_types::attribute::InlineAttributeDef {
+                    description: Some("Physical damage".into()),
+                    payload: arche_types::attribute::AttributePayload::Range {
+                        min: 10.0,
+                        max: 23.0,
+                        distribution: None,
+                    },
+                }),
+            );
+
+            let req = CreateBlueprintRequest {
+                name: "Sword".into(),
+                archetype: "sword".into(),
+                weight: 1.0,
+                description: None,
+                attributes,
+                attribute_order: vec!["damage".into()],
+                affixes: BlueprintAffixConfig {
+                    min_prefixes: 0,
+                    max_prefixes: 0,
+                    min_suffixes: 0,
+                    max_suffixes: 0,
+                    prefixes: vec![],
+                    suffixes: vec![],
+                },
+            };
+
+            let state = test_state(Arc::new(pool.clone()));
+            let user = test_user(client_id, Permission::Write);
+
+            let result = create_blueprint(
+                axum::extract::State(state),
+                user,
+                axum::Json(req),
+            )
+            .await;
+
+            assert!(result.is_ok(), "create failed: {:?}", result.err());
+            let resp = result.unwrap();
+            let bp = resp.0;
+            assert_eq!(bp.name, "Sword");
+            assert_eq!(bp.attribute_order, vec!["damage"]);
+            let attrs = bp.attributes.as_object().unwrap();
+            assert!(attrs.contains_key("damage"));
+
+            sqlx::query("DELETE FROM blueprints WHERE id = $1")
+                .bind(bp.id)
+                .execute(&pool)
+                .await
+                .unwrap();
+            sqlx::query("DELETE FROM clients WHERE id = $1")
+                .bind(client_id)
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+
+        #[tokio::test]
+        async fn test_create_blueprint_with_ref_id_attributes() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_id = create_test_client(&pool).await;
+
+            let mut attributes = HashMap::new();
+            attributes.insert(
+                "rarity".into(),
+                BlueprintAttribute::Ref(arche_types::attribute::BlueprintRefAttribute {
+                    ref_id: Uuid::new_v4(),
+                }),
+            );
+
+            let req = CreateBlueprintRequest {
+                name: "Bow".into(),
+                archetype: "bow".into(),
+                weight: 1.0,
+                description: None,
+                attributes,
+                attribute_order: vec!["rarity".into()],
+                affixes: BlueprintAffixConfig {
+                    min_prefixes: 0,
+                    max_prefixes: 0,
+                    min_suffixes: 0,
+                    max_suffixes: 0,
+                    prefixes: vec![],
+                    suffixes: vec![],
+                },
+            };
+
+            let state = test_state(Arc::new(pool.clone()));
+            let user = test_user(client_id, Permission::Write);
+
+            let result = create_blueprint(
+                axum::extract::State(state),
+                user,
+                axum::Json(req),
+            )
+            .await;
+
+            assert!(result.is_ok(), "create failed: {:?}", result.err());
+            let resp = result.unwrap();
+            let bp = resp.0;
+            assert_eq!(bp.name, "Bow");
+            let attrs = bp.attributes.as_object().unwrap();
+            let rarity = attrs.get("rarity").unwrap();
+            assert!(rarity.get("$ref_id").is_some());
+
+            sqlx::query("DELETE FROM blueprints WHERE id = $1")
+                .bind(bp.id)
+                .execute(&pool)
+                .await
+                .unwrap();
+            sqlx::query("DELETE FROM clients WHERE id = $1")
+                .bind(client_id)
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+
+        #[tokio::test]
+        async fn test_create_blueprint_ref_id_and_inline_on_same_key_returns_400() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_id = create_test_client(&pool).await;
+
+            let req = CreateBlueprintRequest {
+                name: "Axe".into(),
+                archetype: "axe".into(),
+                weight: 1.0,
+                description: None,
+                attributes: HashMap::from([(
+                    "bad_attr".into(),
+                    BlueprintAttribute::Inline(arche_types::attribute::InlineAttributeDef {
+                        description: None,
+                        payload: arche_types::attribute::AttributePayload::Boolean { value: true },
+                    }),
+                )]),
+                attribute_order: vec!["bad_attr".into()],
+                affixes: BlueprintAffixConfig {
+                    min_prefixes: 0,
+                    max_prefixes: 0,
+                    min_suffixes: 0,
+                    max_suffixes: 0,
+                    prefixes: vec![],
+                    suffixes: vec![],
+                },
+            };
+
+            let state = test_state(Arc::new(pool.clone()));
+            let user = test_user(client_id, Permission::Write);
+
+            let result = create_blueprint(
+                axum::extract::State(state),
+                user,
+                axum::Json(req),
+            )
+            .await;
+
+            assert!(result.is_err());
+            let err = result.unwrap_err();
+            assert_eq!(err.status, 400);
+
+            sqlx::query("DELETE FROM clients WHERE id = $1")
+                .bind(client_id)
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+
+        #[tokio::test]
+        async fn test_create_blueprint_ref_id_and_inline_same_key_json() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_id = create_test_client(&pool).await;
+
+            let body = serde_json::json!({
+                "name": "Axe",
+                "archetype": "axe",
+                "weight": 1.0,
+                "attributes": {
+                    "bad_attr": {
+                        "$ref_id": "550e8400-e29b-41d4-a716-446655440000",
+                        "value_type": "boolean",
+                        "value": true
+                    }
+                },
+                "attributeOrder": ["bad_attr"],
+                "affixes": {
+                    "minPrefixes": 0,
+                    "maxPrefixes": 0,
+                    "minSuffixes": 0,
+                    "maxSuffixes": 0,
+                    "prefixes": [],
+                    "suffixes": []
+                }
+            });
+            let req: CreateBlueprintRequest = serde_json::from_value(body).unwrap();
+
+            let state = test_state(Arc::new(pool.clone()));
+            let user = test_user(client_id, Permission::Write);
+
+            let result = create_blueprint(
+                axum::extract::State(state),
+                user,
+                axum::Json(req),
+            )
+            .await;
+
+            assert!(result.is_err());
+            let err = result.unwrap_err();
+            assert_eq!(err.status, 400);
+            let detail = err.detail.unwrap();
+            assert!(detail.contains("cannot have both") || detail.contains("$ref_id"),
+                "expected $ref_id/inline error, got: {detail}");
+
+            sqlx::query("DELETE FROM clients WHERE id = $1")
+                .bind(client_id)
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+
+        #[tokio::test]
+        async fn test_create_blueprint_invalid_attribute_order_missing_key() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_id = create_test_client(&pool).await;
+
+            let mut attributes = HashMap::new();
+            attributes.insert(
+                "damage".into(),
+                BlueprintAttribute::Inline(arche_types::attribute::InlineAttributeDef {
+                    description: None,
+                    payload: arche_types::attribute::AttributePayload::String {
+                        min_length: None,
+                        max_length: None,
+                    },
+                }),
+            );
+            attributes.insert(
+                "speed".into(),
+                BlueprintAttribute::Inline(arche_types::attribute::InlineAttributeDef {
+                    description: None,
+                    payload: arche_types::attribute::AttributePayload::Single {
+                        value: 5.0,
+                        distribution: None,
+                    },
+                }),
+            );
+
+            let req = CreateBlueprintRequest {
+                name: "Dagger".into(),
+                archetype: "dagger".into(),
+                weight: 1.0,
+                description: None,
+                attributes,
+                attribute_order: vec!["damage".into()],
+                affixes: BlueprintAffixConfig {
+                    min_prefixes: 0,
+                    max_prefixes: 0,
+                    min_suffixes: 0,
+                    max_suffixes: 0,
+                    prefixes: vec![],
+                    suffixes: vec![],
+                },
+            };
+
+            let state = test_state(Arc::new(pool.clone()));
+            let user = test_user(client_id, Permission::Write);
+
+            let result = create_blueprint(
+                axum::extract::State(state),
+                user,
+                axum::Json(req),
+            )
+            .await;
+
+            assert!(result.is_err());
+            let err = result.unwrap_err();
+            assert_eq!(err.status, 400);
+            let detail = err.detail.unwrap();
+            assert!(detail.contains("missing"), "expected missing key error, got: {detail}");
+
+            sqlx::query("DELETE FROM clients WHERE id = $1")
+                .bind(client_id)
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+
+        #[tokio::test]
+        async fn test_create_blueprint_invalid_attribute_order_extra_key() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_id = create_test_client(&pool).await;
+
+            let mut attributes = HashMap::new();
+            attributes.insert(
+                "damage".into(),
+                BlueprintAttribute::Inline(arche_types::attribute::InlineAttributeDef {
+                    description: None,
+                    payload: arche_types::attribute::AttributePayload::String {
+                        min_length: None,
+                        max_length: None,
+                    },
+                }),
+            );
+
+            let req = CreateBlueprintRequest {
+                name: "Mace".into(),
+                archetype: "mace".into(),
+                weight: 1.0,
+                description: None,
+                attributes,
+                attribute_order: vec!["damage".into(), "speed".into()],
+                affixes: BlueprintAffixConfig {
+                    min_prefixes: 0,
+                    max_prefixes: 0,
+                    min_suffixes: 0,
+                    max_suffixes: 0,
+                    prefixes: vec![],
+                    suffixes: vec![],
+                },
+            };
+
+            let state = test_state(Arc::new(pool.clone()));
+            let user = test_user(client_id, Permission::Write);
+
+            let result = create_blueprint(
+                axum::extract::State(state),
+                user,
+                axum::Json(req),
+            )
+            .await;
+
+            assert!(result.is_err());
+            let err = result.unwrap_err();
+            assert_eq!(err.status, 400);
+            let detail = err.detail.unwrap();
+            assert!(detail.contains("extra"), "expected extra key error, got: {detail}");
+
+            sqlx::query("DELETE FROM clients WHERE id = $1")
+                .bind(client_id)
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+
+        #[tokio::test]
+        async fn test_create_blueprint_invalid_attribute_order_duplicate_key() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_id = create_test_client(&pool).await;
+
+            let mut attributes = HashMap::new();
+            attributes.insert(
+                "damage".into(),
+                BlueprintAttribute::Inline(arche_types::attribute::InlineAttributeDef {
+                    description: None,
+                    payload: arche_types::attribute::AttributePayload::String {
+                        min_length: None,
+                        max_length: None,
+                    },
+                }),
+            );
+
+            let req = CreateBlueprintRequest {
+                name: "Spear".into(),
+                archetype: "spear".into(),
+                weight: 1.0,
+                description: None,
+                attributes,
+                attribute_order: vec!["damage".into(), "damage".into()],
+                affixes: BlueprintAffixConfig {
+                    min_prefixes: 0,
+                    max_prefixes: 0,
+                    min_suffixes: 0,
+                    max_suffixes: 0,
+                    prefixes: vec![],
+                    suffixes: vec![],
+                },
+            };
+
+            let state = test_state(Arc::new(pool.clone()));
+            let user = test_user(client_id, Permission::Write);
+
+            let result = create_blueprint(
+                axum::extract::State(state),
+                user,
+                axum::Json(req),
+            )
+            .await;
+
+            assert!(result.is_err());
+            let err = result.unwrap_err();
+            assert_eq!(err.status, 400);
+            let detail = err.detail.unwrap();
+            assert!(detail.contains("duplicate"), "expected duplicate key error, got: {detail}");
+
+            sqlx::query("DELETE FROM clients WHERE id = $1")
+                .bind(client_id)
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+
+        #[tokio::test]
+        async fn test_create_blueprint_duplicate_name_returns_409() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_id = create_test_client(&pool).await;
+
+            let req = CreateBlueprintRequest {
+                name: "Sword".into(),
+                archetype: "sword".into(),
+                weight: 1.0,
+                description: None,
+                attributes: HashMap::new(),
+                attribute_order: vec![],
+                affixes: BlueprintAffixConfig {
+                    min_prefixes: 0,
+                    max_prefixes: 0,
+                    min_suffixes: 0,
+                    max_suffixes: 0,
+                    prefixes: vec![],
+                    suffixes: vec![],
+                },
+            };
+
+            let state = test_state(Arc::new(pool.clone()));
+            let user = test_user(client_id, Permission::Write);
+
+            let result1 = create_blueprint(
+                axum::extract::State(test_state(Arc::new(pool.clone()))),
+                test_user(client_id, Permission::Write),
+                axum::Json(req.clone()),
+            )
+            .await;
+            assert!(result1.is_ok(), "first create failed: {:?}", result1.err());
+            let bp_id = result1.unwrap().0.id;
+
+            let result2 = create_blueprint(
+                axum::extract::State(state),
+                user,
+                axum::Json(req),
+            )
+            .await;
+
+            assert!(result2.is_err());
+            let err = result2.unwrap_err();
+            assert_eq!(err.status, 409);
+            assert!(err.detail.unwrap().contains("already exists"));
+
+            sqlx::query("DELETE FROM blueprints WHERE id = $1")
+                .bind(bp_id)
+                .execute(&pool)
+                .await
+                .unwrap();
+            sqlx::query("DELETE FROM clients WHERE id = $1")
+                .bind(client_id)
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+
+        #[tokio::test]
+        async fn test_get_blueprint_returns_full_object_with_attributes() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_id = create_test_client(&pool).await;
+
+            let bp_id = Uuid::new_v4();
+            let attrs = serde_json::json!({
+                "damage": {"value_type": "range", "min": 10.0, "max": 23.0},
+                "speed": {"value_type": "single", "value": 1.5}
+            });
+            sqlx::query(
+                "INSERT INTO blueprints (id, client_id, name, archetype, weight, attributes, attribute_order, \
+                 min_prefixes, max_prefixes, min_suffixes, max_suffixes) \
+                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)",
+            )
+            .bind(bp_id)
+            .bind(client_id)
+            .bind("Longsword")
+            .bind("sword")
+            .bind(1.5)
+            .bind(&attrs)
+            .bind(&vec!["damage".to_string(), "speed".to_string()])
+            .bind(0)
+            .bind(2)
+            .bind(0)
+            .bind(1)
+            .execute(&pool)
+            .await
+            .unwrap();
+
+            let state = test_state(Arc::new(pool.clone()));
+            let user = test_user(client_id, Permission::Read);
+
+            let result = get_blueprint(
+                axum::extract::State(state),
+                user,
+                axum::extract::Path(bp_id),
+            )
+            .await;
+
+            assert!(result.is_ok(), "get failed: {:?}", result.err());
+            let resp = result.unwrap();
+            let bp = resp.0;
+            assert_eq!(bp.name, "Longsword");
+            assert_eq!(bp.archetype, "sword");
+            assert_eq!(bp.weight, 1.5);
+            assert_eq!(bp.attribute_order, vec!["damage", "speed"]);
+            assert_eq!(bp.min_prefixes, 0);
+            assert_eq!(bp.max_prefixes, 2);
+            assert_eq!(bp.min_suffixes, 0);
+            assert_eq!(bp.max_suffixes, 1);
+            let bp_attrs = bp.attributes.as_object().unwrap();
+            assert!(bp_attrs.contains_key("damage"));
+            assert!(bp_attrs.contains_key("speed"));
+
+            sqlx::query("DELETE FROM blueprints WHERE id = $1")
+                .bind(bp_id)
+                .execute(&pool)
+                .await
+                .unwrap();
+            sqlx::query("DELETE FROM clients WHERE id = $1")
+                .bind(client_id)
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+
+        #[tokio::test]
+        async fn test_update_blueprint_succeeds() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_id = create_test_client(&pool).await;
+
+            let bp_id = Uuid::new_v4();
+            sqlx::query(
+                "INSERT INTO blueprints (id, client_id, name, archetype, weight, attributes, attribute_order, \
+                 min_prefixes, max_prefixes, min_suffixes, max_suffixes) \
+                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)",
+            )
+            .bind(bp_id)
+            .bind(client_id)
+            .bind("OldSword")
+            .bind("sword")
+            .bind(1.0)
+            .bind(&json!({"damage": {"value_type": "string"}}))
+            .bind(&vec!["damage".to_string()])
+            .bind(0)
+            .bind(0)
+            .bind(0)
+            .bind(0)
+            .execute(&pool)
+            .await
+            .unwrap();
+
+            let mut attributes = HashMap::new();
+            attributes.insert(
+                "damage".into(),
+                BlueprintAttribute::Inline(arche_types::attribute::InlineAttributeDef {
+                    description: None,
+                    payload: arche_types::attribute::AttributePayload::Range {
+                        min: 5.0,
+                        max: 15.0,
+                        distribution: None,
+                    },
+                }),
+            );
+
+            let req = CreateBlueprintRequest {
+                name: "NewSword".into(),
+                archetype: "sword".into(),
+                weight: 2.0,
+                description: Some("An updated sword".into()),
+                attributes,
+                attribute_order: vec!["damage".into()],
+                affixes: BlueprintAffixConfig {
+                    min_prefixes: 0,
+                    max_prefixes: 1,
+                    min_suffixes: 1,
+                    max_suffixes: 2,
+                    prefixes: vec![],
+                    suffixes: vec![],
+                },
+            };
+
+            let state = test_state(Arc::new(pool.clone()));
+            let user = test_user(client_id, Permission::Write);
+
+            let result = update_blueprint(
+                axum::extract::State(state),
+                user,
+                axum::extract::Path(bp_id),
+                axum::Json(req),
+            )
+            .await;
+
+            assert!(result.is_ok(), "update failed: {:?}", result.err());
+            let resp = result.unwrap();
+            let bp = resp.0;
+            assert_eq!(bp.name, "NewSword");
+            assert_eq!(bp.weight, 2.0);
+            assert_eq!(bp.description, Some("An updated sword".into()));
+            assert_eq!(bp.min_prefixes, 0);
+            assert_eq!(bp.max_prefixes, 1);
+            assert_eq!(bp.min_suffixes, 1);
+            assert_eq!(bp.max_suffixes, 2);
+
+            let db_row = sqlx::query("SELECT name, weight, description FROM blueprints WHERE id = $1")
+                .bind(bp_id)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+            let db_name: String = db_row.get("name");
+            let db_weight: f64 = db_row.get("weight");
+            let db_desc: Option<String> = db_row.get("description");
+            assert_eq!(db_name, "NewSword");
+            assert!((db_weight - 2.0).abs() < 1e-9);
+            assert_eq!(db_desc, Some("An updated sword".into()));
+
+            sqlx::query("DELETE FROM blueprints WHERE id = $1")
+                .bind(bp_id)
+                .execute(&pool)
+                .await
+                .unwrap();
+            sqlx::query("DELETE FROM clients WHERE id = $1")
+                .bind(client_id)
                 .execute(&pool)
                 .await
                 .unwrap();

@@ -71,7 +71,7 @@ fn resolve_payload(
     let bp_attr: BlueprintAttribute = serde_json::from_value(attr_value.clone()).ok()?;
     match bp_attr {
         BlueprintAttribute::Inline(inline) => Some(inline.payload),
-        BlueprintAttribute::Ref { ref_id } => {
+        BlueprintAttribute::Ref(arche_types::attribute::BlueprintRefAttribute { ref_id }) => {
             let gma = gmas.iter().find(|gma| gma.id == ref_id)?;
             serde_json::from_value(gma.payload.clone()).ok()
         }

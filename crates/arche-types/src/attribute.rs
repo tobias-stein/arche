@@ -57,13 +57,17 @@ pub struct InlineAttributeDef {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct BlueprintRefAttribute {
+    #[serde(rename = "$ref_id")]
+    pub ref_id: Uuid,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(untagged)]
 pub enum BlueprintAttribute {
     Inline(InlineAttributeDef),
-    Ref {
-        #[serde(rename = "$ref_id")]
-        ref_id: Uuid,
-    },
+    Ref(BlueprintRefAttribute),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]

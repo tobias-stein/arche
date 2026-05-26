@@ -299,7 +299,7 @@ function InlineAttributeForm({
   }
 
   return (
-    <div className="space-y-3 rounded-md border p-4">
+    <div className="space-y-3 rounded-md border bg-background p-4">
       <div className="space-y-2">
         <label className="text-sm font-medium" htmlFor="attr-key">
           Key
@@ -1075,7 +1075,7 @@ export function BlueprintFormModal({
                 )}
 
                 {attrEntries.length > 0 ? (
-                  <div className="border rounded-md">
+                  <div className="border bg-background rounded-md">
                     <Table>
                       <TableHeader>
                         <TableRow>
@@ -1146,7 +1146,7 @@ export function BlueprintFormModal({
                     </Table>
                   </div>
                 ) : !showInlineForm ? (
-                  <div className="text-center py-8 border rounded-md">
+                  <div className="text-center py-8 border bg-background rounded-md">
                     <p className="text-muted-foreground text-sm">
                       No attributes added yet
                     </p>
@@ -1216,7 +1216,7 @@ export function BlueprintFormModal({
                   </div>
 
                   {prefixes.length > 0 ? (
-                    <div className="border rounded-md">
+                    <div className="border bg-background rounded-md">
                       <Table>
                         <TableHeader>
                           <TableRow>
@@ -1285,7 +1285,7 @@ export function BlueprintFormModal({
                       </Table>
                     </div>
                   ) : (
-                    <div className="text-center py-4 border rounded-md">
+                    <div className="text-center py-4 border bg-background rounded-md">
                       <p className="text-muted-foreground text-sm">
                         No prefixes in the pool
                       </p>
@@ -1354,7 +1354,7 @@ export function BlueprintFormModal({
                   </div>
 
                   {suffixes.length > 0 ? (
-                    <div className="border rounded-md">
+                    <div className="border bg-background rounded-md">
                       <Table>
                         <TableHeader>
                           <TableRow>
@@ -1423,7 +1423,7 @@ export function BlueprintFormModal({
                       </Table>
                     </div>
                   ) : (
-                    <div className="text-center py-4 border rounded-md">
+                    <div className="text-center py-4 border bg-background rounded-md">
                       <p className="text-muted-foreground text-sm">
                         No suffixes in the pool
                       </p>

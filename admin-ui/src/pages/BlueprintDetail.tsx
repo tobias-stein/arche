@@ -121,7 +121,7 @@ function AuditLogDiff({ entry }: { entry: AuditLogEntry }) {
   const [expanded, setExpanded] = useState(false)
 
   return (
-    <div className="border rounded-md">
+    <div className="border bg-background rounded-md">
       <button
         type="button"
         onClick={() => setExpanded(!expanded)}
@@ -141,7 +141,7 @@ function AuditLogDiff({ entry }: { entry: AuditLogEntry }) {
         </span>
       </button>
       {expanded && (
-        <div className="border-t p-3 space-y-3">
+        <div className="border-t bg-background p-3 space-y-3">
           {entry.before && entry.after ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
@@ -231,7 +231,7 @@ interface PoolTableProps {
 function PoolTable({ entries, affixMap, label }: PoolTableProps) {
   if (entries.length === 0) {
     return (
-      <div className="text-center py-8 border rounded-md">
+      <div className="text-center py-8 border bg-background rounded-md">
         <p className="text-muted-foreground text-sm">
           No {label.toLowerCase()}s configured
         </p>
@@ -240,7 +240,7 @@ function PoolTable({ entries, affixMap, label }: PoolTableProps) {
   }
 
   return (
-    <div className="border rounded-md">
+    <div className="border bg-background rounded-md">
       <Table>
         <TableHeader>
           <TableRow>
@@ -516,16 +516,16 @@ export default function BlueprintDetail() {
                   </p>
                 </div>
               ) : (
-                <div className="border rounded-md">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Value Type</TableHead>
-                        <TableHead>Preview</TableHead>
-                        <TableHead>Source</TableHead>
-                      </TableRow>
-                    </TableHeader>
+              <div className="border bg-background rounded-md">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Value Type</TableHead>
+                      <TableHead>Preview</TableHead>
+                      <TableHead>Source</TableHead>
+                    </TableRow>
+                  </TableHeader>
                     <TableBody>
                       {sortedAttrKeys.map((key) => (
                         <AttributeRow

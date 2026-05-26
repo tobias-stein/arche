@@ -79,7 +79,7 @@ export function DeleteResourceDialog({
 
             <div>
               <p className="mb-2 text-sm font-medium">Referenced by:</p>
-              <ul className="max-h-48 space-y-1 overflow-y-auto rounded-md border p-2">
+              <ul className="max-h-48 space-y-1 overflow-y-auto rounded-md border bg-background p-2">
                 {referencingResources.map((ref) => (
                   <li key={`${ref.type}-${ref.id}`}>
                     <Link

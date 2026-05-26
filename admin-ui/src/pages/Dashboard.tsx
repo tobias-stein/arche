@@ -133,7 +133,7 @@ function AffixCheckboxList({
           className="h-8 text-sm"
         />
       )}
-      <div className="max-h-32 overflow-y-auto space-y-1 border rounded-md p-2">
+      <div className="max-h-32 overflow-y-auto space-y-1 border bg-background rounded-md p-2">
         {filtered.length === 0 && (
           <p className="text-xs text-muted-foreground text-center py-2">No affixes found</p>
         )}

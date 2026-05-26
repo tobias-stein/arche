@@ -79,7 +79,7 @@ export function GlobalSearch() {
 
   return (
     <Dialog open={searchOpen} onOpenChange={(open) => !open && closeSearch()}>
-      <DialogContent className="overflow-hidden p-0" overlayClassName="bg-black/30">
+      <DialogContent className="overflow-hidden p-0" overlayClassName="bg-black/80">
         <Command shouldFilter={false}>
           <CommandInput
             placeholder="Search blueprints and affixes..."

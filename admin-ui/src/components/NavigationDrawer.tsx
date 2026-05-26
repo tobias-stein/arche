@@ -116,7 +116,7 @@ export function NavigationDrawer() {
     <>
       {drawerOpen && (
         <div
-          className="fixed inset-0 z-30 bg-black/50 md:hidden"
+          className="fixed inset-0 z-30 bg-black/80 md:hidden"
           onClick={closeDrawer}
           aria-hidden="true"
         />

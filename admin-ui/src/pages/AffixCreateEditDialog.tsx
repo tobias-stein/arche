@@ -366,7 +366,7 @@ function InlineAttributeForm({
       )}
 
       {(valueType === 'single' || valueType === 'range') && (
-        <div className="space-y-3 border rounded-md p-3">
+        <div className="space-y-3 border bg-background rounded-md p-3">
           <label className="flex items-center gap-2 text-sm font-medium">
             <input
               type="checkbox"

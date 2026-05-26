@@ -242,7 +242,7 @@ export function BatchEditDialog({
           </div>
 
           {mergedAttrs.length === 0 ? (
-            <div className="text-center py-6 border rounded-md">
+            <div className="text-center py-6 border bg-background rounded-md">
               <p className="text-muted-foreground text-sm">
                 No common attributes found across selected blueprints
               </p>
@@ -252,7 +252,7 @@ export function BatchEditDialog({
               {mergedAttrs.map((attr) => (
                 <fieldset
                   key={attr.name}
-                  className="border rounded-md p-3 space-y-2"
+                  className="border bg-background rounded-md p-3 space-y-2"
                 >
                   <legend className="text-sm font-medium px-1 flex items-center gap-2">
                     {attr.name}

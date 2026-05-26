@@ -60,17 +60,21 @@ fn resolve_client_id(
 
 fn resolve_client_id_for_write(
     user: &crate::auth::AuthenticatedKey,
+    client_id: Option<Uuid>,
 ) -> Result<Uuid, ProblemResponse> {
     if user.is_super {
-        return Err(ProblemResponse::forbidden(
-            "Super admin must specify a client context for write operations",
-        ));
+        client_id.ok_or_else(|| {
+            ProblemResponse::forbidden(
+                "Super admin must specify a client context for write operations",
+            )
+        })
+    } else {
+        user.client_id.ok_or_else(|| {
+            ProblemResponse::forbidden(
+                "Access denied: key is not associated with any client",
+            )
+        })
     }
-    user.client_id.ok_or_else(|| {
-        ProblemResponse::forbidden(
-            "Access denied: key is not associated with any client",
-        )
-    })
 }
 
 fn strip_value_type_from_payload(mut payload: serde_json::Value) -> serde_json::Value {
@@ -235,9 +239,10 @@ pub async fn get_global_meta_attribute(
 pub async fn create_global_meta_attribute(
     State(state): State<crate::AppState>,
     CurrentUser(user): CurrentUser,
+    Query(query): Query<WriteClientQuery>,
     Json(req): Json<CreateGlobalMetaAttributeRequest>,
 ) -> Result<Json<GlobalMetaAttribute>, ProblemResponse> {
-    let client_id = resolve_client_id_for_write(&user)?;
+    let client_id = resolve_client_id_for_write(&user, query.client_id)?;
 
     let (value_type, value_type_str, clean_payload) = prepare_and_validate_payload(&req)?;
 
@@ -360,6 +365,11 @@ pub async fn update_global_meta_attribute(
     };
 
     Ok(Json(gma))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct WriteClientQuery {
+    pub client_id: Option<Uuid>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -834,7 +844,7 @@ mod tests {
             permissions: vec![arche_types::Permission::Write],
             is_super: false,
         };
-        assert_eq!(resolve_client_id_for_write(&key).unwrap(), cid);
+        assert_eq!(resolve_client_id_for_write(&key, None).unwrap(), cid);
     }
 
     #[test]
@@ -846,12 +856,13 @@ mod tests {
             permissions: vec![arche_types::Permission::Write],
             is_super: false,
         };
-        let err = resolve_client_id_for_write(&key).unwrap_err();
+        let err = resolve_client_id_for_write(&key, None).unwrap_err();
         assert_eq!(err.status, 403);
     }
 
     #[test]
-    fn test_resolve_client_id_for_write_super_admin() {
+    fn test_resolve_client_id_for_write_super_admin_with_id() {
+        let cid = uuid::Uuid::new_v4();
         let key = crate::auth::AuthenticatedKey {
             id: uuid::Uuid::nil(),
             name: "super".into(),
@@ -859,7 +870,19 @@ mod tests {
             permissions: vec![],
             is_super: true,
         };
-        let err = resolve_client_id_for_write(&key).unwrap_err();
+        assert_eq!(resolve_client_id_for_write(&key, Some(cid)).unwrap(), cid);
+    }
+
+    #[test]
+    fn test_resolve_client_id_for_write_super_admin_no_client_id() {
+        let key = crate::auth::AuthenticatedKey {
+            id: uuid::Uuid::nil(),
+            name: "super".into(),
+            client_id: None,
+            permissions: vec![],
+            is_super: true,
+        };
+        let err = resolve_client_id_for_write(&key, None).unwrap_err();
         assert_eq!(err.status, 403);
     }
 

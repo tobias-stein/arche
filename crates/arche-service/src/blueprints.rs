@@ -176,9 +176,10 @@ pub async fn get_blueprint(
 pub async fn create_blueprint(
     State(state): State<crate::AppState>,
     CurrentUser(user): CurrentUser,
+    Query(query): Query<WriteClientQuery>,
     Json(req): Json<CreateBlueprintRequest>,
 ) -> Result<Json<BlueprintResponse>, ProblemResponse> {
-    let client_id = resolve_client_id_for_write(&user)?;
+    let client_id = resolve_client_id_for_write(&user, query.client_id)?;
 
     validate_affix_config(&req.affixes)?;
 
@@ -537,6 +538,11 @@ pub struct DeleteBlueprintQuery {
     pub force: bool,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct WriteClientQuery {
+    pub client_id: Option<Uuid>,
+}
+
 pub async fn delete_blueprint(
     State(state): State<crate::AppState>,
     CurrentUser(user): CurrentUser,
@@ -714,17 +720,21 @@ fn resolve_client_id(
 
 fn resolve_client_id_for_write(
     user: &crate::auth::AuthenticatedKey,
+    client_id: Option<Uuid>,
 ) -> Result<Uuid, ProblemResponse> {
     if user.is_super {
-        return Err(ProblemResponse::forbidden(
-            "Super admin must specify a client context for write operations",
-        ));
+        client_id.ok_or_else(|| {
+            ProblemResponse::forbidden(
+                "Super admin must specify a client context for write operations",
+            )
+        })
+    } else {
+        user.client_id.ok_or_else(|| {
+            ProblemResponse::forbidden(
+                "Access denied: key is not associated with any client",
+            )
+        })
     }
-    user.client_id.ok_or_else(|| {
-        ProblemResponse::forbidden(
-            "Access denied: key is not associated with any client",
-        )
-    })
 }
 
 fn row_to_blueprint(row: &PgRow) -> Blueprint {
@@ -1479,22 +1489,30 @@ mod tests {
     fn test_resolve_client_id_for_write_regular_key() {
         let cid = Uuid::new_v4();
         let key = make_key(Some(cid), false);
-        let result = resolve_client_id_for_write(&key).unwrap();
+        let result = resolve_client_id_for_write(&key, None).unwrap();
         assert_eq!(result, cid);
     }
 
     #[test]
     fn test_resolve_client_id_for_write_no_client() {
         let key = make_key(None, false);
-        let result = resolve_client_id_for_write(&key);
+        let result = resolve_client_id_for_write(&key, None);
         assert!(result.is_err());
         assert_eq!(result.unwrap_err().status, 403);
     }
 
     #[test]
-    fn test_resolve_client_id_for_write_super_admin() {
+    fn test_resolve_client_id_for_write_super_admin_with_client_id() {
+        let cid = Uuid::new_v4();
         let key = make_key(None, true);
-        let result = resolve_client_id_for_write(&key);
+        let result = resolve_client_id_for_write(&key, Some(cid)).unwrap();
+        assert_eq!(result, cid);
+    }
+
+    #[test]
+    fn test_resolve_client_id_for_write_super_admin_no_client_id() {
+        let key = make_key(None, true);
+        let result = resolve_client_id_for_write(&key, None);
         assert!(result.is_err());
     }
 

@@ -4,6 +4,7 @@ import { ArcheClient } from '@/api/generated/client'
 import { setClient } from '@/api/generated/hooks'
 import { ApiError } from '@/api/generated/errors'
 import { useAuth } from '@/stores/auth'
+import { useUi } from '@/stores/ui'
 import { AppShell } from '@/components/AppShell'
 import { AuthGuard } from '@/components/AuthGuard'
 import { Toaster } from '@/components/ui/toaster'
@@ -46,6 +47,10 @@ const archeClient = new ArcheClient({
   baseUrl: import.meta.env.VITE_ARCHE_API_URL || 'http://localhost:3000',
 })
 setClient(archeClient)
+
+useUi.subscribe((state) => {
+  archeClient.setClientId(state.selectedClientId)
+})
 
 export default function App() {
   return (

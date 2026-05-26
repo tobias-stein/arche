@@ -62,15 +62,19 @@ fn resolve_client_id(
 
 fn resolve_client_id_for_write(
     user: &crate::auth::AuthenticatedKey,
+    client_id: Option<Uuid>,
 ) -> Result<Uuid, ProblemResponse> {
     if user.is_super {
-        return Err(ProblemResponse::forbidden(
-            "Super admin must specify a client context for write operations",
-        ));
+        client_id.ok_or_else(|| {
+            ProblemResponse::forbidden(
+                "Super admin must specify a client context for write operations",
+            )
+        })
+    } else {
+        user.client_id.ok_or_else(|| {
+            ProblemResponse::forbidden("Access denied: key is not associated with any client")
+        })
     }
-    user.client_id.ok_or_else(|| {
-        ProblemResponse::forbidden("Access denied: key is not associated with any client")
-    })
 }
 
 fn check_affix_access(
@@ -134,6 +138,11 @@ fn apply_affix_filters<'a>(
         builder.push("id > ");
         builder.push_bind(c);
     }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct WriteClientQuery {
+    pub client_id: Option<Uuid>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -347,9 +356,10 @@ fn reject_ambiguous_attribute(
 pub async fn create_affix(
     State(state): State<crate::AppState>,
     CurrentUser(user): CurrentUser,
+    Query(query): Query<WriteClientQuery>,
     Json(body): Json<serde_json::Value>,
 ) -> Result<Json<Affix>, ProblemResponse> {
-    let client_id = resolve_client_id_for_write(&user)?;
+    let client_id = resolve_client_id_for_write(&user, query.client_id)?;
 
     let attr_obj = body
         .get("attribute")

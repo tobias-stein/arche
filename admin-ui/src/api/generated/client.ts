@@ -44,16 +44,22 @@ export interface ArcheClientConfig {
 export class ArcheClient {
   private baseUrl: string;
   private apiKey: string | undefined;
+  private clientId: string | null;
   private defaultFetchOptions: RequestInit;
 
   constructor(config: ArcheClientConfig) {
     this.baseUrl = config.baseUrl.replace(/\/+$/, '');
     this.apiKey = config.apiKey;
+    this.clientId = null;
     this.defaultFetchOptions = config.fetchOptions ?? {};
   }
 
   setApiKey(apiKey: string): void {
     this.apiKey = apiKey;
+  }
+
+  setClientId(clientId: string | null): void {
+    this.clientId = clientId;
   }
 
   private async request<T>(
@@ -67,6 +73,9 @@ export class ArcheClient {
       for (const [key, value] of Object.entries(query)) {
         url.searchParams.set(key, value);
       }
+    }
+    if (this.clientId) {
+      url.searchParams.set('client_id', this.clientId);
     }
 
     const headers: Record<string, string> = {

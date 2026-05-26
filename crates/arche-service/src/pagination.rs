@@ -6,6 +6,7 @@ const DEFAULT_LIMIT: i32 = 50;
 const MAX_LIMIT: i32 = 200;
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PaginationParams {
     #[serde(default)]
     pub cursor: Option<String>,

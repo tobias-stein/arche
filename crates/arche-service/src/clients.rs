@@ -33,56 +33,12 @@ fn db_to_permission(s: &str) -> Option<Permission> {
     }
 }
 
-fn resolve_client_id_for_clients(
-    user: &crate::auth::AuthenticatedKey,
-) -> Result<Option<Uuid>, ProblemResponse> {
-    if user.is_super {
-        Ok(None)
-    } else {
-        user.client_id.map(Some).ok_or_else(|| {
-            ProblemResponse::forbidden("Access denied: key is not associated with any client")
-        })
-    }
-}
-
 pub async fn list_clients(
     State(state): State<crate::AppState>,
     CurrentUser(user): CurrentUser,
     Query(query): Query<crate::pagination::PaginationParams>,
 ) -> Result<Json<PaginatedResponse<ClientResponse>>, ProblemResponse> {
     user.require_super_admin()?;
-    let client_id_filter = resolve_client_id_for_clients(&user)?;
-
-    if let Some(cid) = client_id_filter {
-        let rows = sqlx::query("SELECT id, name, created_at FROM clients WHERE id = $1")
-            .bind(cid)
-            .fetch_all(&*state.pool)
-            .await
-            .map_err(|e| {
-                tracing::error!(error = %e, "clients: list query failed");
-                ProblemResponse::unprocessable_entity("Failed to list clients")
-            })?;
-
-        let client_ids: Vec<Uuid> = rows.iter().map(|r: &sqlx::postgres::PgRow| r.get("id")).collect();
-        let client_map = fetch_api_key_summaries_batch(&state.pool, &client_ids).await?;
-
-        let clients: Vec<ClientResponse> = rows
-            .iter()
-            .map(|r| {
-                let id: Uuid = r.get("id");
-                ClientResponse {
-                    id,
-                    name: r.get("name"),
-                    created_at: r.get("created_at"),
-                    api_keys: client_map.get(&id).cloned().unwrap_or_default(),
-                }
-            })
-            .collect();
-
-        let total = clients.len() as i64;
-        return Ok(Json(crate::pagination::paginate_offset(clients, total)));
-    }
-
     let mode = query.mode().map_err(|e| {
         ProblemResponse::validation_error(e.to_string(), vec![])
     })?;
@@ -249,7 +205,7 @@ pub async fn create_client(
     .await
     .map_err(|e| {
         if let Some(db_err) = e.as_database_error() {
-            if db_err.code().map_or(false, |c| c == "23505") {
+            if db_err.code().is_some_and(|c| c == "23505") {
                 return ProblemResponse::conflict(format!(
                     "Client name '{}' already exists",
                     req.name
@@ -599,47 +555,6 @@ mod tests {
         let back: Vec<Permission> =
             strings.iter().filter_map(|s| db_to_permission(s)).collect();
         assert_eq!(perms, back);
-    }
-
-    #[test]
-    fn test_resolve_client_id_super_admin() {
-        let key = crate::auth::AuthenticatedKey {
-            id: Uuid::nil(),
-            name: "test".into(),
-            client_id: None,
-            permissions: vec![Permission::Read],
-            is_super: true,
-        };
-        let result = resolve_client_id_for_clients(&key).unwrap();
-        assert_eq!(result, None);
-    }
-
-    #[test]
-    fn test_resolve_client_id_regular_key() {
-        let cid = Uuid::new_v4();
-        let key = crate::auth::AuthenticatedKey {
-            id: Uuid::nil(),
-            name: "test".into(),
-            client_id: Some(cid),
-            permissions: vec![Permission::Read],
-            is_super: false,
-        };
-        let result = resolve_client_id_for_clients(&key).unwrap();
-        assert_eq!(result, Some(cid));
-    }
-
-    #[test]
-    fn test_resolve_client_id_regular_key_no_client() {
-        let key = crate::auth::AuthenticatedKey {
-            id: Uuid::nil(),
-            name: "test".into(),
-            client_id: None,
-            permissions: vec![Permission::Read],
-            is_super: false,
-        };
-        let result = resolve_client_id_for_clients(&key);
-        assert!(result.is_err());
-        assert_eq!(result.unwrap_err().status, 403);
     }
 
     #[test]

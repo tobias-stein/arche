@@ -133,6 +133,8 @@ pub enum KeyCommand {
     },
     /// Revoke an API key
     Revoke {
+        #[arg(long, help = "Client UUID")]
+        client_id: String,
         #[arg(long, help = "Key UUID")]
         key_id: String,
     },
@@ -335,9 +337,22 @@ mod tests {
 
     #[test]
     fn test_parse_key_revoke() {
-        let cli = Cli::try_parse_from(&["arche", "key", "revoke", "--key-id", "key-456"]).unwrap();
+        let cli = Cli::try_parse_from(&[
+            "arche",
+            "key",
+            "revoke",
+            "--client-id",
+            "abc-123",
+            "--key-id",
+            "key-456",
+        ])
+        .unwrap();
         match cli.command {
-            Command::Key(KeyCommand::Revoke { key_id }) => {
+            Command::Key(KeyCommand::Revoke {
+                client_id,
+                key_id,
+            }) => {
+                assert_eq!(client_id, "abc-123");
                 assert_eq!(key_id, "key-456");
             }
             _ => panic!("expected Key Revoke"),

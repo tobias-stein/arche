@@ -43,25 +43,27 @@ pub fn select_affixes(
     let affix_by_id: HashMap<Uuid, &Arc<Affix>> =
         all_affixes.iter().map(|a| (a.id, a)).collect();
 
-    let eff_min_prefixes = constraints
-        .and_then(|c| if c.min_prefixes > 0 { Some(c.min_prefixes) } else { None })
-        .unwrap_or(blueprint.min_prefixes);
-    let eff_max_prefixes = constraints
-        .and_then(|c| if c.max_prefixes > 0 { Some(c.max_prefixes) } else { None })
-        .unwrap_or(blueprint.max_prefixes);
-    let eff_min_suffixes = constraints
-        .and_then(|c| if c.min_suffixes > 0 { Some(c.min_suffixes) } else { None })
-        .unwrap_or(blueprint.min_suffixes);
-    let eff_max_suffixes = constraints
-        .and_then(|c| if c.max_suffixes > 0 { Some(c.max_suffixes) } else { None })
-        .unwrap_or(blueprint.max_suffixes);
+    let eff_min_prefixes = match constraints {
+        Some(c) if c.min_prefixes > 0 => c.min_prefixes,
+        _ => blueprint.min_prefixes,
+    };
+    let eff_max_prefixes = match constraints {
+        Some(c) if c.max_prefixes > 0 => c.max_prefixes,
+        _ => blueprint.max_prefixes,
+    };
+    let eff_min_suffixes = match constraints {
+        Some(c) if c.min_suffixes > 0 => c.min_suffixes,
+        _ => blueprint.min_suffixes,
+    };
+    let eff_max_suffixes = match constraints {
+        Some(c) if c.max_suffixes > 0 => c.max_suffixes,
+        _ => blueprint.min_suffixes,
+    };
 
-    let require: Vec<Uuid> = constraints
-        .map(|c| c.require.clone())
-        .unwrap_or_default();
-    let block: Vec<Uuid> = constraints
-        .map(|c| c.block.clone())
-        .unwrap_or_default();
+    let (require, block) = match constraints {
+        Some(c) => (c.require.clone(), c.block.clone()),
+        None => (vec![], vec![]),
+    };
 
     let prefix_pool: Vec<&BlueprintAffix> = blueprint_affix_entries
         .iter()

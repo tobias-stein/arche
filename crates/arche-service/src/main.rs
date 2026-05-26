@@ -6,6 +6,7 @@ mod bootstrap;
 pub mod blueprints;
 pub mod clients;
 mod config;
+pub mod export;
 pub mod generate;
 pub mod generation;
 pub mod global_meta_attributes;
@@ -101,6 +102,7 @@ fn build_router(state: AppState) -> Router {
         .route("/api/clients/{id}", get(clients::get_client).delete(clients::delete_client))
         .route("/api/clients/{client_id}/keys", get(clients::list_api_keys).post(clients::create_api_key))
         .route("/api/clients/{client_id}/keys/{key_id}", delete(clients::delete_api_key))
+        .route("/api/export", post(export::export_handler))
         .route("/api/import", post(import::import_parse_handler))
         .route("/api/import/resolve", post(import::import_resolve_handler))
         .layer(CorsLayer::permissive())

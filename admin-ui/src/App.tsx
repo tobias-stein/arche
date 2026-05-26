@@ -13,6 +13,7 @@ import BlueprintDetail from '@/pages/BlueprintDetail'
 import AuditLog from '@/pages/AuditLog'
 import Blueprints from '@/pages/Blueprints'
 import Clients from '@/pages/Clients'
+import ClientDetail from '@/pages/ClientDetail'
 import Dashboard from '@/pages/Dashboard'
 import ExportPage from '@/pages/Export'
 import GlobalMetaAttributes from '@/pages/GlobalMetaAttributes'
@@ -60,6 +61,7 @@ export default function App() {
               <Route path="/affixes/:id" element={<AffixDetail />} />
               <Route path="/global-meta-attributes" element={<GlobalMetaAttributes />} />
               <Route path="/clients" element={<Clients />} />
+              <Route path="/clients/:id" element={<ClientDetail />} />
               <Route path="/audit-log" element={<AuditLog />} />
               <Route path="/export" element={<ExportPage />} />
               <Route path="/import" element={<ImportPage />} />

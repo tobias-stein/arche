@@ -10,7 +10,7 @@ import {
   useGlobalMetaAttributesList,
   useUpdateGlobalMetaAttribute,
 } from '@/api/generated'
-import type { CreateGlobalMetaAttributeRequest, GlobalMetaAttribute, ValueType } from '@/api/generated'
+import type { CreateGlobalMetaAttributeRequest, GlobalMetaAttribute, UpdateGlobalMetaAttributeRequest, ValueType } from '@/api/generated'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -137,7 +137,7 @@ function EditGlobalMetaAttributeDialog({
           description: description.trim() || null,
           valueType: gma.valueType,
           ...gma.payload,
-        } as Parameters<typeof updateMutation.mutateAsync>[0]['request'],
+        } as UpdateGlobalMetaAttributeRequest,
       })
       toast({ title: 'Global meta attribute updated' })
       onOpenChange(false)

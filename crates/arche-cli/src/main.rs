@@ -8,7 +8,8 @@ pub mod output;
 use arche_types::common::{PaginatedResponse, ProblemJson};
 use arche_types::crud::{BootstrapResponse, ClientResponse, CreateClientRequest};
 use arche_types::export_import::{
-    ConflictResolutionRequest, ImportConflictResponse, ImportSuccessResponse, ResolutionStrategy,
+    ConflictResolutionRequest, ExportRequest, ImportConflictResponse, ImportSuccessResponse,
+    ResolutionStrategy,
 };
 use arche_types::generate::{AffixConstraints, ConstraintValue, GenerateRequest, GenerateResponse};
 use clap::Parser;
@@ -20,6 +21,7 @@ use reqwest::Response;
 use std::collections::{HashMap, HashSet};
 use std::process::ExitCode;
 use std::str::FromStr;
+use uuid::Uuid;
 
 fn main() -> ExitCode {
     let cli = Cli::parse();
@@ -194,8 +196,77 @@ fn build_generate_request(args: &cli::GenerateArgs) -> Result<GenerateRequest, C
     })
 }
 
-fn cmd_export(_args: &cli::ExportArgs, _config: &Config) -> Result<(), CliError> {
-    Err(CliError::Generic("Not yet implemented".into()))
+fn cmd_export(args: &cli::ExportArgs, config: &Config) -> Result<(), CliError> {
+    let client_ids: Vec<Uuid> = if let Some(clients_str) = &args.clients {
+        if clients_str.trim().is_empty() {
+            Vec::new()
+        } else {
+            clients_str
+                .split(',')
+                .map(|s| {
+                    let s = s.trim();
+                    Uuid::parse_str(s)
+                        .map_err(|e| CliError::Args(format!("Invalid client UUID '{s}': {e}")))
+                })
+                .collect::<Result<Vec<_>, _>>()?
+        }
+    } else {
+        Vec::new()
+    };
+
+    let req = ExportRequest {
+        client_ids,
+        include_api_keys: args.include_api_keys,
+        include_audit_log: args.include_audit_log,
+        inline_global_refs: args.inline_refs,
+    };
+
+    let url = format!("{}/api/export", config.api_url);
+    print_verbose(&format!("Request: POST {url}"), config.verbose);
+    if config.verbose {
+        if let Ok(body) = serde_json::to_string(&req) {
+            print_verbose(&format!("Request body: {body}"), config.verbose);
+        }
+    }
+
+    let client = client::build_client(config);
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let response = rt
+        .block_on(client.post(&url).json(&req).send())
+        .map_err(|e| CliError::Generic(format!("Failed to connect to API: {e}")))?;
+
+    let status = response.status();
+    print_verbose(
+        &format!(
+            "Response: {} {}",
+            status.as_u16(),
+            status.canonical_reason().unwrap_or("")
+        ),
+        config.verbose,
+    );
+
+    if !status.is_success() {
+        return Err(api_error_from_response(response, &rt));
+    }
+
+    let data = rt
+        .block_on(response.bytes())
+        .map_err(|e| CliError::Generic(format!("Failed to read response: {e}")))?;
+
+    if let Some(path) = &args.output {
+        output::write_binary(&data, Some(path))
+            .map_err(|e| CliError::Generic(format!("Failed to write export file '{path}': {e}")))?;
+        if !config.quiet {
+            let size = data.len();
+            println!("Export saved to {path} ({size} bytes)");
+        }
+    } else {
+        output::write_binary(&data, None)
+            .map_err(|e| CliError::Generic(format!("Failed to write to stdout: {e}")))?;
+    }
+
+    Ok(())
 }
 
 fn cmd_import(args: &cli::ImportArgs, config: &Config) -> Result<(), CliError> {
@@ -1956,6 +2027,449 @@ mod import_tests {
             }
             _ => panic!("expected Args error, got {:?}", result),
         }
+    }
+}
+
+#[cfg(test)]
+mod export_tests {
+    use super::*;
+    use wiremock::matchers::{method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    fn make_config(api_url: &str, quiet: bool, verbose: bool) -> Config {
+        Config {
+            api_url: api_url.to_string(),
+            api_key: None,
+            verbose,
+            quiet,
+        }
+    }
+
+    fn make_export_args(
+        output: Option<&str>,
+        clients: Option<&str>,
+        include_api_keys: bool,
+        include_audit_log: bool,
+        inline_refs: bool,
+    ) -> cli::ExportArgs {
+        cli::ExportArgs {
+            output: output.map(|s| s.to_string()),
+            clients: clients.map(|s| s.to_string()),
+            include_api_keys,
+            include_audit_log,
+            inline_refs,
+        }
+    }
+
+    async fn run_export(args: cli::ExportArgs, config: Config) -> Result<(), CliError> {
+        tokio::task::spawn_blocking(move || cmd_export(&args, &config))
+            .await
+            .unwrap()
+    }
+
+    fn write_temp_output(name: &str) -> std::path::PathBuf {
+        std::env::temp_dir().join(name)
+    }
+
+    #[tokio::test]
+    async fn test_export_no_flags_writes_to_stdout() {
+        let mock_server = MockServer::start().await;
+        let uri = mock_server.uri();
+
+        Mock::given(method("POST"))
+            .and(path("/api/export"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_raw(b"PK\x03\x04fake-zip-content", "application/zip"),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let config = make_config(&uri, false, false);
+        let args = make_export_args(None, None, false, false, false);
+        let result = run_export(args, config).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_export_to_file_writes_zip() {
+        let mock_server = MockServer::start().await;
+        let uri = mock_server.uri();
+
+        Mock::given(method("POST"))
+            .and(path("/api/export"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_raw(b"PK\x03\x04fake-zip-content", "application/zip"),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let output_path = write_temp_output("test_export_to_file.zip");
+        let path_str = output_path.to_str().unwrap();
+
+        let config = make_config(&uri, false, false);
+        let args = make_export_args(Some(path_str), None, false, false, false);
+        let result = run_export(args, config).await;
+        assert!(result.is_ok());
+
+        let written = std::fs::read(output_path).unwrap();
+        assert_eq!(written, b"PK\x03\x04fake-zip-content");
+
+        std::fs::remove_file(path_str).ok();
+    }
+
+    #[tokio::test]
+    async fn test_export_with_clients_filter() {
+        let mock_server = MockServer::start().await;
+        let uri = mock_server.uri();
+
+        Mock::given(method("POST"))
+            .and(path("/api/export"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_raw(b"client-filtered-zip", "application/zip"),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let config = make_config(&uri, false, false);
+        let args = make_export_args(
+            None,
+            Some("00000000-0000-0000-0000-000000000001,00000000-0000-0000-0000-000000000002"),
+            false,
+            false,
+            false,
+        );
+        let result = run_export(args, config).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_export_invalid_client_uuid_returns_args_error() {
+        let config = make_config("http://localhost:1", false, false);
+        let args = make_export_args(None, Some("not-a-valid-uuid"), false, false, false);
+        let result = run_export(args, config).await;
+        assert!(result.is_err());
+        match &result {
+            Err(CliError::Args(msg)) => {
+                assert!(msg.contains("Invalid client UUID"), "expected UUID parse error, got: {msg}");
+                assert_eq!(CliError::Args(msg.clone()).exit_code(), 2);
+            }
+            _ => panic!("expected Args error, got {:?}", result),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_export_with_include_api_keys() {
+        let mock_server = MockServer::start().await;
+        let uri = mock_server.uri();
+
+        Mock::given(method("POST"))
+            .and(path("/api/export"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_raw(b"zip-with-keys", "application/zip"),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let config = make_config(&uri, false, false);
+        let args = make_export_args(None, None, true, false, false);
+        let result = run_export(args, config).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_export_with_include_audit_log() {
+        let mock_server = MockServer::start().await;
+        let uri = mock_server.uri();
+
+        Mock::given(method("POST"))
+            .and(path("/api/export"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_raw(b"zip-with-audit-log", "application/zip"),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let config = make_config(&uri, false, false);
+        let args = make_export_args(None, None, false, true, false);
+        let result = run_export(args, config).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_export_with_inline_refs() {
+        let mock_server = MockServer::start().await;
+        let uri = mock_server.uri();
+
+        Mock::given(method("POST"))
+            .and(path("/api/export"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_raw(b"zip-with-inline-refs", "application/zip"),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let config = make_config(&uri, false, false);
+        let args = make_export_args(None, None, false, false, true);
+        let result = run_export(args, config).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_export_all_flags_together() {
+        let mock_server = MockServer::start().await;
+        let uri = mock_server.uri();
+
+        Mock::given(method("POST"))
+            .and(path("/api/export"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_raw(b"all-flags-zip", "application/zip"),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let output_path = write_temp_output("test_all_flags.zip");
+        let path_str = output_path.to_str().unwrap();
+
+        let config = make_config(&uri, false, false);
+        let args = make_export_args(
+            Some(path_str),
+            Some("00000000-0000-0000-0000-000000000001"),
+            true,
+            true,
+            true,
+        );
+        let result = run_export(args, config).await;
+        assert!(result.is_ok());
+
+        let written = std::fs::read(&output_path).unwrap();
+        assert_eq!(written, b"all-flags-zip");
+
+        std::fs::remove_file(path_str).ok();
+    }
+
+    #[tokio::test]
+    async fn test_export_quiet_mode_suppresses_output() {
+        let mock_server = MockServer::start().await;
+        let uri = mock_server.uri();
+
+        Mock::given(method("POST"))
+            .and(path("/api/export"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_raw(b"quiet-zip", "application/zip"),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let output_path = write_temp_output("test_quiet_export.zip");
+        let path_str = output_path.to_str().unwrap();
+
+        let config = make_config(&uri, true, false);
+        let args = make_export_args(Some(path_str), None, false, false, false);
+        let result = run_export(args, config).await;
+        assert!(result.is_ok());
+
+        std::fs::remove_file(path_str).ok();
+    }
+
+    #[tokio::test]
+    async fn test_export_verbose_shows_request_details() {
+        let mock_server = MockServer::start().await;
+        let uri = mock_server.uri();
+
+        Mock::given(method("POST"))
+            .and(path("/api/export"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_raw(b"verbose-zip", "application/zip"),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let config = make_config(&uri, false, true);
+        let args = make_export_args(None, None, false, false, false);
+        let result = run_export(args, config).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_export_server_error_returns_api_error() {
+        let mock_server = MockServer::start().await;
+        let uri = mock_server.uri();
+
+        Mock::given(method("POST"))
+            .and(path("/api/export"))
+            .respond_with(
+                ResponseTemplate::new(500).set_body_json(serde_json::json!({
+                    "type": "/errors/internal-error",
+                    "title": "Internal Server Error",
+                    "status": 500,
+                    "detail": "Something broke"
+                })),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let config = make_config(&uri, false, false);
+        let args = make_export_args(None, None, false, false, false);
+        let result = run_export(args, config).await;
+        assert!(result.is_err());
+        match &result {
+            Err(CliError::Api(problem)) => {
+                assert_eq!(problem.status, 500);
+                assert_eq!(problem.detail, Some("Something broke".into()));
+            }
+            _ => panic!("expected Api error, got {:?}", result),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_export_permission_denied_returns_api_error() {
+        let mock_server = MockServer::start().await;
+        let uri = mock_server.uri();
+
+        Mock::given(method("POST"))
+            .and(path("/api/export"))
+            .respond_with(
+                ResponseTemplate::new(403).set_body_json(serde_json::json!({
+                    "type": "/errors/forbidden",
+                    "title": "Forbidden",
+                    "status": 403,
+                    "detail": "Super admin required"
+                })),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let config = make_config(&uri, false, false);
+        let args = make_export_args(None, None, false, false, false);
+        let result = run_export(args, config).await;
+        assert!(result.is_err());
+        match &result {
+            Err(CliError::Api(problem)) => {
+                assert_eq!(problem.status, 403);
+                assert_eq!(problem.detail, Some("Super admin required".into()));
+            }
+            _ => panic!("expected Api error, got {:?}", result),
+        }
+    }
+
+    #[test]
+    fn test_export_connection_refused_returns_generic_error() {
+        let config = make_config("http://127.0.0.1:1", false, false);
+        let args = make_export_args(None, None, false, false, false);
+        let result = cmd_export(&args, &config);
+        assert!(result.is_err());
+        match &result {
+            Err(CliError::Generic(msg)) => {
+                assert!(
+                    msg.contains("Failed to connect"),
+                    "expected connect error, got: {msg}"
+                );
+            }
+            _ => panic!("expected Generic error, got {:?}", result),
+        }
+    }
+
+    #[test]
+    fn test_export_write_to_invalid_path_returns_generic_error() {
+        let args = make_export_args(
+            Some("/nonexistent/dir/should/fail/export.zip"),
+            None,
+            false,
+            false,
+            false,
+        );
+        let config = make_config("http://127.0.0.1:1", false, false);
+        let result = cmd_export(&args, &config);
+        assert!(result.is_err());
+        match &result {
+            Err(CliError::Generic(msg)) => {
+                assert!(
+                    msg.contains("Failed to connect"),
+                    "expected connect error, got: {msg}"
+                );
+            }
+            _ => panic!("expected Generic error, got {:?}", result),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_export_empty_clients_string_means_all() {
+        let mock_server = MockServer::start().await;
+        let uri = mock_server.uri();
+
+        Mock::given(method("POST"))
+            .and(path("/api/export"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_raw(b"all-clients-zip", "application/zip"),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let config = make_config(&uri, false, false);
+        let args = make_export_args(None, Some(""), false, false, false);
+        let result = run_export(args, config).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_export_single_client_uuid() {
+        let mock_server = MockServer::start().await;
+        let uri = mock_server.uri();
+
+        Mock::given(method("POST"))
+            .and(path("/api/export"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_raw(b"single-client-zip", "application/zip"),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let config = make_config(&uri, false, false);
+        let args = make_export_args(
+            None,
+            Some("00000000-0000-0000-0000-000000000001"),
+            false,
+            false,
+            false,
+        );
+        let result = run_export(args, config).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_export_output_to_file_quiet_suppresses_success_message() {
+        let mock_server = MockServer::start().await;
+        let uri = mock_server.uri();
+
+        Mock::given(method("POST"))
+            .and(path("/api/export"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_raw(b"quiet-file-zip", "application/zip"),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let output_path = write_temp_output("test_quiet_file_export.zip");
+        let path_str = output_path.to_str().unwrap();
+
+        let config = make_config(&uri, true, false);
+        let args = make_export_args(Some(path_str), None, false, false, false);
+        let result = run_export(args, config).await;
+        assert!(result.is_ok());
+
+        std::fs::remove_file(path_str).ok();
     }
 }
 

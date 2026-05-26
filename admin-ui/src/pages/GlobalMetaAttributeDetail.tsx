@@ -19,6 +19,7 @@ import {
 import type {
   GlobalMetaAttribute,
   AuditLogEntry,
+  UpdateGlobalMetaAttributeRequest,
 } from '@/api/generated/types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -32,6 +33,14 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useToast } from '@/hooks/use-toast'
 
@@ -156,6 +165,57 @@ function DetailSkeleton() {
   )
 }
 
+function extractPayloadState(gma: GlobalMetaAttribute) {
+  const p = gma.payload
+  let singleValue = ''
+  let enumValues = ''
+  let rangeMin = ''
+  let rangeMax = ''
+  let strMinLen = ''
+  let strMaxLen = ''
+  let boolVal = false
+  let useDist = false
+  let distType: 'uniform' | 'normal' | 'exponential' = 'uniform'
+  let distStdDev = ''
+  let distRate = ''
+
+  switch (gma.valueType) {
+    case 'single':
+      singleValue = p.value != null ? String(p.value) : ''
+      break
+    case 'enum':
+      enumValues = ((p.values as string[] | undefined) ?? []).join(', ')
+      break
+    case 'range':
+      rangeMin = p.min != null ? String(p.min) : ''
+      rangeMax = p.max != null ? String(p.max) : ''
+      break
+    case 'string':
+      strMinLen = p.minLength != null ? String(p.minLength) : ''
+      strMaxLen = p.maxLength != null ? String(p.maxLength) : ''
+      break
+    case 'boolean':
+      boolVal = p.value === true
+      break
+  }
+
+  const dist = p.distribution as { type?: string; stdDev?: number; rate?: number } | undefined
+  if (dist && (gma.valueType === 'single' || gma.valueType === 'range')) {
+    useDist = true
+    if (dist.type === 'normal' || dist.type === 'exponential') {
+      distType = dist.type as 'normal' | 'exponential'
+    }
+    if (dist.type === 'normal' && dist.stdDev != null) {
+      distStdDev = String(dist.stdDev)
+    }
+    if (dist.type === 'exponential' && dist.rate != null) {
+      distRate = String(dist.rate)
+    }
+  }
+
+  return { singleValue, enumValues, rangeMin, rangeMax, strMinLen, strMaxLen, boolVal, useDist, distType, distStdDev, distRate }
+}
+
 function EditGlobalMetaAttributeDialog({
   gma,
   open,
@@ -168,20 +228,117 @@ function EditGlobalMetaAttributeDialog({
   const { toast } = useToast()
   const updateMutation = useUpdateGlobalMetaAttribute()
 
+  const valueType = gma?.valueType ?? 'single'
+  const payloadState = gma ? extractPayloadState(gma) : null
+
   const [name, setName] = useState(gma?.name ?? '')
   const [description, setDescription] = useState(gma?.description ?? '')
+  const [singleValue, setSingleValue] = useState(payloadState?.singleValue ?? '')
+  const [enumValues, setEnumValues] = useState(payloadState?.enumValues ?? '')
+  const [rangeMin, setRangeMin] = useState(payloadState?.rangeMin ?? '')
+  const [rangeMax, setRangeMax] = useState(payloadState?.rangeMax ?? '')
+  const [strMinLen, setStrMinLen] = useState(payloadState?.strMinLen ?? '')
+  const [strMaxLen, setStrMaxLen] = useState(payloadState?.strMaxLen ?? '')
+  const [boolVal, setBoolVal] = useState(payloadState?.boolVal ?? false)
+  const [useDist, setUseDist] = useState(payloadState?.useDist ?? false)
+  const [distType, setDistType] = useState<'uniform' | 'normal' | 'exponential'>(payloadState?.distType ?? 'uniform')
+  const [distStdDev, setDistStdDev] = useState(payloadState?.distStdDev ?? '')
+  const [distRate, setDistRate] = useState(payloadState?.distRate ?? '')
+
+  function buildDistribution(): { type: string; stdDev?: number; rate?: number } | null {
+    if (distType === 'uniform') return { type: 'uniform' }
+    if (distType === 'normal') {
+      const sd = parseFloat(distStdDev)
+      if (isNaN(sd) || sd <= 0) return null
+      return { type: 'normal', stdDev: sd }
+    }
+    const rate = parseFloat(distRate)
+    if (isNaN(rate) || rate <= 0) return null
+    return { type: 'exponential', rate }
+  }
+
+  function buildRequest(): UpdateGlobalMetaAttributeRequest | null {
+    if (!gma || !name.trim()) return null
+
+    switch (valueType) {
+      case 'single': {
+        const val = parseFloat(singleValue)
+        if (isNaN(val)) return null
+        const req: Record<string, unknown> = {
+          name: name.trim(),
+          description: description.trim() || null,
+          valueType: 'single',
+          value: val,
+        }
+        if (useDist) {
+          const dist = buildDistribution()
+          if (!dist) return null
+          req.distribution = dist
+        }
+        return req as UpdateGlobalMetaAttributeRequest
+      }
+      case 'enum': {
+        const vals = enumValues.split(',').map((v) => v.trim()).filter(Boolean)
+        if (vals.length === 0) return null
+        return {
+          name: name.trim(),
+          description: description.trim() || null,
+          valueType: 'enum',
+          values: vals,
+        }
+      }
+      case 'range': {
+        const min = parseFloat(rangeMin)
+        const max = parseFloat(rangeMax)
+        if (isNaN(min) || isNaN(max) || min > max) return null
+        const req: Record<string, unknown> = {
+          name: name.trim(),
+          description: description.trim() || null,
+          valueType: 'range',
+          min,
+          max,
+        }
+        if (useDist) {
+          const dist = buildDistribution()
+          if (!dist) return null
+          req.distribution = dist
+        }
+        return req as UpdateGlobalMetaAttributeRequest
+      }
+      case 'string': {
+        const minL = strMinLen ? parseInt(strMinLen, 10) : undefined
+        const maxL = strMaxLen ? parseInt(strMaxLen, 10) : undefined
+        if (minL !== undefined && isNaN(minL)) return null
+        if (maxL !== undefined && isNaN(maxL)) return null
+        return {
+          name: name.trim(),
+          description: description.trim() || null,
+          valueType: 'string',
+          ...(minL !== undefined ? { minLength: minL } : {}),
+          ...(maxL !== undefined ? { maxLength: maxL } : {}),
+        }
+      }
+      case 'boolean':
+        return {
+          name: name.trim(),
+          description: description.trim() || null,
+          valueType: 'boolean',
+          value: boolVal,
+        }
+      default:
+        return null
+    }
+  }
+
+  const request = buildRequest()
+  const canSubmit = request !== null
 
   const handleSubmit = async () => {
-    if (!gma || !name.trim()) return
+    if (!gma || !request) return
     try {
       await updateMutation.mutateAsync({
         id: gma.id,
-        request: {
-          name: name.trim(),
-          description: description.trim() || null,
-          valueType: gma.valueType,
-          ...gma.payload,
-        } as Parameters<typeof updateMutation.mutateAsync>[0]['request'],
+        request,
       })
       toast({ title: 'Global meta attribute updated' })
       onOpenChange(false)
@@ -192,7 +349,7 @@ function EditGlobalMetaAttributeDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit Global Meta Attribute</DialogTitle>
         </DialogHeader>
@@ -219,15 +376,203 @@ function EditGlobalMetaAttributeDialog({
               placeholder="Optional description"
             />
           </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Value Type</label>
+            <div className="flex h-9 items-center rounded-md border border-input bg-muted px-3 py-1 text-sm">
+              <Badge variant="outline">{valueType}</Badge>
+            </div>
+          </div>
+
+          {valueType === 'single' && (
+            <div className="space-y-2">
+              <label htmlFor="edit-gma-value" className="text-sm font-medium">
+                Value
+              </label>
+              <Input
+                id="edit-gma-value"
+                type="number"
+                value={singleValue}
+                onChange={(e) => setSingleValue(e.target.value)}
+                placeholder="0"
+              />
+            </div>
+          )}
+
+          {valueType === 'enum' && (
+            <div className="space-y-2">
+              <label htmlFor="edit-gma-values" className="text-sm font-medium">
+                Values (comma-separated)
+              </label>
+              <Input
+                id="edit-gma-values"
+                value={enumValues}
+                onChange={(e) => setEnumValues(e.target.value)}
+                placeholder="fire, ice, lightning"
+              />
+            </div>
+          )}
+
+          {valueType === 'range' && (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <label htmlFor="edit-gma-min" className="text-sm font-medium">
+                  Min
+                </label>
+                <Input
+                  id="edit-gma-min"
+                  type="number"
+                  value={rangeMin}
+                  onChange={(e) => setRangeMin(e.target.value)}
+                  placeholder="0"
+                />
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="edit-gma-max" className="text-sm font-medium">
+                  Max
+                </label>
+                <Input
+                  id="edit-gma-max"
+                  type="number"
+                  value={rangeMax}
+                  onChange={(e) => setRangeMax(e.target.value)}
+                  placeholder="100"
+                />
+              </div>
+            </div>
+          )}
+
+          {valueType === 'string' && (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <label htmlFor="edit-gma-minlen" className="text-sm font-medium">
+                  Min Length
+                </label>
+                <Input
+                  id="edit-gma-minlen"
+                  type="number"
+                  value={strMinLen}
+                  onChange={(e) => setStrMinLen(e.target.value)}
+                  placeholder="0"
+                />
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="edit-gma-maxlen" className="text-sm font-medium">
+                  Max Length
+                </label>
+                <Input
+                  id="edit-gma-maxlen"
+                  type="number"
+                  value={strMaxLen}
+                  onChange={(e) => setStrMaxLen(e.target.value)}
+                  placeholder="100"
+                />
+              </div>
+            </div>
+          )}
+
+          {valueType === 'boolean' && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium block">Value</label>
+              <div className="flex items-center gap-3">
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="radio"
+                    name="edit-bool-val"
+                    checked={boolVal}
+                    onChange={() => setBoolVal(true)}
+                    className="h-4 w-4"
+                  />
+                  True
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="radio"
+                    name="edit-bool-val"
+                    checked={!boolVal}
+                    onChange={() => setBoolVal(false)}
+                    className="h-4 w-4"
+                  />
+                  False
+                </label>
+              </div>
+            </div>
+          )}
+
+          {(valueType === 'single' || valueType === 'range') && (
+            <div className="space-y-3 border rounded-md p-3">
+              <label className="flex items-center gap-2 text-sm font-medium">
+                <input
+                  type="checkbox"
+                  checked={useDist}
+                  onChange={(e) => setUseDist(e.target.checked)}
+                  className="rounded"
+                />
+                Enable Distribution
+              </label>
+              {useDist && (
+                <>
+                  <div className="space-y-2">
+                    <label htmlFor="edit-dist-type" className="text-sm font-medium">
+                      Distribution Type
+                    </label>
+                    <select
+                      id="edit-dist-type"
+                      value={distType}
+                      onChange={(e) =>
+                        setDistType(e.target.value as 'uniform' | 'normal' | 'exponential')
+                      }
+                      className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    >
+                      <option value="uniform">Uniform</option>
+                      <option value="normal">Normal</option>
+                      <option value="exponential">Exponential</option>
+                    </select>
+                  </div>
+                  {distType === 'normal' && (
+                    <div className="space-y-2">
+                      <label htmlFor="edit-dist-stddev" className="text-sm font-medium">
+                        Std Dev
+                      </label>
+                      <Input
+                        id="edit-dist-stddev"
+                        type="number"
+                        step="0.01"
+                        value={distStdDev}
+                        onChange={(e) => setDistStdDev(e.target.value)}
+                        placeholder="1.0"
+                      />
+                    </div>
+                  )}
+                  {distType === 'exponential' && (
+                    <div className="space-y-2">
+                      <label htmlFor="edit-dist-rate" className="text-sm font-medium">
+                        Rate
+                      </label>
+                      <Input
+                        id="edit-dist-rate"
+                        type="number"
+                        step="0.01"
+                        value={distRate}
+                        onChange={(e) => setDistRate(e.target.value)}
+                        placeholder="1.0"
+                      />
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={updateMutation.isPending}
+          >
             Cancel
           </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={!name.trim() || updateMutation.isPending}
-          >
+          <Button onClick={handleSubmit} disabled={!canSubmit || updateMutation.isPending}>
             {updateMutation.isPending ? 'Saving...' : 'Save'}
           </Button>
         </DialogFooter>
@@ -460,30 +805,39 @@ export default function GlobalMetaAttributeDetail() {
                   or affixes
                 </p>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-6">
                   {referencedBy.blueprints.length > 0 && (
                     <div>
                       <p className="text-sm font-medium mb-2">
                         Blueprints ({referencedBy.blueprints.length})
                       </p>
-                      <div className="space-y-1">
-                        {referencedBy.blueprints.map((bp) => (
-                          <div
-                            key={`${bp.id}-${bp.key}`}
-                            className="flex items-center gap-2 text-sm"
-                          >
-                            <Link
-                              to={`/blueprints/${bp.id}`}
-                              className="text-primary hover:underline"
-                            >
-                              {bp.name}
-                            </Link>
-                            <Badge variant="secondary" className="text-xs font-mono">
-                              {bp.key}
-                            </Badge>
-                          </div>
-                        ))}
-                      </div>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Name</TableHead>
+                            <TableHead className="w-24">Key</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {referencedBy.blueprints.map((bp) => (
+                            <TableRow key={`${bp.id}-${bp.key}`}>
+                              <TableCell>
+                                <Link
+                                  to={`/blueprints/${bp.id}`}
+                                  className="text-primary hover:underline"
+                                >
+                                  {bp.name}
+                                </Link>
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="secondary" className="text-xs font-mono">
+                                  {bp.key}
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
                     </div>
                   )}
                   {referencedBy.affixes.length > 0 && (
@@ -491,18 +845,27 @@ export default function GlobalMetaAttributeDetail() {
                       <p className="text-sm font-medium mb-2">
                         Affixes ({referencedBy.affixes.length})
                       </p>
-                      <div className="space-y-1">
-                        {referencedBy.affixes.map((aff) => (
-                          <div key={aff.id} className="flex items-center gap-2 text-sm">
-                            <Link
-                              to={`/affixes/${aff.id}`}
-                              className="text-primary hover:underline"
-                            >
-                              {aff.name}
-                            </Link>
-                          </div>
-                        ))}
-                      </div>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Name</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {referencedBy.affixes.map((aff) => (
+                            <TableRow key={aff.id}>
+                              <TableCell>
+                                <Link
+                                  to={`/affixes/${aff.id}`}
+                                  className="text-primary hover:underline"
+                                >
+                                  {aff.name}
+                                </Link>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
                     </div>
                   )}
                 </div>

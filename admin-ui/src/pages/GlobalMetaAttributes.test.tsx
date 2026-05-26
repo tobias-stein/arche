@@ -219,6 +219,81 @@ describe('GlobalMetaAttributes list page', () => {
     expect(screen.getByText('Edit Global Meta Attribute')).toBeInTheDocument()
   })
 
+  it('edit dialog shows value type badge and pre-filled fields for single type', async () => {
+    renderPage()
+    const user = userEvent.setup()
+
+    const desktopEdit = screen.getAllByLabelText('Edit Damage')[0]!
+    await user.click(desktopEdit)
+
+    const dialog = screen.getByRole('dialog')
+    const withinDialog = within(dialog)
+
+    expect(withinDialog.getByText('single')).toBeInTheDocument()
+    expect(withinDialog.getByLabelText('Value')).toHaveValue(10)
+  })
+
+  it('edit dialog shows pre-filled fields for range type with min/max', async () => {
+    renderPage()
+    const user = userEvent.setup()
+
+    const desktopEdit = screen.getAllByLabelText('Edit Durability')[0]!
+    await user.click(desktopEdit)
+
+    const dialog = screen.getByRole('dialog')
+    const withinDialog = within(dialog)
+
+    // Value type shown as badge in read-only display
+    expect(withinDialog.getByText('range')).toBeInTheDocument()
+    expect(withinDialog.getByLabelText('Min')).toHaveValue(50)
+    expect(withinDialog.getByLabelText('Max')).toHaveValue(200)
+  })
+
+  it('edit dialog shows pre-filled comma-separated values for enum type', async () => {
+    renderPage()
+    const user = userEvent.setup()
+
+    const desktopEdit = screen.getAllByLabelText('Edit Element')[0]!
+    await user.click(desktopEdit)
+
+    const dialog = screen.getByRole('dialog')
+    const withinDialog = within(dialog)
+
+    expect(withinDialog.getByText('enum')).toBeInTheDocument()
+    expect(withinDialog.getByLabelText('Values (comma-separated)')).toHaveValue('Fire, Ice, Lightning')
+  })
+
+  it('edit dialog shows pre-filled fields for string type', async () => {
+    renderPage()
+    const user = userEvent.setup()
+
+    const desktopEdit = screen.getAllByLabelText('Edit Lore')[0]!
+    await user.click(desktopEdit)
+
+    const dialog = screen.getByRole('dialog')
+    const withinDialog = within(dialog)
+
+    expect(withinDialog.getByText('string')).toBeInTheDocument()
+    expect(withinDialog.getByLabelText('Min Length')).toHaveValue(10)
+    expect(withinDialog.getByLabelText('Max Length')).toHaveValue(200)
+  })
+
+  it('edit dialog shows pre-filled boolean radio buttons', async () => {
+    renderPage()
+    const user = userEvent.setup()
+
+    const desktopEdit = screen.getAllByLabelText('Edit IsMagical')[0]!
+    await user.click(desktopEdit)
+
+    const dialog = screen.getByRole('dialog')
+    const withinDialog = within(dialog)
+
+    expect(withinDialog.getByText('boolean')).toBeInTheDocument()
+    // The "False" radio should be checked since IsMagical.value is false
+    const falseRadio = withinDialog.getByLabelText('False') as HTMLInputElement
+    expect(falseRadio.checked).toBe(true)
+  })
+
   it('opens delete confirmation when a desktop delete button is clicked', async () => {
     renderPage()
     const user = userEvent.setup()

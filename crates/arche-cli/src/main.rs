@@ -446,16 +446,9 @@ fn resolve_interactively(
             ResolutionStrategy::PerAttribute => {
                 let mut attrs: HashMap<String, ResolutionStrategy> = HashMap::new();
                 for attr in &conflict.attributes {
-                    let attr_strategy = if let Some(s) = &apply_all_attr {
-                        if *s == ResolutionStrategy::PerAttribute {
-                            prompter
-                                .prompt_attribute(attr, &mut apply_all_attr)?
-                        } else {
-                            s.clone()
-                        }
-                    } else {
-                        prompter
-                            .prompt_attribute(attr, &mut apply_all_attr)?
+                    let attr_strategy = match &apply_all_attr {
+                        Some(s) if *s != ResolutionStrategy::PerAttribute => s.clone(),
+                        _ => prompter.prompt_attribute(attr, &mut apply_all_attr)?,
                     };
                     attrs.insert(attr.key.clone(), attr_strategy);
                 }
@@ -2398,16 +2391,6 @@ mod import_tests {
         let mock_server = MockServer::start().await;
         let uri = mock_server.uri();
 
-        let response = conflict_response();
-        Mock::given(method("POST"))
-            .and(path("/api/import"))
-            .respond_with(
-                ResponseTemplate::new(409)
-                    .set_body_json(serde_json::to_value(&response).unwrap()),
-            )
-            .mount(&mock_server)
-            .await;
-
         Mock::given(method("POST"))
             .and(path("/api/import/resolve"))
             .respond_with(
@@ -2441,16 +2424,6 @@ mod import_tests {
     async fn test_import_interactive_per_attribute_success() {
         let mock_server = MockServer::start().await;
         let uri = mock_server.uri();
-
-        let response = conflict_response();
-        Mock::given(method("POST"))
-            .and(path("/api/import"))
-            .respond_with(
-                ResponseTemplate::new(409)
-                    .set_body_json(serde_json::to_value(&response).unwrap()),
-            )
-            .mount(&mock_server)
-            .await;
 
         Mock::given(method("POST"))
             .and(path("/api/import/resolve"))
@@ -2487,16 +2460,6 @@ mod import_tests {
     async fn test_import_interactive_resolve_api_error() {
         let mock_server = MockServer::start().await;
         let uri = mock_server.uri();
-
-        let response = conflict_response();
-        Mock::given(method("POST"))
-            .and(path("/api/import"))
-            .respond_with(
-                ResponseTemplate::new(409)
-                    .set_body_json(serde_json::to_value(&response).unwrap()),
-            )
-            .mount(&mock_server)
-            .await;
 
         Mock::given(method("POST"))
             .and(path("/api/import/resolve"))

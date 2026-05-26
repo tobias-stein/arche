@@ -1,6 +1,6 @@
 ---
 title: Global meta attributes — create/edit modal & detail page
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

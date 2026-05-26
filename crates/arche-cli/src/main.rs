@@ -461,14 +461,7 @@ fn cmd_client_list(config: &Config) -> Result<(), CliError> {
         .write_client_list(&paginated.data)
         .map_err(|e| CliError::Generic(format!("Failed to write output: {e}")))?;
 
-    let stdout_content = writer.stdout().contents();
-    if !stdout_content.is_empty() {
-        print!("{stdout_content}");
-    }
-    let stderr_content = writer.stderr().contents();
-    if !stderr_content.is_empty() {
-        eprint!("{stderr_content}");
-    }
+    output::emit_output(&writer);
 
     Ok(())
 }
@@ -476,9 +469,7 @@ fn cmd_client_list(config: &Config) -> Result<(), CliError> {
 fn cmd_client_create(name: &str, config: &Config) -> Result<(), CliError> {
     let url = format!("{}/api/clients", config.api_url);
     print_verbose(&format!("Request: POST {url}"), config.verbose);
-    if config.verbose {
-        print_verbose(&format!("Request body: name={name}"), config.verbose);
-    }
+    print_verbose(&format!("Request body: name={name}"), config.verbose);
 
     let client = client::build_client(config);
     let rt = tokio::runtime::Runtime::new().unwrap();
@@ -518,14 +509,7 @@ fn cmd_client_create(name: &str, config: &Config) -> Result<(), CliError> {
         .write_client_created(&client_response)
         .map_err(|e| CliError::Generic(format!("Failed to write output: {e}")))?;
 
-    let stdout_content = writer.stdout().contents();
-    if !stdout_content.is_empty() {
-        print!("{stdout_content}");
-    }
-    let stderr_content = writer.stderr().contents();
-    if !stderr_content.is_empty() {
-        eprint!("{stderr_content}");
-    }
+    output::emit_output(&writer);
 
     Ok(())
 }
@@ -565,14 +549,7 @@ fn cmd_client_delete(client_id: &str, config: &Config) -> Result<(), CliError> {
         .write_client_deleted()
         .map_err(|e| CliError::Generic(format!("Failed to write output: {e}")))?;
 
-    let stdout_content = writer.stdout().contents();
-    if !stdout_content.is_empty() {
-        print!("{stdout_content}");
-    }
-    let stderr_content = writer.stderr().contents();
-    if !stderr_content.is_empty() {
-        eprint!("{stderr_content}");
-    }
+    output::emit_output(&writer);
 
     Ok(())
 }

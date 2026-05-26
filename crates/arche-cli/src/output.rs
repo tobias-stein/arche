@@ -379,6 +379,17 @@ pub fn print_verbose(msg: &str, verbose: bool) {
     }
 }
 
+pub fn emit_output(writer: &OutputWriter) {
+    let stdout_content = writer.stdout().contents();
+    if !stdout_content.is_empty() {
+        print!("{stdout_content}");
+    }
+    let stderr_content = writer.stderr().contents();
+    if !stderr_content.is_empty() {
+        eprint!("{stderr_content}");
+    }
+}
+
 pub fn write_binary(data: &[u8], path: Option<&str>) -> Result<(), std::io::Error> {
     if let Some(path) = path {
         std::fs::write(path, data)

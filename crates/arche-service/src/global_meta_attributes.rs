@@ -79,6 +79,36 @@ fn strip_value_type_from_payload(mut payload: serde_json::Value) -> serde_json::
     payload
 }
 
+fn prepare_and_validate_payload(
+    req: &CreateGlobalMetaAttributeRequest,
+) -> Result<(ValueType, &'static str, serde_json::Value), ProblemResponse> {
+    let value_type_str = value_type_from_payload(&req.payload);
+    let payload_json =
+        serde_json::to_value(&req.payload).map_err(|e| {
+            ProblemResponse::unprocessable_entity(format!("Invalid payload: {e}"))
+        })?;
+    let clean_payload = strip_value_type_from_payload(payload_json);
+
+    let value_type = value_type_from_pg(value_type_str).unwrap_or(ValueType::String);
+    let validation_errors =
+        arche_types::validation::validate_attribute_payload(&value_type, &clean_payload);
+    if !validation_errors.is_empty() {
+        let errors: Vec<FieldError> = validation_errors
+            .into_iter()
+            .map(|ve| FieldError {
+                path: format!("payload.{}", ve.path),
+                message: ve.message,
+            })
+            .collect();
+        return Err(ProblemResponse::validation_error(
+            "Global meta attribute validation failed",
+            errors,
+        ));
+    }
+
+    Ok((value_type, value_type_str, clean_payload))
+}
+
 pub async fn list_global_meta_attributes(
     State(state): State<crate::AppState>,
     CurrentUser(user): CurrentUser,
@@ -196,16 +226,7 @@ pub async fn get_global_meta_attribute(
 
     let gma = row_to_gma(&row);
 
-    if !user.is_super {
-        let user_cid = user.client_id.ok_or_else(|| {
-            ProblemResponse::forbidden("Access denied: key is not associated with any client")
-        })?;
-        if gma.client_id != user_cid {
-            return Err(ProblemResponse::forbidden(
-                "Access denied: key is scoped to a different client",
-            ));
-        }
-    }
+    user.require_client_access(gma.client_id)?;
 
     Ok(Json(gma))
 }
@@ -217,29 +238,7 @@ pub async fn create_global_meta_attribute(
 ) -> Result<Json<GlobalMetaAttribute>, ProblemResponse> {
     let client_id = resolve_client_id_for_write(&user)?;
 
-    let value_type_str = value_type_from_payload(&req.payload);
-    let payload_json =
-        serde_json::to_value(&req.payload).map_err(|e| {
-            ProblemResponse::unprocessable_entity(format!("Invalid payload: {e}"))
-        })?;
-    let clean_payload = strip_value_type_from_payload(payload_json);
-
-    let value_type = value_type_from_pg(value_type_str).unwrap_or(ValueType::String);
-    let validation_errors =
-        arche_types::validation::validate_attribute_payload(&value_type, &clean_payload);
-    if !validation_errors.is_empty() {
-        let errors: Vec<FieldError> = validation_errors
-            .into_iter()
-            .map(|ve| FieldError {
-                path: format!("payload.{}", ve.path),
-                message: ve.message,
-            })
-            .collect();
-        return Err(ProblemResponse::validation_error(
-            "Global meta attribute validation failed",
-            errors,
-        ));
-    }
+    let (value_type, value_type_str, clean_payload) = prepare_and_validate_payload(&req)?;
 
     let row = sqlx::query(
         "INSERT INTO global_meta_attributes (client_id, name, description, value_type, payload) \
@@ -309,42 +308,11 @@ pub async fn update_global_meta_attribute(
 
     let existing_gma = row_to_gma(&existing);
 
-    if !user.is_super {
-        let user_cid = user.client_id.ok_or_else(|| {
-            ProblemResponse::forbidden("Access denied: key is not associated with any client")
-        })?;
-        if existing_gma.client_id != user_cid {
-            return Err(ProblemResponse::forbidden(
-                "Access denied: key is scoped to a different client",
-            ));
-        }
-    }
+    user.require_client_access(existing_gma.client_id)?;
 
     let client_id = existing_gma.client_id;
 
-    let value_type_str = value_type_from_payload(&req.payload);
-    let payload_json =
-        serde_json::to_value(&req.payload).map_err(|e| {
-            ProblemResponse::unprocessable_entity(format!("Invalid payload: {e}"))
-        })?;
-    let clean_payload = strip_value_type_from_payload(payload_json);
-
-    let value_type = value_type_from_pg(value_type_str).unwrap_or(ValueType::String);
-    let validation_errors =
-        arche_types::validation::validate_attribute_payload(&value_type, &clean_payload);
-    if !validation_errors.is_empty() {
-        let errors: Vec<FieldError> = validation_errors
-            .into_iter()
-            .map(|ve| FieldError {
-                path: format!("payload.{}", ve.path),
-                message: ve.message,
-            })
-            .collect();
-        return Err(ProblemResponse::validation_error(
-            "Global meta attribute validation failed",
-            errors,
-        ));
-    }
+    let (value_type, value_type_str, clean_payload) = prepare_and_validate_payload(&req)?;
 
     let row = sqlx::query(
         "UPDATE global_meta_attributes \

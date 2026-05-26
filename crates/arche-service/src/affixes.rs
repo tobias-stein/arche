@@ -330,9 +330,41 @@ async fn validate_affix_attribute(
 pub async fn create_affix(
     State(state): State<crate::AppState>,
     CurrentUser(user): CurrentUser,
-    Json(req): Json<CreateAffixRequest>,
+    Json(body): Json<serde_json::Value>,
 ) -> Result<Json<Affix>, ProblemResponse> {
     let client_id = resolve_client_id_for_write(&user)?;
+
+    let attr_obj = body
+        .get("attribute")
+        .and_then(|v| v.as_object())
+        .ok_or_else(|| {
+            ProblemResponse::validation_error(
+                "attribute is required",
+                vec![FieldError {
+                    path: "attribute".into(),
+                    message: "attribute is required".into(),
+                }],
+            )
+        })?;
+
+    let has_ref_id = attr_obj.contains_key("$ref_id");
+    let has_inline = attr_obj.contains_key("name");
+    if has_ref_id && has_inline {
+        return Err(ProblemResponse::validation_error(
+            "affix attribute must be either an inline definition (with 'name') or a $ref_id reference, not both",
+            vec![FieldError {
+                path: "attribute".into(),
+                message: "attribute must be either an inline definition or a $ref_id reference, not both".into(),
+            }],
+        ));
+    }
+
+    let req: CreateAffixRequest = serde_json::from_value(body.clone()).map_err(|e| {
+        ProblemResponse::validation_error(
+            format!("Invalid request body: {e}"),
+            vec![],
+        )
+    })?;
 
     if req.name.is_empty() {
         return Err(ProblemResponse::validation_error(
@@ -397,6 +429,22 @@ pub async fn create_affix(
         updated_at: row.get("updated_at"),
     };
 
+    let after_snapshot = serde_json::to_value(&affix).unwrap_or_default();
+    if let Err(e) = record_audit(
+        &*state.pool,
+        &user,
+        Some(client_id),
+        "affix",
+        affix.id,
+        "created",
+        None,
+        Some(after_snapshot),
+    )
+    .await
+    {
+        tracing::error!(error = %e, "affixes: audit log insert failed");
+    }
+
     Ok(Json(affix))
 }
 
@@ -428,7 +476,7 @@ pub async fn update_affix(
     State(state): State<crate::AppState>,
     CurrentUser(user): CurrentUser,
     Path(id): Path<Uuid>,
-    Json(req): Json<CreateAffixRequest>,
+    Json(body): Json<serde_json::Value>,
 ) -> Result<Json<Affix>, ProblemResponse> {
     let existing = sqlx::query(&format!(
         "SELECT {AFFIX_COLUMNS} FROM affixes WHERE id = $1"
@@ -447,6 +495,27 @@ pub async fn update_affix(
     check_affix_access(&user, existing_affix.client_id, id)?;
 
     let client_id = existing_affix.client_id;
+
+    if let Some(attr_obj) = body.get("attribute").and_then(|v| v.as_object()) {
+        let has_ref_id = attr_obj.contains_key("$ref_id");
+        let has_inline = attr_obj.contains_key("name");
+        if has_ref_id && has_inline {
+            return Err(ProblemResponse::validation_error(
+                "affix attribute must be either an inline definition (with 'name') or a $ref_id reference, not both",
+                vec![FieldError {
+                    path: "attribute".into(),
+                    message: "attribute must be either an inline definition or a $ref_id reference, not both".into(),
+                }],
+            ));
+        }
+    }
+
+    let req: CreateAffixRequest = serde_json::from_value(body).map_err(|e| {
+        ProblemResponse::validation_error(
+            format!("Invalid request body: {e}"),
+            vec![],
+        )
+    })?;
 
     if req.name.is_empty() {
         return Err(ProblemResponse::validation_error(
@@ -512,6 +581,23 @@ pub async fn update_affix(
         created_at: row.get("created_at"),
         updated_at: row.get("updated_at"),
     };
+
+    let before_snapshot = serde_json::to_value(&existing_affix).unwrap_or_default();
+    let after_snapshot = serde_json::to_value(&affix).unwrap_or_default();
+    if let Err(e) = record_audit(
+        &*state.pool,
+        &user,
+        Some(client_id),
+        "affix",
+        affix.id,
+        "updated",
+        Some(before_snapshot),
+        Some(after_snapshot),
+    )
+    .await
+    {
+        tracing::error!(error = %e, "affixes: audit log insert failed");
+    }
 
     Ok(Json(affix))
 }
@@ -1324,7 +1410,7 @@ mod tests {
             let result = create_affix(
                 axum::extract::State(state),
                 user,
-                axum::Json(req),
+                axum::Json(serde_json::to_value(req).unwrap()),
             )
             .await;
 
@@ -1391,7 +1477,7 @@ mod tests {
             let result = create_affix(
                 axum::extract::State(state),
                 user,
-                axum::Json(req),
+                axum::Json(serde_json::to_value(req).unwrap()),
             )
             .await;
 
@@ -1441,7 +1527,7 @@ mod tests {
             let result = create_affix(
                 axum::extract::State(state),
                 user,
-                axum::Json(req),
+                axum::Json(serde_json::to_value(req).unwrap()),
             )
             .await;
 
@@ -1488,7 +1574,7 @@ mod tests {
             let result = create_affix(
                 axum::extract::State(state),
                 user,
-                axum::Json(req),
+                axum::Json(serde_json::to_value(req).unwrap()),
             )
             .await;
 
@@ -1534,7 +1620,7 @@ mod tests {
             let result = create_affix(
                 axum::extract::State(state),
                 user,
-                axum::Json(req),
+                axum::Json(serde_json::to_value(req).unwrap()),
             )
             .await;
 
@@ -1542,6 +1628,47 @@ mod tests {
             let err = result.unwrap_err();
             assert_eq!(err.status, 400);
             assert!(err.detail.unwrap().contains("name"));
+
+            sqlx::query("DELETE FROM clients WHERE id = $1")
+                .bind(client_id)
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+
+        #[tokio::test]
+        async fn test_create_affix_both_inline_and_ref_id_returns_400() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_id = create_test_client(&pool).await;
+
+            let state = test_state(Arc::new(pool.clone()));
+            let user = test_user(client_id, Permission::Write);
+
+            let body = json!({
+                "name": "Conflict",
+                "type": "prefix",
+                "attribute": {
+                    "name": "conflict_attr",
+                    "value_type": "single",
+                    "value": 1.0,
+                    "$ref_id": Uuid::new_v4().to_string()
+                }
+            });
+
+            let result = create_affix(
+                axum::extract::State(state),
+                user,
+                axum::Json(body),
+            )
+            .await;
+
+            assert!(result.is_err());
+            let err = result.unwrap_err();
+            assert_eq!(err.status, 400);
+            assert!(err.detail.unwrap().contains("not both"));
 
             sqlx::query("DELETE FROM clients WHERE id = $1")
                 .bind(client_id)
@@ -1581,7 +1708,7 @@ mod tests {
             let result = create_affix(
                 axum::extract::State(state),
                 user,
-                axum::Json(req),
+                axum::Json(serde_json::to_value(req).unwrap()),
             )
             .await;
 
@@ -1745,7 +1872,7 @@ mod tests {
                 axum::extract::State(state),
                 user,
                 axum::extract::Path(affix_id),
-                axum::Json(req),
+                axum::Json(serde_json::to_value(req).unwrap()),
             )
             .await;
 
@@ -1800,7 +1927,7 @@ mod tests {
                 axum::extract::State(state),
                 user,
                 axum::extract::Path(Uuid::new_v4()),
-                axum::Json(req),
+                axum::Json(serde_json::to_value(req).unwrap()),
             )
             .await;
 
@@ -1849,7 +1976,7 @@ mod tests {
                 axum::extract::State(state),
                 user,
                 axum::extract::Path(affix_a),
-                axum::Json(req),
+                axum::Json(serde_json::to_value(req).unwrap()),
             )
             .await;
 

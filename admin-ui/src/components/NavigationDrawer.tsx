@@ -125,7 +125,7 @@ export function NavigationDrawer() {
         className={cn(
           'fixed top-0 left-0 bottom-0 z-40 w-64 border-r bg-background flex flex-col transition-transform duration-300',
           drawerOpen ? 'translate-x-0' : '-translate-x-full',
-          'md:static md:top-auto md:left-auto md:bottom-auto md:z-auto md:transition-[width] md:shrink-0',
+          'md:relative md:top-auto md:left-auto md:bottom-auto md:z-10 md:transition-[width] md:shrink-0',
           drawerOpen ? 'md:w-64' : 'md:w-0 md:border-r-0 md:overflow-hidden',
         )}
       >

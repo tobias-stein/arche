@@ -879,7 +879,7 @@ mod tests {
     #[test]
     fn test_gma_list_query_deserialization() {
         let query: GlobalMetaAttributeListQuery =
-            serde_json::from_str(r#"{"value_type":"enum","search":"rarity","limit":10}"#).unwrap();
+            serde_json::from_str(r#"{"valueType":"enum","search":"rarity","limit":10}"#).unwrap();
         assert_eq!(query.value_type, Some("enum".into()));
         assert_eq!(query.search, Some("rarity".into()));
         assert_eq!(query.limit, Some(10));

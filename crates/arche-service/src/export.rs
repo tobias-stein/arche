@@ -589,7 +589,7 @@ mod tests {
         let gma_map: HashMap<Uuid, &GmaExport> =
             [(gma_id, &gma)].into();
 
-        let mut bp = BlueprintExport {
+        let bp = BlueprintExport {
             id: Uuid::new_v4(),
             name: "Sword".into(),
             archetype: "sword".into(),
@@ -606,9 +606,10 @@ mod tests {
             max_suffixes: 0,
         };
 
-        inline_blueprint_refs(&mut [bp], &gma_map);
+        let mut slice = [bp];
+        inline_blueprint_refs(&mut slice, &gma_map);
 
-        let attrs = bp.attributes.as_object().unwrap();
+        let attrs = slice[0].attributes.as_object().unwrap();
         let rarity = attrs.get("rarity").unwrap();
         assert!(rarity.get("$ref_id").is_none());
         assert_eq!(rarity.get("value_type").unwrap(), "enum");
@@ -621,7 +622,7 @@ mod tests {
     fn test_inline_blueprint_refs_preserves_when_not_in_map() {
         let gma_id = Uuid::new_v4();
         let ref_id = gma_id.to_string();
-        let mut bp = BlueprintExport {
+        let bp = BlueprintExport {
             id: Uuid::new_v4(),
             name: "Sword".into(),
             archetype: "sword".into(),
@@ -638,7 +639,7 @@ mod tests {
         };
 
         let empty_map: HashMap<Uuid, &GmaExport> = HashMap::new();
-        inline_blueprint_refs(&mut [bp], &empty_map);
+        inline_blueprint_refs(&mut [bp.clone()], &empty_map);
 
         let attrs = bp.attributes.as_object().unwrap();
         let rarity = attrs.get("rarity").unwrap();
@@ -658,7 +659,7 @@ mod tests {
         let gma_map: HashMap<Uuid, &GmaExport> =
             [(gma_id, &gma)].into();
 
-        let mut affix = AffixExport {
+        let affix = AffixExport {
             id: Uuid::new_v4(),
             name: "Fire".into(),
             affix_type: "prefix".into(),
@@ -666,9 +667,10 @@ mod tests {
             attribute: json!({"$ref_id": gma_id.to_string()}),
         };
 
-        inline_affix_refs(&mut [affix], &gma_map);
+        let mut slice = [affix];
+        inline_affix_refs(&mut slice, &gma_map);
 
-        let attr = &affix.attribute;
+        let attr = &slice[0].attribute;
         assert!(attr.get("$ref_id").is_none());
         assert_eq!(attr.get("name").unwrap(), "fire_damage");
         assert_eq!(attr.get("value_type").unwrap(), "range");
@@ -678,7 +680,7 @@ mod tests {
     #[test]
     fn test_inline_affix_refs_preserves_when_missing() {
         let gma_id = Uuid::new_v4();
-        let mut affix = AffixExport {
+        let affix = AffixExport {
             id: Uuid::new_v4(),
             name: "Ice".into(),
             affix_type: "prefix".into(),
@@ -687,9 +689,10 @@ mod tests {
         };
 
         let empty_map: HashMap<Uuid, &GmaExport> = HashMap::new();
-        inline_affix_refs(&mut [affix], &empty_map);
+        let mut slice = [affix];
+        inline_affix_refs(&mut slice, &empty_map);
 
-        let attr = &affix.attribute;
+        let attr = &slice[0].attribute;
         assert_eq!(
             attr.get("$ref_id").unwrap(),
             &json!(gma_id.to_string())
@@ -722,7 +725,6 @@ mod tests {
 
     mod db_tests {
         use super::*;
-        use arche_types::AffixLocation;
         use serde_json::json;
         use sqlx::PgPool;
         use std::sync::Arc;
@@ -850,15 +852,17 @@ mod tests {
                 format!("{}/blueprint_affixes.json", folder),
             ];
 
+            let archive_entries: Vec<String> = (0..archive.len())
+                .map(|i| archive.by_index(i).unwrap().name().to_string())
+                .collect();
+
             for expected in &expected_files {
                 let entry = archive.by_name(expected);
                 assert!(
                     entry.is_ok(),
                     "missing ZIP entry: {}, entries: {:?}",
                     expected,
-                    (0..archive.len())
-                        .map(|i| archive.by_index(i).unwrap().name().to_string())
-                        .collect::<Vec<_>>()
+                    archive_entries
                 );
             }
 

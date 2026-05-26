@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io::Cursor;
 use std::time::{Duration, Instant};
 
@@ -170,11 +170,10 @@ pub async fn import_parse_handler(
 
     for client_dir in &parsed {
         let client_import = build_client_import(client_dir)?;
+        validate_ref_ids(&client_import, &existing_cache)?;
         let conflicts =
             detect_client_conflicts(&client_import, &existing_cache).await?;
-        if !conflicts.is_empty() {
-            all_conflicts.extend(conflicts);
-        }
+        all_conflicts.extend(conflicts);
         client_imports.push(client_import);
     }
 
@@ -451,11 +450,22 @@ fn opt_string(value: &serde_json::Value) -> Option<String> {
     }
 }
 
-fn parse_zip(body: Bytes) -> Result<Vec<Vec<(String, Vec<u8>)>>, String> {
+pub(crate) fn parse_zip(body: Bytes) -> Result<Vec<Vec<(String, Vec<u8>)>>, String> {
     let cursor = Cursor::new(body.as_ref());
     let mut archive = ZipArchive::new(cursor).map_err(|e| format!("Failed to read ZIP: {}", e))?;
 
+    if archive.is_empty() {
+        return Err("ZIP archive is empty".into());
+    }
+
     let mut client_folders: HashMap<String, Vec<(String, Vec<u8>)>> = HashMap::new();
+    let expected_files: &[&str] = &[
+        "client.json",
+        "blueprints.json",
+        "affixes.json",
+        "global_meta_attributes.json",
+        "blueprint_affixes.json",
+    ];
 
     for i in 0..archive.len() {
         let mut file = archive.by_index(i).map_err(|e| format!("ZIP entry error: {}", e))?;
@@ -472,14 +482,34 @@ fn parse_zip(body: Bytes) -> Result<Vec<Vec<(String, Vec<u8>)>>, String> {
 
         let parts: Vec<&str> = name.splitn(2, '/').collect();
         if parts.len() != 2 {
-            continue;
+            return Err(format!(
+                "Invalid ZIP entry '{}': entries must be in folder-per-client format (e.g. 'client-<uuid>/client.json')",
+                name
+            ));
         }
 
         let folder_name = parts[0].to_string();
         let file_name = parts[1].to_string();
 
+        if !folder_name.starts_with("client-") {
+            return Err(format!(
+                "Invalid folder '{}': expected 'client-<uuid>' naming convention",
+                folder_name
+            ));
+        }
+
         if file_name.is_empty() {
             continue;
+        }
+
+        if !expected_files.contains(&file_name.as_str())
+            && file_name != "api-keys.json"
+            && file_name != "audit-log.json"
+        {
+            return Err(format!(
+                "Unexpected file '{}' in folder '{}'",
+                file_name, folder_name
+            ));
         }
 
         let mut contents = Vec::new();
@@ -496,10 +526,20 @@ fn parse_zip(body: Bytes) -> Result<Vec<Vec<(String, Vec<u8>)>>, String> {
         return Err("No client folders found in archive".into());
     }
 
+    for (folder_name, files) in &client_folders {
+        let file_names: Vec<&str> = files.iter().map(|(n, _)| n.as_str()).collect();
+        if !file_names.contains(&"client.json") {
+            return Err(format!(
+                "Folder '{}' is missing required file 'client.json'",
+                folder_name
+            ));
+        }
+    }
+
     Ok(client_folders.into_values().collect())
 }
 
-fn build_client_import(files: &[(String, Vec<u8>)]) -> Result<ClientImport, ProblemResponse> {
+pub(crate) fn build_client_import(files: &[(String, Vec<u8>)]) -> Result<ClientImport, ProblemResponse> {
     let mut client_id: Option<Uuid> = None;
     let mut client_name = String::new();
     let mut blueprints = Vec::new();
@@ -661,7 +701,65 @@ fn build_client_import(files: &[(String, Vec<u8>)]) -> Result<ClientImport, Prob
     })
 }
 
-async fn detect_client_conflicts(
+fn validate_ref_ids(import: &ClientImport, cache: &Cache) -> Result<(), ProblemResponse> {
+    let mut import_gma_ids: HashSet<Uuid> = import
+        .global_meta_attributes
+        .iter()
+        .map(|g| g.id)
+        .collect();
+
+    for bp in &import.blueprints {
+        if let Some(attrs) = bp.attributes.as_object() {
+            for (_key, value) in attrs {
+                if let Some(ref_id) = extract_ref_id(value) {
+                    if !import_gma_ids.contains(&ref_id)
+                        && !cache.global_meta_attributes.contains_key(&ref_id)
+                    {
+                        return Err(ProblemResponse::validation_error(
+                            format!(
+                                "Blueprint '{}' ({}): referenced global meta attribute '{}' not found in import or database",
+                                bp.name, bp.id, ref_id
+                            ),
+                            vec![],
+                        ));
+                    }
+                    import_gma_ids.insert(ref_id);
+                }
+            }
+        }
+    }
+
+    for a in &import.affixes {
+        if let Some(ref_id) = extract_ref_id(&a.attribute) {
+            if !import_gma_ids.contains(&ref_id)
+                && !cache.global_meta_attributes.contains_key(&ref_id)
+            {
+                return Err(ProblemResponse::validation_error(
+                    format!(
+                        "Affix '{}' ({}): referenced global meta attribute '{}' not found in import or database",
+                        a.name, a.id, ref_id
+                    ),
+                    vec![],
+                ));
+            }
+            import_gma_ids.insert(ref_id);
+        }
+    }
+
+    Ok(())
+}
+
+fn extract_ref_id(value: &serde_json::Value) -> Option<Uuid> {
+    let obj = value.as_object()?;
+    if obj.len() == 1 {
+        if let Some(ref_id_str) = obj.get("$ref_id")?.as_str() {
+            return Uuid::parse_str(ref_id_str).ok();
+        }
+    }
+    None
+}
+
+pub(crate) async fn detect_client_conflicts(
     import: &ClientImport,
     cache: &Cache,
 ) -> Result<Vec<ConflictDetail>, ProblemResponse> {
@@ -684,6 +782,33 @@ async fn detect_client_conflicts(
                     }],
                 };
                 if !conflicts.iter().any(|c: &ConflictDetail| c.resource_id == cid) {
+                    conflicts.push(detail);
+                }
+            }
+        }
+    }
+
+    for (existing_id, existing_client) in &cache.clients {
+        if existing_client.name == import.client_name {
+            let is_same_client = client_id == Some(*existing_id);
+            if !is_same_client {
+                let detail = ConflictDetail {
+                    resource_type: "client".into(),
+                    resource_id: *existing_id,
+                    resource_name: existing_client.name.clone(),
+                    attributes: vec![ConflictAttribute {
+                        key: "name_collision".into(),
+                        old_value: serde_json::Value::String(
+                            client_id.map(|id| id.to_string()).unwrap_or_else(|| "new".into()),
+                        ),
+                        new_value: serde_json::Value::String(existing_id.to_string()),
+                        value_type: ValueType::String,
+                    }],
+                };
+                if !conflicts
+                    .iter()
+                    .any(|c: &ConflictDetail| c.resource_id == *existing_id)
+                {
                     conflicts.push(detail);
                 }
             }
@@ -1070,7 +1195,7 @@ fn count_resources(clients: &[ClientImport]) -> i64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
     fn ts() -> chrono::DateTime<chrono::Utc> {
         chrono::Utc::now()
@@ -1787,5 +1912,452 @@ mod tests {
         let import = result.unwrap();
         assert_eq!(import.blueprints.len(), 1);
         assert_eq!(import.affixes.len(), 1);
+    }
+}
+
+#[cfg(test)]
+mod db_tests {
+    use super::*;
+    use crate::auth::permission::CurrentUser;
+    use serde_json::json;
+    use sqlx::PgPool;
+    use sqlx::Row;
+    use std::sync::Arc;
+
+    async fn ensure_db() -> Option<PgPool> {
+        let url = std::env::var("DATABASE_URL").ok()?;
+        let pool = PgPool::connect(&url).await.ok()?;
+        sqlx::migrate!("../../arche-service/migrations")
+            .run(&pool)
+            .await
+            .ok()?;
+        Some(pool)
+    }
+
+    fn test_state(pool: Arc<PgPool>) -> crate::AppState {
+        crate::AppState {
+            cache: Arc::new(tokio::sync::RwLock::new(crate::cache::Cache::new(
+            HashMap::new(),
+            HashMap::new(),
+            HashMap::new(),
+            HashMap::new(),
+            HashMap::new(),
+            ))),
+            pool,
+            redis: None,
+            import_staging: Arc::new(ImportStaging::new()),
+        }
+    }
+
+    fn super_user() -> CurrentUser {
+        CurrentUser(crate::auth::AuthenticatedKey {
+            id: Uuid::nil(),
+            name: "super".into(),
+            client_id: None,
+            permissions: vec![],
+            is_super: true,
+        })
+    }
+
+    async fn create_test_client(pool: &PgPool) -> Uuid {
+        let row = sqlx::query(
+            "INSERT INTO clients (name) VALUES ('import-test-client') RETURNING id",
+        )
+        .fetch_one(pool)
+        .await
+        .expect("Failed to create test client");
+        row.get("id")
+    }
+
+    async fn cleanup_client_data(pool: &PgPool, client_id: Uuid) {
+        let _ = sqlx::query(
+            "DELETE FROM blueprint_affixes WHERE blueprint_id IN (SELECT id FROM blueprints WHERE client_id = $1)",
+        )
+        .bind(client_id)
+        .execute(pool)
+        .await;
+        let _ = sqlx::query("DELETE FROM audit_log WHERE client_id = $1")
+            .bind(client_id)
+            .execute(pool)
+            .await;
+        let _ = sqlx::query("DELETE FROM api_keys WHERE client_id = $1 AND is_super = false")
+            .bind(client_id)
+            .execute(pool)
+            .await;
+        let _ = sqlx::query("DELETE FROM blueprints WHERE client_id = $1")
+            .bind(client_id)
+            .execute(pool)
+            .await;
+        let _ = sqlx::query("DELETE FROM affixes WHERE client_id = $1")
+            .bind(client_id)
+            .execute(pool)
+            .await;
+        let _ = sqlx::query("DELETE FROM global_meta_attributes WHERE client_id = $1")
+            .bind(client_id)
+            .execute(pool)
+            .await;
+        let _ = sqlx::query("DELETE FROM clients WHERE id = $1")
+            .bind(client_id)
+            .execute(pool)
+            .await;
+    }
+
+    fn make_client_import_with_id(
+        client_id: Uuid,
+        client_name: &str,
+        blueprints: Vec<Blueprint>,
+        affixes: Vec<Affix>,
+        gmas: Vec<GlobalMetaAttribute>,
+        ba: Vec<BlueprintAffix>,
+    ) -> ClientImport {
+        ClientImport {
+            client_name: client_name.into(),
+            client_id: Some(client_id),
+            blueprints,
+            affixes,
+            global_meta_attributes: gmas,
+            blueprint_affixes: ba,
+        }
+    }
+
+    #[tokio::test]
+    async fn test_import_no_conflicts_commits_to_db() {
+        let pool = match ensure_db().await {
+            Some(p) => p,
+            None => return,
+        };
+        let client_id = create_test_client(&pool).await;
+        let state = test_state(Arc::new(pool.clone()));
+
+        let bp_id = Uuid::new_v4();
+        let bp = Blueprint {
+            id: bp_id,
+            client_id,
+            name: "Sword".into(),
+            archetype: "sword".into(),
+            weight: 1.0,
+            description: None,
+            attributes: json!({"damage": {"value_type": "range", "min": 10.0, "max": 20.0}}),
+            attribute_order: vec!["damage".into()],
+            min_prefixes: 0,
+            max_prefixes: 1,
+            min_suffixes: 0,
+            max_suffixes: 1,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+        };
+
+        let client_import = make_client_import_with_id(
+            client_id,
+            "import-test-client",
+            vec![bp],
+            vec![],
+            vec![],
+            vec![],
+        );
+
+        let result = commit_import(&[client_import], &pool, &state).await;
+        assert!(result.is_ok(), "commit_import failed: {:?}", result.err());
+
+        let row = sqlx::query("SELECT name FROM blueprints WHERE id = $1")
+            .bind(bp_id)
+            .fetch_one(&pool)
+            .await;
+        assert!(row.is_ok(), "blueprint not found after import");
+
+        let name: String = row.unwrap().get("name");
+        assert_eq!(name, "Sword");
+
+        cleanup_client_data(&pool, client_id).await;
+    }
+
+    #[tokio::test]
+    async fn test_import_detects_blueprint_conflict() {
+        let pool = match ensure_db().await {
+            Some(p) => p,
+            None => return,
+        };
+        let client_id = create_test_client(&pool).await;
+
+        let bp_id = Uuid::new_v4();
+        sqlx::query(
+            "INSERT INTO blueprints (id, client_id, name, archetype, weight, attributes, attribute_order, \
+             min_prefixes, max_prefixes, min_suffixes, max_suffixes) \
+             VALUES ($1, $2, 'OldSword', 'sword', 1.0, $3, $4, 0, 0, 0, 0)",
+        )
+        .bind(bp_id)
+        .bind(client_id)
+        .bind(&json!({"damage": {"value_type": "range", "min": 5.0, "max": 15.0}}))
+        .bind(&vec!["damage".to_string()])
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        let cache = crate::cache::Cache::load(&pool).await.unwrap();
+
+        let bp = Blueprint {
+            id: bp_id,
+            client_id,
+            name: "NewSword".into(),
+            archetype: "sword".into(),
+            weight: 2.0,
+            description: None,
+            attributes: json!({"damage": {"value_type": "range", "min": 10.0, "max": 20.0}}),
+            attribute_order: vec!["damage".into()],
+            min_prefixes: 1,
+            max_prefixes: 2,
+            min_suffixes: 0,
+            max_suffixes: 1,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+        };
+
+        let client_import = make_client_import_with_id(
+            client_id,
+            "import-test-client",
+            vec![bp],
+            vec![],
+            vec![],
+            vec![],
+        );
+
+        let conflicts = detect_client_conflicts(&client_import, &cache)
+            .await
+            .unwrap();
+
+        assert!(!conflicts.is_empty(), "should detect conflicts");
+        let bp_conflict = conflicts
+            .iter()
+            .find(|c| c.resource_id == bp_id)
+            .expect("should have blueprint conflict");
+        assert_eq!(bp_conflict.resource_type, "blueprint");
+
+        let has_name_diff = bp_conflict.attributes.iter().any(|a| a.key == "name");
+        let has_weight_diff = bp_conflict.attributes.iter().any(|a| a.key == "weight");
+        let has_attrs_diff = bp_conflict
+            .attributes
+            .iter()
+            .any(|a| a.key == "attributes");
+        assert!(has_name_diff, "should detect name change");
+        assert!(has_weight_diff, "should detect weight change");
+        assert!(has_attrs_diff, "should detect attributes change");
+
+        cleanup_client_data(&pool, client_id).await;
+    }
+
+    #[tokio::test]
+    async fn test_import_round_trip_export_modified_import() {
+        let pool = match ensure_db().await {
+            Some(p) => p,
+            None => return,
+        };
+        let client_id = create_test_client(&pool).await;
+
+        let bp_id = Uuid::new_v4();
+        let affix_id = Uuid::new_v4();
+        let gma_id = Uuid::new_v4();
+        let ba_id = Uuid::new_v4();
+
+        sqlx::query(
+            "INSERT INTO global_meta_attributes (id, client_id, name, description, value_type, payload) \
+             VALUES ($1, $2, 'rarity', 'Rarity tier', 'enum'::value_type, $3)",
+        )
+        .bind(gma_id)
+        .bind(client_id)
+        .bind(&json!({"values": ["common", "rare"]}))
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        sqlx::query(
+            "INSERT INTO blueprints (id, client_id, name, archetype, weight, attributes, attribute_order, \
+             min_prefixes, max_prefixes, min_suffixes, max_suffixes) \
+             VALUES ($1, $2, 'Sword', 'sword', 1.0, $3, $4, 0, 1, 0, 0)",
+        )
+        .bind(bp_id)
+        .bind(client_id)
+        .bind(&json!({
+            "damage": {"value_type": "range", "min": 10.0, "max": 20.0},
+            "rarity": {"$ref_id": gma_id.to_string()}
+        }))
+        .bind(&vec!["damage".to_string(), "rarity".to_string()])
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        sqlx::query(
+            "INSERT INTO affixes (id, client_id, name, type, attribute) \
+             VALUES ($1, $2, 'Fire', 'prefix'::affix_location, $3)",
+        )
+        .bind(affix_id)
+        .bind(client_id)
+        .bind(&json!({"fire_damage": {"value_type": "range", "min": 5.0, "max": 15.0}}))
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        sqlx::query(
+            "INSERT INTO blueprint_affixes (id, blueprint_id, affix_id, weight, location, sort_order) \
+             VALUES ($1, $2, $3, 1.0, 'prefix'::affix_location, 0)",
+        )
+        .bind(ba_id)
+        .bind(bp_id)
+        .bind(affix_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        let state = test_state(Arc::new(pool.clone()));
+
+        let export_req = arche_types::export_import::ExportRequest {
+            client_ids: vec![client_id],
+            include_api_keys: false,
+            include_audit_log: false,
+            inline_global_refs: false,
+        };
+
+        let export_result = crate::export::export_handler(
+            axum::extract::State(state.clone()),
+            super_user(),
+            axum::Json(export_req),
+        )
+        .await;
+
+        assert!(
+            export_result.is_ok(),
+            "export failed: {:?}",
+            export_result.err()
+        );
+        let export_response = export_result.unwrap();
+        let export_body = axum::body::to_bytes(export_response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+
+        let parsed = parse_zip(Bytes::from(export_body.to_vec()));
+        assert!(parsed.is_ok(), "parse_zip failed: {:?}", parsed.err());
+        let parsed_clients = parsed.unwrap();
+        assert_eq!(parsed_clients.len(), 1);
+
+        let original_import = build_client_import(&parsed_clients[0]).unwrap();
+        assert_eq!(original_import.client_id, Some(client_id));
+        assert_eq!(original_import.blueprints.len(), 1);
+        assert_eq!(original_import.affixes.len(), 1);
+        assert_eq!(original_import.global_meta_attributes.len(), 1);
+        assert_eq!(original_import.blueprint_affixes.len(), 1);
+
+        let modified_name = "Sword_v2".to_string();
+        let mut modified_import = original_import.clone();
+        modified_import.blueprints[0].name = modified_name.clone();
+        modified_import.blueprints[0].weight = 2.0;
+
+        {
+            let cache = crate::cache::Cache::load(&pool).await.unwrap();
+            let conflicts = detect_client_conflicts(&modified_import, &cache)
+                .await
+                .unwrap();
+            assert!(!conflicts.is_empty(), "should detect conflicts on modified import");
+        }
+
+        let result = commit_import(&[modified_import], &pool, &state).await;
+        assert!(result.is_ok(), "commit_import failed: {:?}", result.err());
+
+        let row = sqlx::query("SELECT name, weight FROM blueprints WHERE id = $1")
+            .bind(bp_id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        let updated_name: String = row.get("name");
+        let updated_weight: f64 = row.get("weight");
+        assert_eq!(updated_name, modified_name);
+        assert!(
+            (updated_weight - 2.0).abs() < f64::EPSILON,
+            "weight should be 2.0"
+        );
+
+        cleanup_client_data(&pool, client_id).await;
+    }
+
+    #[tokio::test]
+    async fn test_import_client_name_collision() {
+        let pool = match ensure_db().await {
+            Some(p) => p,
+            None => return,
+        };
+
+        let client_a_id = Uuid::new_v4();
+        sqlx::query("INSERT INTO clients (id, name) VALUES ($1, 'SharedName')")
+            .bind(client_a_id)
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        let cache = crate::cache::Cache::load(&pool).await.unwrap();
+
+        let import = make_client_import_with_id(
+            Uuid::new_v4(),
+            "SharedName",
+            vec![],
+            vec![],
+            vec![],
+            vec![],
+        );
+
+        let conflicts = detect_client_conflicts(&import, &cache)
+            .await
+            .unwrap();
+
+        let client_conflict = conflicts.iter().find(|c| {
+            c.resource_type == "client"
+                && c.attributes.iter().any(|a| a.key == "name_collision")
+        });
+        assert!(
+            client_conflict.is_some(),
+            "should detect client name collision. Conflicts: {:?}",
+            conflicts
+        );
+
+        cleanup_client_data(&pool, client_a_id).await;
+    }
+
+    #[tokio::test]
+    async fn test_import_invalid_ref_id_rejected() {
+        let pool = match ensure_db().await {
+            Some(p) => p,
+            None => return,
+        };
+        let client_id = create_test_client(&pool).await;
+        let cache = crate::cache::Cache::load(&pool).await.unwrap();
+
+        let nonexistent_gma_id = Uuid::new_v4();
+        let bp = Blueprint {
+            id: Uuid::new_v4(),
+            client_id,
+            name: "Bad".into(),
+            archetype: "sword".into(),
+            weight: 1.0,
+            description: None,
+            attributes: json!({"attr": {"$ref_id": nonexistent_gma_id.to_string()}}),
+            attribute_order: vec!["attr".into()],
+            min_prefixes: 0,
+            max_prefixes: 0,
+            min_suffixes: 0,
+            max_suffixes: 0,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+        };
+
+        let import = make_client_import_with_id(
+            client_id,
+            "import-test-client",
+            vec![bp],
+            vec![],
+            vec![],
+            vec![],
+        );
+
+        let result = validate_ref_ids(&import, &cache);
+        assert!(result.is_err(), "should reject invalid $ref_id");
+
+        cleanup_client_data(&pool, client_id).await;
     }
 }

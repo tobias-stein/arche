@@ -579,7 +579,7 @@ mod tests {
 
     #[test]
     fn test_deserialize_pagination_params_offset_mode() {
-        let json = r#"{"page":2,"per_page":25}"#;
+        let json = r#"{"page":2,"perPage":25}"#;
         let params: PaginationParams = serde_json::from_str(json).unwrap();
         assert_eq!(params.page, Some(2));
         assert_eq!(params.per_page, Some(25));

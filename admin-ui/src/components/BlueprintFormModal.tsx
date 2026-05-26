@@ -926,6 +926,13 @@ export function BlueprintFormModal({
   const attrSortableIds = attributeOrder.filter((key) => key in attributes)
   const isLastAttribute = attrSortableIds.length <= 1
 
+  const hasSubDialogOpen =
+    showGlobalPicker ||
+    showPrefixPicker ||
+    showSuffixPicker ||
+    deleteAttrKey !== null ||
+    deletePoolIdx !== null
+
   return (
     <>
       <Dialog
@@ -935,7 +942,10 @@ export function BlueprintFormModal({
           onOpenChange(newOpen)
         }}
       >
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogContent
+          className="max-w-2xl max-h-[85vh] overflow-y-auto"
+          hideOverlay={hasSubDialogOpen}
+        >
           <DialogHeader>
             <DialogTitle>{modalTitle}</DialogTitle>
             <DialogDescription>

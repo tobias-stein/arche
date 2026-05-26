@@ -58,7 +58,12 @@ pub fn required_permission(method: &Method, path: &str) -> Option<RequiredPermis
             Some(RequiredPermission::Regular(Permission::Write))
         }
         Method::PUT | Method::PATCH => Some(RequiredPermission::Regular(Permission::Write)),
-        Method::DELETE => Some(RequiredPermission::Regular(Permission::Delete)),
+        Method::DELETE => {
+            if extract_path_client_id(path).is_some() && path_has_key_uuid(path) {
+                return Some(RequiredPermission::Regular(Permission::Admin));
+            }
+            Some(RequiredPermission::Regular(Permission::Delete))
+        }
         _ => None,
     }
 }
@@ -71,11 +76,31 @@ pub fn extract_path_client_id(path: &str) -> Option<Uuid> {
     Uuid::parse_str(client_id_str).ok()
 }
 
+/// Check if a path matches `/api/clients/{client_id}/keys/{key_id}`.
+fn path_has_key_uuid(path: &str) -> bool {
+    let path = match path.strip_prefix("/api/") {
+        Some(p) => p,
+        None => return false,
+    };
+    let rest = match path.strip_prefix("clients/") {
+        Some(r) => r,
+        None => return false,
+    };
+    let mut parts = rest.split('/');
+    let _client_id = parts.next();
+    let keys_segment = parts.next();
+    let key_id = parts.next();
+    keys_segment == Some("keys") && key_id.and_then(|s| Uuid::parse_str(s).ok()).is_some()
+}
+
 impl super::AuthenticatedKey {
-    /// Check that the key has the given permission (or is super admin).
+    /// Check that the key has the given permission (or is super admin, or has admin permission).
     /// Returns `Ok(())` if allowed, `Err(ProblemResponse::forbidden(...))` otherwise.
     pub fn require_permission(&self, permission: Permission) -> Result<(), ProblemResponse> {
         if self.is_super {
+            return Ok(());
+        }
+        if self.permissions.contains(&Permission::Admin) {
             return Ok(());
         }
         if self.permissions.contains(&permission) {
@@ -406,6 +431,28 @@ mod tests {
         assert_eq!(required_permission(&Method::HEAD, "/api/blueprints"), None);
     }
 
+    #[test]
+    fn test_delete_key_requires_admin() {
+        assert_eq!(
+            required_permission(
+                &Method::DELETE,
+                "/api/clients/123e4567-e89b-12d3-a456-426614174000/keys/123e4567-e89b-12d3-a456-426614174001"
+            ),
+            Some(RequiredPermission::Regular(Permission::Admin))
+        );
+    }
+
+    #[test]
+    fn test_delete_non_key_resource_requires_delete() {
+        assert_eq!(
+            required_permission(
+                &Method::DELETE,
+                "/api/blueprints/123e4567-e89b-12d3-a456-426614174000"
+            ),
+            Some(RequiredPermission::Regular(Permission::Delete))
+        );
+    }
+
     // --- extract_path_client_id tests ---
 
     #[test]
@@ -548,6 +595,30 @@ mod tests {
     fn test_key_with_admin_can_admin() {
         let key = make_key(None, vec![Permission::Admin], false);
         assert!(key.require_permission(Permission::Admin).is_ok());
+    }
+
+    #[test]
+    fn test_admin_key_can_read() {
+        let key = make_key(None, vec![Permission::Admin], false);
+        assert!(key.require_permission(Permission::Read).is_ok());
+    }
+
+    #[test]
+    fn test_admin_key_can_write() {
+        let key = make_key(None, vec![Permission::Admin], false);
+        assert!(key.require_permission(Permission::Write).is_ok());
+    }
+
+    #[test]
+    fn test_admin_key_can_delete() {
+        let key = make_key(None, vec![Permission::Admin], false);
+        assert!(key.require_permission(Permission::Delete).is_ok());
+    }
+
+    #[test]
+    fn test_admin_key_can_generate() {
+        let key = make_key(None, vec![Permission::Admin], false);
+        assert!(key.require_permission(Permission::Generate).is_ok());
     }
 
     #[test]

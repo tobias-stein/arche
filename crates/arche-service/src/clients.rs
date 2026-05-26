@@ -332,7 +332,7 @@ pub async fn list_api_keys(
     }
 
     let rows = sqlx::query(
-        "SELECT id, name, permissions, created_at FROM api_keys \
+        "SELECT id, name, permissions, created_at, expires_at FROM api_keys \
          WHERE client_id = $1 AND is_super = false ORDER BY created_at DESC",
     )
     .bind(client_id)
@@ -353,6 +353,8 @@ pub async fn list_api_keys(
                 id: r.get("id"),
                 name: r.get("name"),
                 permissions,
+                created_at: r.get("created_at"),
+                expires_at: r.get("expires_at"),
             }
         })
         .collect();
@@ -745,6 +747,16 @@ mod tests {
                 name: "test".into(),
                 client_id: Some(client_id),
                 permissions: vec![permission],
+                is_super: false,
+            })
+        }
+
+        fn test_user_with_permissions(client_id: Uuid, permissions: Vec<Permission>) -> CurrentUser {
+            CurrentUser(crate::auth::AuthenticatedKey {
+                id: Uuid::nil(),
+                name: "test".into(),
+                client_id: Some(client_id),
+                permissions,
                 is_super: false,
             })
         }
@@ -1167,6 +1179,513 @@ mod tests {
             let err = result.unwrap_err();
             assert_eq!(err.status, 403);
 
+            sqlx::query("DELETE FROM clients WHERE id = $1")
+                .bind(client_id)
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+
+        // --- API Key CRUD ---
+
+        #[tokio::test]
+        async fn test_create_api_key_returns_raw_key_and_stores_hash() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_id = create_test_client(&pool, "KeyTestGame").await;
+            let state = test_state(Arc::new(pool.clone()));
+            let user = test_user_with_permissions(client_id, vec![Permission::Admin]);
+
+            let req = CreateApiKeyRequest {
+                name: "game-server-key".into(),
+                permissions: vec![Permission::Read, Permission::Generate],
+            };
+
+            let result = create_api_key(
+                axum::extract::State(state),
+                user.clone(),
+                axum::extract::Path(client_id),
+                axum::Json(req),
+            )
+            .await;
+
+            let resp = result.expect("create api key should succeed");
+            assert_eq!(resp.name, "game-server-key");
+            assert!(!resp.id.is_nil());
+            assert_eq!(resp.permissions.len(), 2);
+            assert!(resp.permissions.contains(&Permission::Read));
+            assert!(resp.permissions.contains(&Permission::Generate));
+            assert!(resp.key.starts_with("arche_k_"));
+            assert!(!resp.key.is_empty());
+
+            // Verify the key hash in DB is not the raw key
+            let row = sqlx::query("SELECT key_hash FROM api_keys WHERE id = $1")
+                .bind(resp.id)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+            let key_hash: String = row.get("key_hash");
+            assert_ne!(key_hash, resp.key);
+            // Verify bcrypt verify works with the raw key
+            assert!(bcrypt::verify(&resp.key, &key_hash).unwrap());
+
+            // The response should NOT include the key_hash
+            let resp_json = serde_json::to_value(&resp).unwrap();
+            assert!(!resp_json.as_object().unwrap().contains_key("keyHash"));
+
+            // Cleanup
+            sqlx::query("DELETE FROM api_keys WHERE client_id = $1")
+                .bind(client_id)
+                .execute(&pool)
+                .await
+                .unwrap();
+            sqlx::query("DELETE FROM clients WHERE id = $1")
+                .bind(client_id)
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+
+        #[tokio::test]
+        async fn test_list_api_keys_returns_metadata_only() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_id = create_test_client(&pool, "ListKeyGame").await;
+            let state = test_state(Arc::new(pool.clone()));
+            let user = test_user_with_permissions(client_id, vec![Permission::Admin, Permission::Read]);
+
+            // Create a key first
+            let req = CreateApiKeyRequest {
+                name: "my-key".into(),
+                permissions: vec![Permission::Read],
+            };
+            let create_resp = create_api_key(
+                axum::extract::State(test_state(Arc::new(pool.clone()))),
+                user.clone(),
+                axum::extract::Path(client_id),
+                axum::Json(req),
+            )
+            .await
+            .unwrap();
+
+            // Now list keys
+            let list_result = list_api_keys(
+                axum::extract::State(state),
+                user,
+                axum::extract::Path(client_id),
+            )
+            .await;
+
+            let keys = list_result.unwrap();
+            assert_eq!(keys.len(), 1);
+            assert_eq!(keys[0].id, create_resp.id);
+            assert_eq!(keys[0].name, "my-key");
+            assert_eq!(keys[0].permissions, vec![Permission::Read]);
+
+            // The list response must NOT contain raw key or hash
+            let key_json = serde_json::to_value(&keys[0]).unwrap();
+            let obj = key_json.as_object().unwrap();
+            assert!(obj.contains_key("id"));
+            assert!(obj.contains_key("name"));
+            assert!(obj.contains_key("permissions"));
+            assert!(obj.contains_key("createdAt"));
+            assert!(!obj.contains_key("key"), "list should not expose raw key");
+            assert!(!obj.contains_key("keyHash"), "list should not expose key hash");
+
+            // Cleanup
+            sqlx::query("DELETE FROM api_keys WHERE client_id = $1")
+                .bind(client_id)
+                .execute(&pool)
+                .await
+                .unwrap();
+            sqlx::query("DELETE FROM clients WHERE id = $1")
+                .bind(client_id)
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+
+        #[tokio::test]
+        async fn test_delete_api_key_succeeds_and_key_stops_working() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_id = create_test_client(&pool, "DeleteKeyGame").await;
+            let user = test_user_with_permissions(client_id, vec![Permission::Admin]);
+
+            // Create a key
+            let req = CreateApiKeyRequest {
+                name: "revocable-key".into(),
+                permissions: vec![Permission::Read],
+            };
+            let create_resp = create_api_key(
+                axum::extract::State(test_state(Arc::new(pool.clone()))),
+                user.clone(),
+                axum::extract::Path(client_id),
+                axum::Json(req),
+            )
+            .await
+            .unwrap();
+
+            let raw_key = create_resp.key.clone();
+
+            // Verify the key authenticates
+            let auth_result = crate::auth::verify_api_key(&raw_key, &pool).await;
+            assert!(auth_result.is_ok(), "key should authenticate before deletion");
+
+            // Delete the key
+            let state = test_state(Arc::new(pool.clone()));
+            let delete_result = delete_api_key(
+                axum::extract::State(state),
+                user,
+                axum::extract::Path((client_id, create_resp.id)),
+            )
+            .await;
+
+            let resp = delete_result.unwrap();
+            assert_eq!(resp["deleted"], true);
+
+            // Verify the key no longer authenticates
+            let auth_result = crate::auth::verify_api_key(&raw_key, &pool).await;
+            assert!(auth_result.is_err(), "key should NOT authenticate after deletion");
+
+            // Cleanup
+            sqlx::query("DELETE FROM clients WHERE id = $1")
+                .bind(client_id)
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+
+        #[tokio::test]
+        async fn test_delete_api_key_nonexistent_returns_404() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_id = create_test_client(&pool, "NoKeyGame").await;
+            let state = test_state(Arc::new(pool.clone()));
+            let user = test_user_with_permissions(client_id, vec![Permission::Admin]);
+            let nonexistent_key_id = Uuid::new_v4();
+
+            let result = delete_api_key(
+                axum::extract::State(state),
+                user,
+                axum::extract::Path((client_id, nonexistent_key_id)),
+            )
+            .await;
+
+            let err = result.unwrap_err();
+            assert_eq!(err.status, 404);
+            assert!(err.detail.unwrap().contains(&nonexistent_key_id.to_string()));
+
+            // Cleanup
+            sqlx::query("DELETE FROM clients WHERE id = $1")
+                .bind(client_id)
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+
+        #[tokio::test]
+        async fn test_delete_api_key_wrong_client_returns_404() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_a = create_test_client(&pool, "ClientA").await;
+            let client_b = create_test_client(&pool, "ClientB").await;
+
+            // Create a key for client_a
+            let req = CreateApiKeyRequest {
+                name: "key-a".into(),
+                permissions: vec![Permission::Read],
+            };
+            let user_a = test_user_with_permissions(client_a, vec![Permission::Admin]);
+            let create_resp = create_api_key(
+                axum::extract::State(test_state(Arc::new(pool.clone()))),
+                user_a.clone(),
+                axum::extract::Path(client_a),
+                axum::Json(req),
+            )
+            .await
+            .unwrap();
+
+            // Try to delete the key using client_b's path
+            let state = test_state(Arc::new(pool.clone()));
+            let user_b = test_user_with_permissions(client_b, vec![Permission::Admin]);
+            let result = delete_api_key(
+                axum::extract::State(state),
+                user_b,
+                axum::extract::Path((client_b, create_resp.id)),
+            )
+            .await;
+
+            let err = result.unwrap_err();
+            assert_eq!(err.status, 404);
+            assert!(err.detail.unwrap().contains(&create_resp.id.to_string()));
+
+            // Cleanup
+            sqlx::query("DELETE FROM api_keys WHERE client_id = $1")
+                .bind(client_a)
+                .execute(&pool)
+                .await
+                .unwrap();
+            sqlx::query("DELETE FROM clients WHERE id = ANY($1)")
+                .bind(&vec![client_a, client_b])
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+
+        #[tokio::test]
+        async fn test_create_api_key_nonexistent_client_returns_404() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let state = test_state(Arc::new(pool.clone()));
+            let nonexistent_client_id = Uuid::new_v4();
+            // Use super user to bypass client-scope checks
+            let user = super_user();
+
+            let req = CreateApiKeyRequest {
+                name: "key".into(),
+                permissions: vec![Permission::Read],
+            };
+
+            let result = create_api_key(
+                axum::extract::State(state),
+                user,
+                axum::extract::Path(nonexistent_client_id),
+                axum::Json(req),
+            )
+            .await;
+
+            let err = result.unwrap_err();
+            assert_eq!(err.status, 404);
+            assert!(err.detail.unwrap().contains(&nonexistent_client_id.to_string()));
+        }
+
+        #[tokio::test]
+        async fn test_list_api_keys_nonexistent_client_returns_404() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let state = test_state(Arc::new(pool.clone()));
+            let nonexistent_client_id = Uuid::new_v4();
+            let user = super_user();
+
+            let result = list_api_keys(
+                axum::extract::State(state),
+                user,
+                axum::extract::Path(nonexistent_client_id),
+            )
+            .await;
+
+            let err = result.unwrap_err();
+            assert_eq!(err.status, 404);
+        }
+
+        #[tokio::test]
+        async fn test_create_api_key_key_prefix_format() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_id = create_test_client(&pool, "PrefixGame").await;
+            let state = test_state(Arc::new(pool.clone()));
+            let user = test_user_with_permissions(client_id, vec![Permission::Admin]);
+
+            // Create multiple keys and verify prefix
+            for i in 1..=3 {
+                let req = CreateApiKeyRequest {
+                    name: format!("key-{}", i),
+                    permissions: vec![Permission::Read],
+                };
+                let result = create_api_key(
+                    axum::extract::State(test_state(Arc::new(pool.clone()))),
+                    user.clone(),
+                    axum::extract::Path(client_id),
+                    axum::Json(req),
+                )
+                .await;
+
+                let resp = result.unwrap();
+                assert!(resp.key.starts_with("arche_k_"), "key {i} missing prefix");
+                assert_eq!(resp.key.len(), 56, "key {i} wrong length");
+            }
+
+            // Cleanup
+            sqlx::query("DELETE FROM api_keys WHERE client_id = $1")
+                .bind(client_id)
+                .execute(&pool)
+                .await
+                .unwrap();
+            sqlx::query("DELETE FROM clients WHERE id = $1")
+                .bind(client_id)
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+
+        #[tokio::test]
+        async fn test_create_api_key_invalid_permission_returns_error() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_id = create_test_client(&pool, "InvalidPermGame").await;
+
+            // Send invalid permission string as raw JSON to test deserialization error
+            let raw_json = serde_json::json!({
+                "name": "bad-key",
+                "permissions": ["read", "super_admin", "write"]
+            });
+
+            use axum::body::Body;
+            use axum::http::Request;
+            use axum::routing::post;
+            use axum::Router;
+            use tower::ServiceExt;
+
+            async fn create_key_handler(
+                State(state): State<AppState>,
+                Path(client_id): Path<Uuid>,
+                Json(req): Json<CreateApiKeyRequest>,
+            ) -> Result<Json<CreateApiKeyResponse>, ProblemResponse> {
+                create_api_key(
+                    axum::extract::State(state),
+                    CurrentUser(crate::auth::AuthenticatedKey {
+                        id: Uuid::nil(),
+                        name: "super".into(),
+                        client_id: None,
+                        permissions: vec![],
+                        is_super: true,
+                    }),
+                    axum::extract::Path(client_id),
+                    axum::Json(req),
+                )
+                .await
+            }
+
+            let app = Router::new()
+                .route("/api/clients/:client_id/keys", post(create_key_handler))
+                .with_state(test_state(Arc::new(pool.clone())));
+
+            let resp = app
+                .oneshot(
+                    Request::builder()
+                        .method("POST")
+                        .uri(format!("/api/clients/{client_id}/keys"))
+                        .header("content-type", "application/json")
+                        .body(Body::from(serde_json::to_string(&raw_json).unwrap()))
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+
+            let status = resp.status();
+            assert!(status.is_client_error(), "expected client error, got {status}");
+            // Axum's Json extractor returns 422 for deserialization errors;
+            // either 400 or 422 is acceptable as a validation error
+            assert!(
+                status.as_u16() == 400 || status.as_u16() == 422,
+                "expected 400 or 422, got {status}"
+            );
+
+            // Cleanup
+            sqlx::query("DELETE FROM clients WHERE id = $1")
+                .bind(client_id)
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+
+        #[tokio::test]
+        async fn test_create_api_key_key_scoped_to_client() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_a = create_test_client(&pool, "ScopeA").await;
+            let client_b = create_test_client(&pool, "ScopeB").await;
+
+            // Create a key for client_a
+            let req = CreateApiKeyRequest {
+                name: "scoped-key".into(),
+                permissions: vec![Permission::Read],
+            };
+            let user_a = test_user_with_permissions(client_a, vec![Permission::Admin]);
+            let create_resp = create_api_key(
+                axum::extract::State(test_state(Arc::new(pool.clone()))),
+                user_a,
+                axum::extract::Path(client_a),
+                axum::Json(req),
+            )
+            .await
+            .unwrap();
+
+            // Verify the key authenticates and has the correct client_id
+            let auth_key = crate::auth::verify_api_key(&create_resp.key, &pool)
+                .await
+                .unwrap();
+            assert_eq!(auth_key.client_id, Some(client_a));
+            assert!(!auth_key.is_super);
+            assert_eq!(auth_key.name, "scoped-key");
+
+            // Cleanup
+            sqlx::query("DELETE FROM api_keys WHERE client_id = ANY($1)")
+                .bind(&vec![client_a, client_b])
+                .execute(&pool)
+                .await
+                .unwrap();
+            sqlx::query("DELETE FROM clients WHERE id = ANY($1)")
+                .bind(&vec![client_a, client_b])
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+
+        #[tokio::test]
+        async fn test_create_api_key_empty_permissions_succeeds() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_id = create_test_client(&pool, "EmptyPermGame").await;
+            let state = test_state(Arc::new(pool.clone()));
+            let user = test_user_with_permissions(client_id, vec![Permission::Admin]);
+
+            let req = CreateApiKeyRequest {
+                name: "no-perm-key".into(),
+                permissions: vec![],
+            };
+
+            let result = create_api_key(
+                axum::extract::State(state),
+                user,
+                axum::extract::Path(client_id),
+                axum::Json(req),
+            )
+            .await;
+
+            let resp = result.unwrap();
+            assert!(resp.permissions.is_empty());
+            assert!(resp.key.starts_with("arche_k_"));
+
+            // Cleanup
+            sqlx::query("DELETE FROM api_keys WHERE client_id = $1")
+                .bind(client_id)
+                .execute(&pool)
+                .await
+                .unwrap();
             sqlx::query("DELETE FROM clients WHERE id = $1")
                 .bind(client_id)
                 .execute(&pool)

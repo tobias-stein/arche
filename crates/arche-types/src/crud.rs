@@ -117,6 +117,9 @@ pub struct ApiKeyResponse {
     pub id: Uuid,
     pub name: String,
     pub permissions: Vec<Permission>,
+    pub created_at: DateTime<Utc>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expires_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]

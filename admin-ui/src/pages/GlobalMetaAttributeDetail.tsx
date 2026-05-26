@@ -260,6 +260,12 @@ export default function GlobalMetaAttributeDetail() {
   )
 
   const referencedBy = useMemo(() => {
+    function getRefId(value: unknown): string | undefined {
+      if (typeof value === 'object' && value !== null && '$ref_id' in value) {
+        return (value as Record<string, unknown>).$ref_id as string
+      }
+    }
+
     const blueprints: { id: string; name: string; key: string }[] = []
     const affixes: { id: string; name: string }[] = []
 
@@ -270,22 +276,15 @@ export default function GlobalMetaAttributeDetail() {
       const attrs = bp.attributes
       if (!attrs) continue
       for (const [key, v] of Object.entries(attrs)) {
-        if (typeof v === 'object' && v !== null && '$ref_id' in (v as Record<string, unknown>)) {
-          const refId = (v as Record<string, unknown>).$ref_id as string
-          if (refId === id) {
-            blueprints.push({ id: bp.id, name: bp.name, key })
-          }
+        if (getRefId(v) === id) {
+          blueprints.push({ id: bp.id, name: bp.name, key })
         }
       }
     }
 
     for (const aff of affList) {
-      const attr = aff.attribute
-      if (typeof attr === 'object' && attr !== null && '$ref_id' in (attr as Record<string, unknown>)) {
-        const refId = (attr as Record<string, unknown>).$ref_id as string
-        if (refId === id) {
-          affixes.push({ id: aff.id, name: aff.name })
-        }
+      if (getRefId(aff.attribute) === id) {
+        affixes.push({ id: aff.id, name: aff.name })
       }
     }
 

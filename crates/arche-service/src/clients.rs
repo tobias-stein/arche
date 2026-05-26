@@ -10,7 +10,7 @@ use sqlx::Row;
 use uuid::Uuid;
 
 use crate::auth::permission::CurrentUser;
-use crate::error::ProblemResponse;
+use crate::error::{FieldError, ProblemResponse};
 
 fn permission_to_db(p: &Permission) -> String {
     match p {
@@ -33,55 +33,12 @@ fn db_to_permission(s: &str) -> Option<Permission> {
     }
 }
 
-fn resolve_client_id_for_clients(
-    user: &crate::auth::AuthenticatedKey,
-) -> Result<Option<Uuid>, ProblemResponse> {
-    if user.is_super {
-        Ok(None)
-    } else {
-        user.client_id.map(Some).ok_or_else(|| {
-            ProblemResponse::forbidden("Access denied: key is not associated with any client")
-        })
-    }
-}
-
 pub async fn list_clients(
     State(state): State<crate::AppState>,
     CurrentUser(user): CurrentUser,
     Query(query): Query<crate::pagination::PaginationParams>,
 ) -> Result<Json<PaginatedResponse<ClientResponse>>, ProblemResponse> {
-    let client_id_filter = resolve_client_id_for_clients(&user)?;
-
-    if let Some(cid) = client_id_filter {
-        let rows = sqlx::query("SELECT id, name, created_at FROM clients WHERE id = $1")
-            .bind(cid)
-            .fetch_all(&*state.pool)
-            .await
-            .map_err(|e| {
-                tracing::error!(error = %e, "clients: list query failed");
-                ProblemResponse::unprocessable_entity("Failed to list clients")
-            })?;
-
-        let client_ids: Vec<Uuid> = rows.iter().map(|r: &sqlx::postgres::PgRow| r.get("id")).collect();
-        let client_map = fetch_api_key_summaries_batch(&state.pool, &client_ids).await?;
-
-        let clients: Vec<ClientResponse> = rows
-            .iter()
-            .map(|r| {
-                let id: Uuid = r.get("id");
-                ClientResponse {
-                    id,
-                    name: r.get("name"),
-                    created_at: r.get("created_at"),
-                    api_keys: client_map.get(&id).cloned().unwrap_or_default(),
-                }
-            })
-            .collect();
-
-        let total = clients.len() as i64;
-        return Ok(Json(crate::pagination::paginate_offset(clients, total)));
-    }
-
+    user.require_super_admin()?;
     let mode = query.mode().map_err(|e| {
         ProblemResponse::validation_error(e.to_string(), vec![])
     })?;
@@ -207,11 +164,39 @@ pub async fn get_client(
     }))
 }
 
+fn validate_client_name(name: &str) -> Result<(), ProblemResponse> {
+    if name.is_empty() {
+        return Err(ProblemResponse::validation_error(
+            "Client name must not be empty",
+            vec![FieldError {
+                path: "name".into(),
+                message: "must not be empty".into(),
+            }],
+        ));
+    }
+    if !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
+        return Err(ProblemResponse::validation_error(
+            format!(
+                "Invalid client name '{}': must contain only alphanumeric characters and underscores (a-z, A-Z, 0-9, _)",
+                name
+            ),
+            vec![FieldError {
+                path: "name".into(),
+                message: "must contain only [a-zA-Z0-9_]".into(),
+            }],
+        ));
+    }
+    Ok(())
+}
+
 pub async fn create_client(
     State(state): State<crate::AppState>,
-    CurrentUser(_user): CurrentUser,
+    CurrentUser(user): CurrentUser,
     Json(req): Json<CreateClientRequest>,
 ) -> Result<Json<ClientResponse>, ProblemResponse> {
+    user.require_super_admin()?;
+    validate_client_name(&req.name)?;
+
     let row = sqlx::query(
         "INSERT INTO clients (name) VALUES ($1) RETURNING id, name, created_at",
     )
@@ -219,6 +204,14 @@ pub async fn create_client(
     .fetch_one(&*state.pool)
     .await
     .map_err(|e| {
+        if let Some(db_err) = e.as_database_error() {
+            if db_err.code().is_some_and(|c| c == "23505") {
+                return ProblemResponse::conflict(format!(
+                    "Client name '{}' already exists",
+                    req.name
+                ));
+            }
+        }
         tracing::error!(error = %e, "clients: create failed");
         ProblemResponse::validation_error(
             format!("Failed to create client: {e}"),
@@ -236,9 +229,10 @@ pub async fn create_client(
 
 pub async fn delete_client(
     State(state): State<crate::AppState>,
-    CurrentUser(_user): CurrentUser,
+    CurrentUser(user): CurrentUser,
     Path(id): Path<Uuid>,
 ) -> Result<Json<serde_json::Value>, ProblemResponse> {
+    user.require_super_admin()?;
     let exists = sqlx::query("SELECT id FROM clients WHERE id = $1")
         .bind(id)
         .fetch_optional(&*state.pool)
@@ -522,6 +516,7 @@ impl crate::pagination::HasId for ClientResponse {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::pagination::HasId;
 
     #[test]
     fn test_permission_to_db_all() {
@@ -563,47 +558,6 @@ mod tests {
     }
 
     #[test]
-    fn test_resolve_client_id_super_admin() {
-        let key = crate::auth::AuthenticatedKey {
-            id: Uuid::nil(),
-            name: "test".into(),
-            client_id: None,
-            permissions: vec![Permission::Read],
-            is_super: true,
-        };
-        let result = resolve_client_id_for_clients(&key).unwrap();
-        assert_eq!(result, None);
-    }
-
-    #[test]
-    fn test_resolve_client_id_regular_key() {
-        let cid = Uuid::new_v4();
-        let key = crate::auth::AuthenticatedKey {
-            id: Uuid::nil(),
-            name: "test".into(),
-            client_id: Some(cid),
-            permissions: vec![Permission::Read],
-            is_super: false,
-        };
-        let result = resolve_client_id_for_clients(&key).unwrap();
-        assert_eq!(result, Some(cid));
-    }
-
-    #[test]
-    fn test_resolve_client_id_regular_key_no_client() {
-        let key = crate::auth::AuthenticatedKey {
-            id: Uuid::nil(),
-            name: "test".into(),
-            client_id: None,
-            permissions: vec![Permission::Read],
-            is_super: false,
-        };
-        let result = resolve_client_id_for_clients(&key);
-        assert!(result.is_err());
-        assert_eq!(result.unwrap_err().status, 403);
-    }
-
-    #[test]
     fn test_generate_api_key_prefix() {
         let key = generate_api_key();
         assert!(
@@ -636,5 +590,517 @@ mod tests {
             api_keys: vec![],
         };
         assert_eq!(resp.id, id);
+    }
+
+    #[test]
+    fn test_validate_client_name_valid() {
+        assert!(validate_client_name("My_Game").is_ok());
+        assert!(validate_client_name("test_client_1").is_ok());
+        assert!(validate_client_name("ABC").is_ok());
+        assert!(validate_client_name("a").is_ok());
+    }
+
+    #[test]
+    fn test_validate_client_name_empty() {
+        let err = validate_client_name("").unwrap_err();
+        assert_eq!(err.status, 400);
+        assert_eq!(err.type_, "/errors/validation-error");
+    }
+
+    #[test]
+    fn test_validate_client_name_invalid_chars() {
+        for name in &["hello world", "test-name", "name@domain", "hello.there"] {
+            let err = validate_client_name(name).unwrap_err();
+            assert_eq!(err.status, 400);
+            assert_eq!(err.type_, "/errors/validation-error");
+        }
+    }
+
+    mod db_tests {
+        use super::*;
+        use crate::AppState;
+        use arche_types::Permission;
+        use sqlx::PgPool;
+        use std::collections::HashMap;
+        use std::sync::Arc;
+        use uuid::Uuid;
+
+        async fn ensure_db() -> Option<PgPool> {
+            let url = std::env::var("DATABASE_URL").ok()?;
+            let pool = PgPool::connect(&url).await.ok()?;
+            sqlx::migrate!("../../arche-service/migrations")
+                .run(&pool)
+                .await
+                .ok()?;
+            Some(pool)
+        }
+
+        async fn create_test_client(pool: &PgPool, name: &str) -> Uuid {
+            let row = sqlx::query(
+                "INSERT INTO clients (name) VALUES ($1) RETURNING id",
+            )
+            .bind(name)
+            .fetch_one(pool)
+            .await
+            .expect("Failed to create test client");
+            row.get("id")
+        }
+
+        fn test_state(pool: Arc<PgPool>) -> AppState {
+            AppState {
+                cache: Arc::new(tokio::sync::RwLock::new(crate::cache::Cache::new(
+                    HashMap::new(), HashMap::new(), HashMap::new(),
+                    HashMap::new(), HashMap::new(),
+                ))),
+                pool,
+                redis: None,
+                import_staging: Arc::new(crate::import::ImportStaging::new()),
+            }
+        }
+
+        fn super_user() -> CurrentUser {
+            CurrentUser(crate::auth::AuthenticatedKey {
+                id: Uuid::nil(),
+                name: "super".into(),
+                client_id: None,
+                permissions: vec![],
+                is_super: true,
+            })
+        }
+
+        fn test_user(client_id: Uuid, permission: Permission) -> CurrentUser {
+            CurrentUser(crate::auth::AuthenticatedKey {
+                id: Uuid::nil(),
+                name: "test".into(),
+                client_id: Some(client_id),
+                permissions: vec![permission],
+                is_super: false,
+            })
+        }
+
+        // --- Acceptance: Create client with valid name returns 201 with client object ---
+
+        #[tokio::test]
+        async fn test_create_client_valid_name_returns_201() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let state = test_state(Arc::new(pool.clone()));
+            let user = super_user();
+
+            let req = CreateClientRequest {
+                name: "My_Game".into(),
+            };
+
+            let result = create_client(
+                axum::extract::State(state),
+                user,
+                axum::Json(req),
+            )
+            .await;
+
+            let resp = result.expect("create client should succeed");
+            assert_eq!(resp.name, "My_Game");
+            assert!(!resp.id.is_nil());
+            assert!(resp.api_keys.is_empty());
+
+            sqlx::query("DELETE FROM clients WHERE id = $1")
+                .bind(resp.id)
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+
+        // --- Acceptance: Create client with duplicate name returns 409 ---
+
+        #[tokio::test]
+        async fn test_create_client_duplicate_name_returns_409() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_id = create_test_client(&pool, "DuplicateGame").await;
+            let state = test_state(Arc::new(pool.clone()));
+            let user = super_user();
+
+            let req = CreateClientRequest {
+                name: "DuplicateGame".into(),
+            };
+
+            let result = create_client(
+                axum::extract::State(state),
+                user,
+                axum::Json(req),
+            )
+            .await;
+
+            let err = result.unwrap_err();
+            assert_eq!(err.status, 409);
+            assert_eq!(err.type_, "/errors/conflict");
+            assert!(err.detail.unwrap().contains("already exists"));
+
+            sqlx::query("DELETE FROM clients WHERE id = $1")
+                .bind(client_id)
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+
+        // --- Acceptance: Create client with invalid name characters returns 400 ---
+
+        #[tokio::test]
+        async fn test_create_client_invalid_name_empty() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let state = test_state(Arc::new(pool.clone()));
+            let user = super_user();
+
+            let req = CreateClientRequest {
+                name: "".into(),
+            };
+
+            let result = create_client(
+                axum::extract::State(state),
+                user,
+                axum::Json(req),
+            )
+            .await;
+
+            let err = result.unwrap_err();
+            assert_eq!(err.status, 400);
+            assert_eq!(err.type_, "/errors/validation-error");
+        }
+
+        #[tokio::test]
+        async fn test_create_client_invalid_name_special_chars() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let state = test_state(Arc::new(pool.clone()));
+            let user = super_user();
+
+            let req = CreateClientRequest {
+                name: "hello world".into(),
+            };
+
+            let result = create_client(
+                axum::extract::State(state),
+                user,
+                axum::Json(req),
+            )
+            .await;
+
+            let err = result.unwrap_err();
+            assert_eq!(err.status, 400);
+            assert_eq!(err.type_, "/errors/validation-error");
+        }
+
+        // --- Acceptance: List clients returns all clients (super admin only) ---
+
+        #[tokio::test]
+        async fn test_list_clients_super_admin_returns_all() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_a = create_test_client(&pool, "ClientAlpha").await;
+            let client_b = create_test_client(&pool, "ClientBeta").await;
+            let state = test_state(Arc::new(pool.clone()));
+            let user = super_user();
+
+            let query = crate::pagination::PaginationParams {
+                cursor: None,
+                limit: Some(50),
+                page: None,
+                per_page: None,
+            };
+
+            let result = list_clients(
+                axum::extract::State(state),
+                user,
+                axum::extract::Query(query),
+            )
+            .await;
+
+            let resp = result.unwrap();
+            let ids: Vec<Uuid> = resp.data.iter().map(|c| c.id).collect();
+            assert!(ids.contains(&client_a));
+            assert!(ids.contains(&client_b));
+
+            sqlx::query("DELETE FROM clients WHERE id = ANY($1)")
+                .bind(&vec![client_a, client_b])
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+
+        // --- Acceptance: Delete client with no active keys succeeds (cascade deletes all data) ---
+
+        #[tokio::test]
+        async fn test_delete_client_no_active_keys_succeeds() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_id = create_test_client(&pool, "DeletableGame").await;
+
+            // Create some child data to verify cascade
+            sqlx::query(
+                "INSERT INTO blueprints (client_id, name, archetype, weight, attributes, attribute_order, \
+                 min_prefixes, max_prefixes, min_suffixes, max_suffixes) \
+                 VALUES ($1, 'sword', 'sword', 1.0, '{}'::jsonb, ARRAY[]::text[], 0, 0, 0, 0)",
+            )
+            .bind(client_id)
+            .execute(&pool)
+            .await
+            .unwrap();
+
+            let state = test_state(Arc::new(pool.clone()));
+            let user = super_user();
+
+            let result = delete_client(
+                axum::extract::State(state),
+                user,
+                axum::extract::Path(client_id),
+            )
+            .await;
+
+            let resp = result.unwrap();
+            assert_eq!(resp["deleted"], true);
+
+            // Verify cascade: client should be gone
+            let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM clients WHERE id = $1")
+                .bind(client_id)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+            assert_eq!(count, 0);
+
+            // Blueprints should also be cascade-deleted
+            let bp_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM blueprints WHERE client_id = $1")
+                .bind(client_id)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+            assert_eq!(bp_count, 0);
+        }
+
+        // --- Acceptance: Delete client with active keys returns 409 with key count in error detail ---
+
+        #[tokio::test]
+        async fn test_delete_client_with_active_keys_returns_409() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_id = create_test_client(&pool, "ProtectedGame").await;
+
+            // Insert an active (non-super) API key
+            sqlx::query(
+                "INSERT INTO api_keys (client_id, name, key_hash, permissions, is_super) \
+                 VALUES ($1, 'active-key', 'hashed', ARRAY['read'], false)",
+            )
+            .bind(client_id)
+            .execute(&pool)
+            .await
+            .unwrap();
+
+            let state = test_state(Arc::new(pool.clone()));
+            let user = super_user();
+
+            let result = delete_client(
+                axum::extract::State(state),
+                user,
+                axum::extract::Path(client_id),
+            )
+            .await;
+
+            let err = result.unwrap_err();
+            assert_eq!(err.status, 409);
+            assert_eq!(err.type_, "/errors/delete-referenced-resource");
+            let detail = err.detail.unwrap();
+            assert!(detail.contains("1 active API key"));
+            assert!(detail.contains(&client_id.to_string()));
+
+            // Cleanup
+            sqlx::query("DELETE FROM api_keys WHERE client_id = $1")
+                .bind(client_id)
+                .execute(&pool)
+                .await
+                .unwrap();
+            sqlx::query("DELETE FROM clients WHERE id = $1")
+                .bind(client_id)
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+
+        #[tokio::test]
+        async fn test_delete_client_with_multiple_active_keys_returns_409_with_count() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_id = create_test_client(&pool, "MultiKeyGame").await;
+
+            // Insert multiple active API keys
+            for i in 1..=3 {
+                sqlx::query(
+                    "INSERT INTO api_keys (client_id, name, key_hash, permissions, is_super) \
+                     VALUES ($1, $2, 'hashed', ARRAY['read'], false)",
+                )
+                .bind(client_id)
+                .bind(format!("key-{}", i))
+                .execute(&pool)
+                .await
+                .unwrap();
+            }
+
+            let state = test_state(Arc::new(pool.clone()));
+            let user = super_user();
+
+            let result = delete_client(
+                axum::extract::State(state),
+                user,
+                axum::extract::Path(client_id),
+            )
+            .await;
+
+            let err = result.unwrap_err();
+            assert_eq!(err.status, 409);
+            let detail = err.detail.unwrap();
+            assert!(detail.contains("3 active API key"));
+
+            // Cleanup
+            sqlx::query("DELETE FROM api_keys WHERE client_id = $1")
+                .bind(client_id)
+                .execute(&pool)
+                .await
+                .unwrap();
+            sqlx::query("DELETE FROM clients WHERE id = $1")
+                .bind(client_id)
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+
+        #[tokio::test]
+        async fn test_delete_client_not_found() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let state = test_state(Arc::new(pool.clone()));
+            let user = super_user();
+            let nonexistent_id = Uuid::new_v4();
+
+            let result = delete_client(
+                axum::extract::State(state),
+                user,
+                axum::extract::Path(nonexistent_id),
+            )
+            .await;
+
+            let err = result.unwrap_err();
+            assert_eq!(err.status, 404);
+        }
+
+        // --- Acceptance: Non-super-admin key gets 403 on all client endpoints ---
+
+        #[tokio::test]
+        async fn test_create_client_non_super_returns_403() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_id = create_test_client(&pool, "SomeGame").await;
+            let state = test_state(Arc::new(pool.clone()));
+            let user = test_user(client_id, Permission::Write);
+
+            let req = CreateClientRequest {
+                name: "NewGame".into(),
+            };
+
+            let result = create_client(
+                axum::extract::State(state),
+                user,
+                axum::Json(req),
+            )
+            .await;
+
+            let err = result.unwrap_err();
+            assert_eq!(err.status, 403);
+
+            sqlx::query("DELETE FROM clients WHERE id = $1")
+                .bind(client_id)
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+
+        #[tokio::test]
+        async fn test_list_clients_non_super_returns_403() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_id = create_test_client(&pool, "ReadOnlyGame").await;
+            let state = test_state(Arc::new(pool.clone()));
+            let user = test_user(client_id, Permission::Read);
+
+            let query = crate::pagination::PaginationParams {
+                cursor: None,
+                limit: Some(50),
+                page: None,
+                per_page: None,
+            };
+
+            let result = list_clients(
+                axum::extract::State(state),
+                user,
+                axum::extract::Query(query),
+            )
+            .await;
+
+            let err = result.unwrap_err();
+            assert_eq!(err.status, 403);
+
+            sqlx::query("DELETE FROM clients WHERE id = $1")
+                .bind(client_id)
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+
+        #[tokio::test]
+        async fn test_delete_client_non_super_returns_403() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_id = create_test_client(&pool, "DeleteForbiddenGame").await;
+            let state = test_state(Arc::new(pool.clone()));
+            let user = test_user(client_id, Permission::Delete);
+
+            let result = delete_client(
+                axum::extract::State(state),
+                user,
+                axum::extract::Path(client_id),
+            )
+            .await;
+
+            let err = result.unwrap_err();
+            assert_eq!(err.status, 403);
+
+            sqlx::query("DELETE FROM clients WHERE id = $1")
+                .bind(client_id)
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
     }
 }

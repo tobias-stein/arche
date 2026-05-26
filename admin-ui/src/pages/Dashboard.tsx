@@ -1,10 +1,22 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
-import { Dices, Loader2, Plus, RotateCcw, Trash2 } from 'lucide-react'
+import {
+  AlertTriangle,
+  Box,
+  ChevronRight,
+  Dices,
+  Loader2,
+  Plus,
+  Puzzle,
+  RotateCcw,
+  Trash2,
+  X,
+} from 'lucide-react'
 
 import {
   useAffixesList,
   useBlueprintsList,
   useGenerate,
+  useGlobalMetaAttributesList,
 } from '@/api/generated'
 import type {
   Affix,
@@ -12,6 +24,7 @@ import type {
   ConstraintValue,
   GenerateRequest,
   GenerateResponse,
+  GlobalMetaAttribute,
 } from '@/api/generated'
 
 import { Badge } from '@/components/ui/badge'
@@ -34,6 +47,8 @@ import {
 } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/hooks/use-toast'
+import { computeWarnings, type Warning } from '@/lib/warnings'
+import { Link } from 'react-router-dom'
 
 interface ConstraintRow {
   id: number
@@ -145,10 +160,29 @@ export default function Dashboard() {
   const { data: affixesData, isLoading: affLoading } = useAffixesList({
     perPage: 500,
   })
+  const { data: gmaData } = useGlobalMetaAttributesList({
+    perPage: 500,
+  })
   const generateMutation = useGenerate()
+  const [dismissedWarnings, setDismissedWarnings] = useState<Set<string>>(
+    new Set(),
+  )
 
   const blueprints = useMemo(() => blueprintsData?.data ?? [], [blueprintsData])
   const affixes = useMemo(() => affixesData?.data ?? [], [affixesData])
+  const globalMetaAttrs = useMemo(
+    () => (gmaData?.data ?? []) as GlobalMetaAttribute[],
+    [gmaData],
+  )
+  const warnings = useMemo(
+    () => computeWarnings(blueprints, affixes, globalMetaAttrs),
+    [blueprints, affixes, globalMetaAttrs],
+  )
+
+  const visibleWarnings = warnings.filter((w) => !dismissedWarnings.has(w.id))
+  const warningCount = warnings.length
+  const blueprintCount = blueprintsData?.total ?? 0
+  const affixCount = affixesData?.total ?? 0
 
   const archetypes = useMemo(
     () => [...new Set(blueprints.map((b) => b.archetype).filter(Boolean))].sort(),
@@ -282,6 +316,55 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold">Dashboard</h2>
+
+      {/* Stat Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Blueprints</CardTitle>
+            <Box className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            {bpLoading ? (
+              <Skeleton className="h-8 w-16" />
+            ) : (
+              <div className="text-2xl font-bold">{blueprintCount}</div>
+            )}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Affixes</CardTitle>
+            <Puzzle className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            {affLoading ? (
+              <Skeleton className="h-8 w-16" />
+            ) : (
+              <div className="text-2xl font-bold">{affixCount}</div>
+            )}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Warnings</CardTitle>
+            <AlertTriangle
+              className={`h-4 w-4 ${
+                warningCount > 0
+                  ? 'text-amber-500'
+                  : 'text-muted-foreground'
+              }`}
+            />
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <Skeleton className="h-8 w-16" />
+            ) : (
+              <div className="text-2xl font-bold">{warningCount}</div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       <Card>
         <CardHeader>
@@ -555,6 +638,101 @@ export default function Dashboard() {
           )}
         </CardContent>
       </Card>
+
+      {/* Warnings Section */}
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold flex items-center gap-2">
+          <AlertTriangle
+            className={`h-5 w-5 ${
+              warningCount > 0 ? 'text-amber-500' : 'text-muted-foreground'
+            }`}
+          />
+          Configuration Warnings
+          {!isLoading && (
+            <Badge variant="outline" className="ml-1 font-mono">
+              {visibleWarnings.length}
+            </Badge>
+          )}
+        </h3>
+
+        {isLoading && (
+          <div className="space-y-3">
+            <Skeleton className="h-20 w-full" />
+            <Skeleton className="h-20 w-full" />
+          </div>
+        )}
+
+        {!isLoading && visibleWarnings.length === 0 && (
+          <Card>
+            <CardContent className="p-6 text-center">
+              <p className="text-muted-foreground">
+                No warnings found. Your configuration looks healthy.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {!isLoading &&
+          visibleWarnings.map((warning: Warning) => (
+            <Card
+              key={warning.id}
+              className={`border-l-4 ${
+                warning.severity === 'error'
+                  ? 'border-l-destructive'
+                  : warning.severity === 'warning'
+                    ? 'border-l-amber-500'
+                    : 'border-l-blue-500'
+              }`}
+            >
+              <CardHeader className="pb-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="space-y-1">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Badge
+                        variant={
+                          warning.severity === 'error'
+                            ? 'destructive'
+                            : warning.severity === 'warning'
+                              ? 'default'
+                              : 'outline'
+                        }
+                        className="text-xs shrink-0"
+                      >
+                        {warning.severity}
+                      </Badge>
+                      {warning.title}
+                    </CardTitle>
+                    <CardDescription>{warning.description}</CardDescription>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 shrink-0"
+                    aria-label="Dismiss warning"
+                    onClick={() =>
+                      setDismissedWarnings((prev) => {
+                        const next = new Set(prev)
+                        next.add(warning.id)
+                        return next
+                      })
+                    }
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <Link
+                  to={`/${warning.resourceType === 'blueprint' ? 'blueprints' : warning.resourceType === 'affix' ? 'affixes' : 'global-meta-attributes'}/${warning.resourceId}`}
+                  className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  View {warning.resourceName}
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </Link>
+              </CardContent>
+            </Card>
+          ))}
+      </div>
 
       {/* Result Display */}
       {result && (

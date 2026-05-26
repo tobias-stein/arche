@@ -5,6 +5,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 
 const mockBlueprintsList = vi.fn()
 const mockAffixesList = vi.fn()
+const mockGlobalMetaAttributesList = vi.fn()
 const mockGenerateMutation = {
   mutateAsync: vi.fn(),
   isPending: false,
@@ -13,6 +14,8 @@ const mockGenerateMutation = {
 vi.mock('@/api/generated', () => ({
   useBlueprintsList: (query?: unknown) => mockBlueprintsList(query),
   useAffixesList: (query?: unknown) => mockAffixesList(query),
+  useGlobalMetaAttributesList: (query?: unknown) =>
+    mockGlobalMetaAttributesList(query),
   useGenerate: () => mockGenerateMutation,
 }))
 
@@ -113,6 +116,13 @@ describe('Dashboard Quick Generate', () => {
     })
 
     mockAffixesList.mockReturnValue({
+      data: { data: [], total: 0 },
+      isLoading: false,
+      isError: false,
+      error: null,
+    })
+
+    mockGlobalMetaAttributesList.mockReturnValue({
       data: { data: [], total: 0 },
       isLoading: false,
       isError: false,
@@ -660,5 +670,499 @@ describe('Dashboard Quick Generate', () => {
 
     expect(screen.getAllByText('No affixes found')).toHaveLength(2)
     expect(screen.getByText('Generate')).not.toBeDisabled()
+  })
+})
+
+describe('Dashboard Stat Cards', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockGenerateMutation.isPending = false
+    mockGenerateMutation.mutateAsync.mockReset()
+    mockToast.mockReset()
+
+    mockBlueprintsList.mockReturnValue({
+      data: { data: [], total: 0 },
+      isLoading: false,
+      isError: false,
+      error: null,
+    })
+
+    mockAffixesList.mockReturnValue({
+      data: { data: [], total: 0 },
+      isLoading: false,
+      isError: false,
+      error: null,
+    })
+
+    mockGlobalMetaAttributesList.mockReturnValue({
+      data: { data: [], total: 0 },
+      isLoading: false,
+      isError: false,
+      error: null,
+    })
+  })
+
+  it('renders three stat cards with correct counts', () => {
+    mockBlueprintsList.mockReturnValue({
+      data: { data: [], total: 15 },
+      isLoading: false,
+      isError: false,
+      error: null,
+    })
+    mockAffixesList.mockReturnValue({
+      data: { data: [], total: 8 },
+      isLoading: false,
+      isError: false,
+      error: null,
+    })
+
+    const { container } = renderDashboard()
+
+    expect(screen.getByText('Total Blueprints')).toBeInTheDocument()
+    expect(screen.getByText('Total Affixes')).toBeInTheDocument()
+    expect(screen.getByText('Warnings')).toBeInTheDocument()
+
+    const statNumbers = container.querySelectorAll(
+      '[class*="text-2xl"][class*="font-bold"]',
+    )
+    const statValues = Array.from(statNumbers).map((el) => el.textContent?.trim())
+    expect(statValues).toContain('15')
+    expect(statValues).toContain('8')
+    expect(statValues).toContain('0')
+  })
+
+  it('shows skeleton stat cards while loading', () => {
+    mockBlueprintsList.mockReturnValue({
+      data: undefined,
+      isLoading: true,
+      isError: false,
+      error: null,
+    })
+    mockAffixesList.mockReturnValue({
+      data: undefined,
+      isLoading: true,
+      isError: false,
+      error: null,
+    })
+
+    renderDashboard()
+
+    const skeletons = document.querySelectorAll('.animate-pulse')
+    expect(skeletons.length).toBeGreaterThan(0)
+  })
+
+  it('shows warning count from computed warnings', () => {
+    mockBlueprintsList.mockReturnValue({
+      data: {
+        data: [
+          makeBlueprint({ id: '1', weight: 0, name: 'ZeroWeight' }),
+          makeBlueprint({ id: '2', weight: 1, name: 'Normal' }),
+        ],
+        total: 2,
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+    })
+    mockAffixesList.mockReturnValue({
+      data: { data: [], total: 0 },
+      isLoading: false,
+      isError: false,
+      error: null,
+    })
+
+    renderDashboard()
+
+    const warningTitle = screen.getByText('Warnings')
+    const warningCard = warningTitle.closest('.rounded-xl')
+    expect(warningCard).toBeInTheDocument()
+    expect(warningCard!.textContent).toContain('1')
+  })
+})
+
+describe('Dashboard Warnings', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockGenerateMutation.isPending = false
+    mockGenerateMutation.mutateAsync.mockReset()
+    mockToast.mockReset()
+
+    mockBlueprintsList.mockReturnValue({
+      data: { data: [], total: 0 },
+      isLoading: false,
+      isError: false,
+      error: null,
+    })
+
+    mockAffixesList.mockReturnValue({
+      data: { data: [], total: 0 },
+      isLoading: false,
+      isError: false,
+      error: null,
+    })
+
+    mockGlobalMetaAttributesList.mockReturnValue({
+      data: { data: [], total: 0 },
+      isLoading: false,
+      isError: false,
+      error: null,
+    })
+  })
+
+  it('shows zero-weight blueprint warning', () => {
+    mockBlueprintsList.mockReturnValue({
+      data: {
+        data: [makeBlueprint({ id: '1', weight: 0, name: 'ZeroWeight' })],
+        total: 1,
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+    })
+
+    renderDashboard()
+
+    expect(screen.getByText('Zero-weight blueprint')).toBeInTheDocument()
+    expect(
+      screen.getByText(/has a weight of 0/),
+    ).toBeInTheDocument()
+    expect(screen.getByText('View ZeroWeight')).toBeInTheDocument()
+  })
+
+  it('shows empty prefix pool warning', () => {
+    mockBlueprintsList.mockReturnValue({
+      data: {
+        data: [
+          makeBlueprint({
+            id: '1',
+            name: 'NeedsPrefix',
+            minPrefixes: 2,
+            maxPrefixes: 3,
+            prefixes: [],
+            suffixes: [],
+          }),
+        ],
+        total: 1,
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+    })
+
+    renderDashboard()
+
+    expect(screen.getByText('Empty prefix pool')).toBeInTheDocument()
+    expect(
+      screen.getByText('View NeedsPrefix'),
+    ).toBeInTheDocument()
+  })
+
+  it('shows insufficient suffix pool warning', () => {
+    mockBlueprintsList.mockReturnValue({
+      data: {
+        data: [
+          makeBlueprint({
+            id: '1',
+            name: 'NeedsSuffix',
+            minPrefixes: 0,
+            maxPrefixes: 0,
+            minSuffixes: 3,
+            maxSuffixes: 5,
+            suffixes: [{ affixId: 'aff-1', weight: 1 }],
+          }),
+        ],
+        total: 1,
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+    })
+
+    renderDashboard()
+
+    expect(screen.getByText('Insufficient suffix pool')).toBeInTheDocument()
+    expect(
+      screen.getByText('View NeedsSuffix'),
+    ).toBeInTheDocument()
+  })
+
+  it('shows zero-weight pool entry warning', () => {
+    mockBlueprintsList.mockReturnValue({
+      data: {
+        data: [
+          makeBlueprint({
+            id: '1',
+            name: 'ZeroWeightAffix',
+            minPrefixes: 1,
+            maxPrefixes: 1,
+            prefixes: [{ affixId: 'aff-x', weight: 0 }],
+            suffixes: [],
+          }),
+        ],
+        total: 1,
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+    })
+
+    renderDashboard()
+
+    expect(screen.getByText('Zero-weight affix assignment')).toBeInTheDocument()
+  })
+
+  it('shows dangling $ref_id warning', () => {
+    mockBlueprintsList.mockReturnValue({
+      data: {
+        data: [
+          makeBlueprint({
+            id: '1',
+            name: 'DanglingRef',
+            attributes: {
+              power: { $ref_id: 'non-existent-global' },
+            },
+            attributeOrder: ['power'],
+          }),
+        ],
+        total: 1,
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+    })
+    mockAffixesList.mockReturnValue({
+      data: {
+        data: [
+          makeAffix({
+            id: '1',
+            name: 'DanglingAffix',
+            attribute: { $ref_id: 'also-missing' },
+          }),
+        ],
+        total: 1,
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+    })
+
+    renderDashboard()
+
+    const danglingItems = screen.getAllByText('Dangling `$ref_id`')
+    expect(danglingItems.length).toBe(2)
+    expect(screen.getByText('View DanglingRef')).toBeInTheDocument()
+  })
+
+  it('shows invalid range attribute warning (min > max)', () => {
+    mockBlueprintsList.mockReturnValue({
+      data: {
+        data: [
+          makeBlueprint({
+            id: '1',
+            name: 'BadRange',
+            attributes: {
+              damage: {
+                valueType: 'range',
+                min: 100,
+                max: 10,
+              },
+            },
+            attributeOrder: ['damage'],
+          }),
+        ],
+        total: 1,
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+    })
+
+    renderDashboard()
+
+    expect(screen.getByText('Invalid range attribute')).toBeInTheDocument()
+    expect(
+      screen.getByText('View BadRange'),
+    ).toBeInTheDocument()
+  })
+
+  it('shows empty enum attribute warning', () => {
+    mockBlueprintsList.mockReturnValue({
+      data: {
+        data: [
+          makeBlueprint({
+            id: '1',
+            name: 'BadEnum',
+            attributes: {
+              element: {
+                valueType: 'enum',
+                values: [],
+              },
+            },
+            attributeOrder: ['element'],
+          }),
+        ],
+        total: 1,
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+    })
+
+    renderDashboard()
+
+    expect(screen.getByText('Empty enum attribute')).toBeInTheDocument()
+    expect(
+      screen.getByText('View BadEnum'),
+    ).toBeInTheDocument()
+  })
+
+  it('shows invalid distribution config warning (stdDev = 0)', () => {
+    mockBlueprintsList.mockReturnValue({
+      data: {
+        data: [
+          makeBlueprint({
+            id: '1',
+            name: 'BadDist',
+            attributes: {
+              damage: {
+                valueType: 'single',
+                value: 0,
+                distribution: { type: 'normal', stdDev: 0 },
+              },
+            },
+            attributeOrder: ['damage'],
+          }),
+        ],
+        total: 1,
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+    })
+
+    renderDashboard()
+
+    expect(screen.getByText('Invalid distribution config')).toBeInTheDocument()
+    expect(
+      screen.getByText('View BadDist'),
+    ).toBeInTheDocument()
+  })
+
+  it('shows invalid distribution config warning (rate = 0)', () => {
+    mockBlueprintsList.mockReturnValue({
+      data: {
+        data: [
+          makeBlueprint({
+            id: '1',
+            name: 'BadRate',
+            attributes: {
+              damage: {
+                valueType: 'single',
+                value: 0,
+                distribution: { type: 'exponential', rate: 0 },
+              },
+            },
+            attributeOrder: ['damage'],
+          }),
+        ],
+        total: 1,
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+    })
+
+    renderDashboard()
+
+    expect(screen.getByText('Invalid distribution config')).toBeInTheDocument()
+    expect(
+      screen.getByText('View BadRate'),
+    ).toBeInTheDocument()
+  })
+
+  it('shows "No warnings" message when there are no warnings', () => {
+    mockBlueprintsList.mockReturnValue({
+      data: {
+        data: [makeBlueprint({ id: '1', weight: 1 })],
+        total: 1,
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+    })
+
+    renderDashboard()
+
+    expect(
+      screen.getByText(/No warnings found/),
+    ).toBeInTheDocument()
+  })
+
+  it('allows dismissing a warning', () => {
+    mockBlueprintsList.mockReturnValue({
+      data: {
+        data: [makeBlueprint({ id: '1', weight: 0, name: 'ZeroWeight' })],
+        total: 1,
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+    })
+
+    renderDashboard()
+
+    expect(screen.getByText('Zero-weight blueprint')).toBeInTheDocument()
+
+    const dismissBtn = screen.getByRole('button', { name: 'Dismiss warning' })
+    fireEvent.click(dismissBtn)
+
+    expect(screen.queryByText('Zero-weight blueprint')).not.toBeInTheDocument()
+  })
+
+  it('shows warning skeleton while loading', () => {
+    mockBlueprintsList.mockReturnValue({
+      data: undefined,
+      isLoading: true,
+      isError: false,
+      error: null,
+    })
+    mockAffixesList.mockReturnValue({
+      data: undefined,
+      isLoading: true,
+      isError: false,
+      error: null,
+    })
+    mockGlobalMetaAttributesList.mockReturnValue({
+      data: undefined,
+      isLoading: true,
+      isError: false,
+      error: null,
+    })
+
+    renderDashboard()
+
+    const skeletons = document.querySelectorAll('.animate-pulse')
+    expect(skeletons.length).toBeGreaterThan(0)
+  })
+
+  it('each warning has a link to the relevant resource', () => {
+    mockBlueprintsList.mockReturnValue({
+      data: {
+        data: [makeBlueprint({ id: 'bp-abc', weight: 0, name: 'ZeroWeight' })],
+        total: 1,
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+    })
+
+    renderDashboard()
+
+    const viewLink = screen.getByText('View ZeroWeight')
+    expect(viewLink).toBeInTheDocument()
+    expect(viewLink.closest('a')).toHaveAttribute(
+      'href',
+      '/blueprints/bp-abc',
+    )
   })
 })

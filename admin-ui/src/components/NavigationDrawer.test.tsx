@@ -116,4 +116,12 @@ describe('NavigationDrawer', () => {
 
     expect(screen.queryByText('All clients')).not.toBeInTheDocument()
   })
+
+  it('renders aside with desktop stacking context', () => {
+    renderDrawer()
+
+    const aside = screen.getByRole('complementary')
+    expect(aside.className).toContain('md:relative')
+    expect(aside.className).toMatch(/md:z-\d+/)
+  })
 })

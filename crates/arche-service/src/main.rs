@@ -18,7 +18,7 @@ pub mod redis_pubsub;
 
 use axum::extract::State;
 use axum::middleware;
-use axum::{routing::{delete, get, post}, Json, Router};
+use axum::{routing::{delete, get, post, put}, Json, Router};
 use arche_types::crud::BootstrapResponse;
 use serde_json::{json, Value};
 use sqlx::postgres::PgPoolOptions;
@@ -93,7 +93,8 @@ fn build_router(state: AppState) -> Router {
         .route("/api/affixes/{id}", get(affixes::get_affix).put(affixes::update_affix).delete(affixes::delete_affix))
         .route("/api/affixes/batch/delete", post(batch::batch_delete_affixes))
         .route("/api/affixes/batch/assign", post(batch::batch_assign_affixes))
-        .route("/api/global-meta-attributes/{id}", delete(global_meta_attributes::delete_global_meta_attribute))
+        .route("/api/global-meta-attributes", get(global_meta_attributes::list_global_meta_attributes).post(global_meta_attributes::create_global_meta_attribute))
+        .route("/api/global-meta-attributes/{id}", get(global_meta_attributes::get_global_meta_attribute).put(global_meta_attributes::update_global_meta_attribute).delete(global_meta_attributes::delete_global_meta_attribute))
         .route("/api/audit-log", get(audit_log::list_audit_log))
         .route("/api/generate", post(generate::generate_handler))
         .route("/api/clients", get(clients::list_clients).post(clients::create_client))

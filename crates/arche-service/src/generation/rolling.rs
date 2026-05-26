@@ -41,7 +41,7 @@ fn resolve_attributes(
         };
 
         match bp_attr {
-            BlueprintAttribute::Ref { ref_id } => {
+            BlueprintAttribute::Ref(arche_types::attribute::BlueprintRefAttribute { ref_id }) => {
                 if let Some(gma) = client_cache
                     .global_meta_attributes
                     .iter()

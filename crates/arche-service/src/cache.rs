@@ -140,7 +140,7 @@ impl Cache {
 
     async fn load_affixes(pool: &PgPool) -> Result<HashMap<Uuid, Affix>, sqlx::Error> {
         let rows = sqlx::query(
-            "SELECT id, client_id, name, type, description, attribute, created_at, updated_at \
+            "SELECT id, client_id, name, type::TEXT AS type, description, attribute, created_at, updated_at \
              FROM affixes",
         )
         .fetch_all(pool)
@@ -177,7 +177,7 @@ impl Cache {
         pool: &PgPool,
     ) -> Result<HashMap<Uuid, GlobalMetaAttribute>, sqlx::Error> {
         let rows = sqlx::query(
-            "SELECT id, client_id, name, description, value_type, payload, created_at, updated_at \
+            "SELECT id, client_id, name, description, value_type::TEXT AS value_type, payload, created_at, updated_at \
              FROM global_meta_attributes",
         )
         .fetch_all(pool)
@@ -214,7 +214,7 @@ impl Cache {
         pool: &PgPool,
     ) -> Result<HashMap<Uuid, Vec<BlueprintAffix>>, sqlx::Error> {
         let rows = sqlx::query(
-            "SELECT id, blueprint_id, affix_id, weight, location, sort_order \
+            "SELECT id, blueprint_id, affix_id, weight, location::TEXT AS location, sort_order \
              FROM blueprint_affixes",
         )
         .fetch_all(pool)
@@ -522,7 +522,7 @@ impl Cache {
         client_id: Uuid,
     ) -> Result<HashMap<Uuid, Affix>, sqlx::Error> {
         let rows = sqlx::query(
-            "SELECT id, client_id, name, type, description, attribute, created_at, updated_at \
+            "SELECT id, client_id, name, type::TEXT AS type, description, attribute, created_at, updated_at \
              FROM affixes WHERE client_id = $1",
         )
         .bind(client_id)
@@ -554,7 +554,7 @@ impl Cache {
         client_id: Uuid,
     ) -> Result<HashMap<Uuid, GlobalMetaAttribute>, sqlx::Error> {
         let rows = sqlx::query(
-            "SELECT id, client_id, name, description, value_type, payload, created_at, updated_at \
+            "SELECT id, client_id, name, description, value_type::TEXT AS value_type, payload, created_at, updated_at \
              FROM global_meta_attributes WHERE client_id = $1",
         )
         .bind(client_id)
@@ -586,7 +586,7 @@ impl Cache {
         client_id: Uuid,
     ) -> Result<HashMap<Uuid, Vec<BlueprintAffix>>, sqlx::Error> {
         let rows = sqlx::query(
-            "SELECT ba.id, ba.blueprint_id, ba.affix_id, ba.weight, ba.location, ba.sort_order \
+            "SELECT ba.id, ba.blueprint_id, ba.affix_id, ba.weight, ba.location::TEXT AS location, ba.sort_order \
              FROM blueprint_affixes ba \
              JOIN blueprints b ON ba.blueprint_id = b.id \
              WHERE b.client_id = $1",
@@ -1105,5 +1105,163 @@ mod tests {
     #[test]
     fn test_has_cache_changed_both_none() {
         assert!(!has_cache_changed(None, None));
+    }
+
+    mod db_tests {
+        use super::*;
+        use serde_json::json;
+        use sqlx::PgPool;
+
+        async fn ensure_db() -> Option<PgPool> {
+            let url = std::env::var("DATABASE_URL").ok()?;
+            let pool = PgPool::connect(&url).await.ok()?;
+            sqlx::migrate!("../../arche-service/migrations")
+                .run(&pool)
+                .await
+                .ok()?;
+            Some(pool)
+        }
+
+        async fn create_test_client(pool: &PgPool) -> Uuid {
+            let row = sqlx::query("INSERT INTO clients (name) VALUES ('cache-test-client') RETURNING id")
+                .fetch_one(pool)
+                .await
+                .expect("Failed to create test client");
+            row.get("id")
+        }
+
+        #[tokio::test]
+        async fn test_load_affixes_with_custom_enum_type() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_id = create_test_client(&pool).await;
+
+            sqlx::query(
+                "INSERT INTO affixes (client_id, name, type, attribute) \
+                 VALUES ($1, 'test-prefix', 'prefix'::affix_location, $2)",
+            )
+            .bind(client_id)
+            .bind(&json!({"value_type": "single", "value": 1.0}))
+            .execute(&pool)
+            .await
+            .expect("Failed to insert test affix");
+
+            sqlx::query(
+                "INSERT INTO affixes (client_id, name, type, attribute) \
+                 VALUES ($1, 'test-suffix', 'suffix'::affix_location, $2)",
+            )
+            .bind(client_id)
+            .bind(&json!({"value_type": "single", "value": 2.0}))
+            .execute(&pool)
+            .await
+            .expect("Failed to insert test affix");
+
+            let affixes = Cache::load_affixes(&pool).await.expect("load_affixes should not panic");
+            let client_affixes: Vec<_> = affixes.values().filter(|a| a.client_id == client_id).collect();
+            assert_eq!(client_affixes.len(), 2);
+            let names: Vec<&str> = client_affixes.iter().map(|a| a.name.as_str()).collect();
+            assert!(names.contains(&"test-prefix"));
+            assert!(names.contains(&"test-suffix"));
+            let locations: Vec<&AffixLocation> = client_affixes.iter().map(|a| &a.location).collect();
+            assert!(locations.contains(&&AffixLocation::Prefix));
+            assert!(locations.contains(&&AffixLocation::Suffix));
+        }
+
+        #[tokio::test]
+        async fn test_load_global_meta_attributes_with_custom_enum_type() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_id = create_test_client(&pool).await;
+
+            sqlx::query(
+                "INSERT INTO global_meta_attributes (client_id, name, description, value_type, payload) \
+                 VALUES ($1, 'gma-range', 'a range attr', 'range'::value_type, $2)",
+            )
+            .bind(client_id)
+            .bind(&json!({"min": 1.0, "max": 10.0}))
+            .execute(&pool)
+            .await
+            .expect("Failed to insert test GMA");
+
+            sqlx::query(
+                "INSERT INTO global_meta_attributes (client_id, name, description, value_type, payload) \
+                 VALUES ($1, 'gma-enum', 'an enum attr', 'enum'::value_type, $2)",
+            )
+            .bind(client_id)
+            .bind(&json!({"values": ["a", "b", "c"]}))
+            .execute(&pool)
+            .await
+            .expect("Failed to insert test GMA");
+
+            let gmas = Cache::load_global_meta_attributes(&pool)
+                .await
+                .expect("load_global_meta_attributes should not panic");
+            let client_gmas: Vec<_> = gmas.values().filter(|g| g.client_id == client_id).collect();
+            assert_eq!(client_gmas.len(), 2);
+            let names: Vec<&str> = client_gmas.iter().map(|g| g.name.as_str()).collect();
+            assert!(names.contains(&"gma-range"));
+            assert!(names.contains(&"gma-enum"));
+            let types: Vec<&ValueType> = client_gmas.iter().map(|g| &g.value_type).collect();
+            assert!(types.contains(&&ValueType::Range));
+            assert!(types.contains(&&ValueType::Enum));
+        }
+
+        #[tokio::test]
+        async fn test_load_affixes_for_client_with_custom_enum_type() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_id = create_test_client(&pool).await;
+
+            sqlx::query(
+                "INSERT INTO affixes (client_id, name, type, attribute) \
+                 VALUES ($1, 'client-prefix', 'prefix'::affix_location, $2)",
+            )
+            .bind(client_id)
+            .bind(&json!({"value_type": "single", "value": 1.0}))
+            .execute(&pool)
+            .await
+            .expect("Failed to insert test affix");
+
+            let affixes = Cache::load_affixes_for_client(&pool, client_id)
+                .await
+                .expect("load_affixes_for_client should not panic");
+            assert_eq!(affixes.len(), 1);
+            let affix = affixes.values().next().unwrap();
+            assert_eq!(affix.name, "client-prefix");
+            assert_eq!(affix.location, AffixLocation::Prefix);
+        }
+
+        #[tokio::test]
+        async fn test_load_global_meta_attributes_for_client_with_custom_enum_type() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_id = create_test_client(&pool).await;
+
+            sqlx::query(
+                "INSERT INTO global_meta_attributes (client_id, name, description, value_type, payload) \
+                 VALUES ($1, 'client-gma', 'desc', 'boolean'::value_type, $2)",
+            )
+            .bind(client_id)
+            .bind(&json!({"value": true}))
+            .execute(&pool)
+            .await
+            .expect("Failed to insert test GMA");
+
+            let gmas = Cache::load_global_meta_attributes_for_client(&pool, client_id)
+                .await
+                .expect("load_global_meta_attributes_for_client should not panic");
+            assert_eq!(gmas.len(), 1);
+            let gma = gmas.values().next().unwrap();
+            assert_eq!(gma.name, "client-gma");
+            assert_eq!(gma.value_type, ValueType::Boolean);
+        }
     }
 }

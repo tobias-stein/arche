@@ -197,21 +197,18 @@ fn build_generate_request(args: &cli::GenerateArgs) -> Result<GenerateRequest, C
 }
 
 fn cmd_export(args: &cli::ExportArgs, config: &Config) -> Result<(), CliError> {
-    let client_ids: Vec<Uuid> = if let Some(clients_str) = &args.clients {
-        if clients_str.trim().is_empty() {
-            Vec::new()
-        } else {
-            clients_str
-                .split(',')
-                .map(|s| {
-                    let s = s.trim();
-                    Uuid::parse_str(s)
-                        .map_err(|e| CliError::Args(format!("Invalid client UUID '{s}': {e}")))
-                })
-                .collect::<Result<Vec<_>, _>>()?
-        }
-    } else {
+    let clients_str = args.clients.as_deref().unwrap_or("");
+    let client_ids: Vec<Uuid> = if clients_str.trim().is_empty() {
         Vec::new()
+    } else {
+        clients_str
+            .split(',')
+            .map(|s| {
+                let s = s.trim();
+                Uuid::parse_str(s)
+                    .map_err(|e| CliError::Args(format!("Invalid client UUID '{s}': {e}")))
+            })
+            .collect::<Result<Vec<_>, _>>()?
     };
 
     let req = ExportRequest {
@@ -223,10 +220,8 @@ fn cmd_export(args: &cli::ExportArgs, config: &Config) -> Result<(), CliError> {
 
     let url = format!("{}/api/export", config.api_url);
     print_verbose(&format!("Request: POST {url}"), config.verbose);
-    if config.verbose {
-        if let Ok(body) = serde_json::to_string(&req) {
-            print_verbose(&format!("Request body: {body}"), config.verbose);
-        }
+    if let Ok(body) = serde_json::to_string(&req) {
+        print_verbose(&format!("Request body: {body}"), config.verbose);
     }
 
     let client = client::build_client(config);
@@ -2378,8 +2373,21 @@ mod export_tests {
         }
     }
 
-    #[test]
-    fn test_export_write_to_invalid_path_returns_generic_error() {
+    #[tokio::test]
+    async fn test_export_write_to_invalid_path_returns_generic_error() {
+        let mock_server = MockServer::start().await;
+        let uri = mock_server.uri();
+
+        Mock::given(method("POST"))
+            .and(path("/api/export"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_raw(b"zip-content", "application/zip"),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let config = make_config(&uri, false, false);
         let args = make_export_args(
             Some("/nonexistent/dir/should/fail/export.zip"),
             None,
@@ -2387,14 +2395,13 @@ mod export_tests {
             false,
             false,
         );
-        let config = make_config("http://127.0.0.1:1", false, false);
-        let result = cmd_export(&args, &config);
+        let result = run_export(args, config).await;
         assert!(result.is_err());
         match &result {
             Err(CliError::Generic(msg)) => {
                 assert!(
-                    msg.contains("Failed to connect"),
-                    "expected connect error, got: {msg}"
+                    msg.contains("Failed to write export file"),
+                    "expected write error, got: {msg}"
                 );
             }
             _ => panic!("expected Generic error, got {:?}", result),

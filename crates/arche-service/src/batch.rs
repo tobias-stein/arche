@@ -788,35 +788,35 @@ mod tests {
             req
         }
 
-    fn make_batch_delete_request(
-        uri: &str,
-        body: serde_json::Value,
-        key: crate::auth::AuthenticatedKey,
-    ) -> Request<Body> {
-        let mut req = Request::builder()
-            .method(Method::POST)
-            .uri(uri)
-            .header("content-type", "application/json")
-            .body(Body::from(serde_json::to_string(&body).unwrap()))
-            .unwrap();
-        req.extensions_mut().insert(key);
-        req
-    }
+        fn make_batch_delete_request(
+            uri: &str,
+            body: serde_json::Value,
+            key: crate::auth::AuthenticatedKey,
+        ) -> Request<Body> {
+            let mut req = Request::builder()
+                .method(Method::POST)
+                .uri(uri)
+                .header("content-type", "application/json")
+                .body(Body::from(serde_json::to_string(&body).unwrap()))
+                .unwrap();
+            req.extensions_mut().insert(key);
+            req
+        }
 
-    fn make_batch_assign_request(
-        uri: &str,
-        body: serde_json::Value,
-        key: crate::auth::AuthenticatedKey,
-    ) -> Request<Body> {
-        let mut req = Request::builder()
-            .method(Method::POST)
-            .uri(uri)
-            .header("content-type", "application/json")
-            .body(Body::from(serde_json::to_string(&body).unwrap()))
-            .unwrap();
-        req.extensions_mut().insert(key);
-        req
-    }
+        fn make_batch_assign_request(
+            uri: &str,
+            body: serde_json::Value,
+            key: crate::auth::AuthenticatedKey,
+        ) -> Request<Body> {
+            let mut req = Request::builder()
+                .method(Method::POST)
+                .uri(uri)
+                .header("content-type", "application/json")
+                .body(Body::from(serde_json::to_string(&body).unwrap()))
+                .unwrap();
+            req.extensions_mut().insert(key);
+            req
+        }
 
         fn make_client_key(client_id: Uuid) -> crate::auth::AuthenticatedKey {
             crate::auth::AuthenticatedKey {

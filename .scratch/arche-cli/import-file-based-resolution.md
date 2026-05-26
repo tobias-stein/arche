@@ -1,6 +1,6 @@
 ---
 title: arche import — file-based resolution
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

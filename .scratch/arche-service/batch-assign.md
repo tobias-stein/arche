@@ -1,6 +1,6 @@
 ---
 title: Batch assign — affixes to blueprints
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

@@ -1,6 +1,6 @@
 ---
 title: Clients management + API keys
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

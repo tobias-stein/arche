@@ -1,6 +1,6 @@
 ---
 title: Batch operations UI
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

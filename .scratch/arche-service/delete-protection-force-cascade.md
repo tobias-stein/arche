@@ -1,6 +1,6 @@
 ---
 title: Consistency — delete protection & force delete cascade
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

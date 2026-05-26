@@ -57,7 +57,7 @@ pub fn select_affixes(
     };
     let eff_max_suffixes = match constraints {
         Some(c) if c.max_suffixes > 0 => c.max_suffixes,
-        _ => blueprint.min_suffixes,
+        _ => blueprint.max_suffixes,
     };
 
     let (require, block) = match constraints {

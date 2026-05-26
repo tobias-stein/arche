@@ -24,7 +24,6 @@ import type {
   ConstraintValue,
   GenerateRequest,
   GenerateResponse,
-  GlobalMetaAttribute,
 } from '@/api/generated'
 
 import { Badge } from '@/components/ui/badge'
@@ -55,6 +54,12 @@ interface ConstraintRow {
   key: string
   operator: string
   value: string
+}
+
+const SEVERITY_STYLES: Record<string, { border: string; badge: 'destructive' | 'default' | 'outline' }> = {
+  error: { border: 'border-l-destructive', badge: 'destructive' },
+  warning: { border: 'border-l-amber-500', badge: 'default' },
+  info: { border: 'border-l-blue-500', badge: 'outline' },
 }
 
 const OPERATORS: Record<string, string[]> = {
@@ -170,10 +175,7 @@ export default function Dashboard() {
 
   const blueprints = useMemo(() => blueprintsData?.data ?? [], [blueprintsData])
   const affixes = useMemo(() => affixesData?.data ?? [], [affixesData])
-  const globalMetaAttrs = useMemo(
-    () => (gmaData?.data ?? []) as GlobalMetaAttribute[],
-    [gmaData],
-  )
+  const globalMetaAttrs = useMemo(() => gmaData?.data ?? [], [gmaData])
   const warnings = useMemo(
     () => computeWarnings(blueprints, affixes, globalMetaAttrs),
     [blueprints, affixes, globalMetaAttrs],
@@ -673,29 +675,19 @@ export default function Dashboard() {
         )}
 
         {!isLoading &&
-          visibleWarnings.map((warning: Warning) => (
+          visibleWarnings.map((warning: Warning) => {
+            const style = SEVERITY_STYLES[warning.severity] ?? SEVERITY_STYLES.info
+            return (
             <Card
               key={warning.id}
-              className={`border-l-4 ${
-                warning.severity === 'error'
-                  ? 'border-l-destructive'
-                  : warning.severity === 'warning'
-                    ? 'border-l-amber-500'
-                    : 'border-l-blue-500'
-              }`}
+              className={`border-l-4 ${style.border}`}
             >
               <CardHeader className="pb-2">
                 <div className="flex items-start justify-between gap-2">
                   <div className="space-y-1">
                     <CardTitle className="text-base flex items-center gap-2">
                       <Badge
-                        variant={
-                          warning.severity === 'error'
-                            ? 'destructive'
-                            : warning.severity === 'warning'
-                              ? 'default'
-                              : 'outline'
-                        }
+                        variant={style.badge}
                         className="text-xs shrink-0"
                       >
                         {warning.severity}
@@ -731,7 +723,9 @@ export default function Dashboard() {
                 </Link>
               </CardContent>
             </Card>
-          ))}
+            )
+          })
+        }
       </div>
 
       {/* Result Display */}

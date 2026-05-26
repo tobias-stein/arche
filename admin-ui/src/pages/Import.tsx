@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import {
   AlertTriangle,
   Check,
@@ -105,14 +105,14 @@ export default function ImportPage() {
   const currentStepIndex = stepIndex(step)
   const stepPercent = Math.round((currentStepIndex / (STEP_LABELS.length - 1)) * 100)
 
-  const allResourcesResolved = useMemo(() => {
+  function allResolved(): boolean {
     if (!conflictInfo) return false
     return conflictInfo.conflicts.every((c) => {
       const res = attributeResolutions[c.resourceId]
       if (!res) return false
       return c.attributes.every((a) => res[a.key] !== undefined)
     })
-  }, [conflictInfo, attributeResolutions])
+  }
 
   function handleFile(newFile: File) {
     if (!isZip(newFile)) {
@@ -243,14 +243,9 @@ export default function ImportPage() {
     setResourceStrategies(newResourceStrategies)
   }
 
-  const getAttrStrategy = useCallback(
-    (resourceId: string, attrKey: string): ResolutionStrategy => {
-      return (
-        attributeResolutions[resourceId]?.[attrKey] ?? 'keepOld'
-      )
-    },
-    [attributeResolutions],
-  )
+  function getAttrStrategy(resourceId: string, attrKey: string): ResolutionStrategy {
+    return attributeResolutions[resourceId]?.[attrKey] ?? 'keepOld'
+  }
 
   async function handleResolve() {
     if (!conflictInfo) return
@@ -511,7 +506,7 @@ export default function ImportPage() {
                   Cancel
                 </Button>
                 <Button
-                  disabled={!allResourcesResolved || resolveMutation.isPending}
+                  disabled={!allResolved() || resolveMutation.isPending}
                   onClick={handleResolve}
                 >
                   {resolveMutation.isPending ? (

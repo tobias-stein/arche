@@ -92,9 +92,6 @@ function makeConflictResponse(overrides?: Record<string, unknown>): Record<strin
           },
         ],
       },
-      ...(overrides?.conflicts
-        ? []
-        : []),
     ],
     ...overrides,
   }

@@ -148,7 +148,7 @@ pub async fn batch_edit_blueprints(
         ProblemResponse::unprocessable_entity("Failed to begin transaction for batch edit")
     })?;
 
-    for (bp_id, bp_client_id, before_attrs, _after_attrs) in &to_update {
+    for (bp_id, bp_client_id, before_attrs, after_attrs) in &to_update {
         sqlx::query(
             "UPDATE blueprints SET attributes = attributes || $1::jsonb, updated_at = now() WHERE id = $2",
         )
@@ -169,7 +169,7 @@ pub async fn batch_edit_blueprints(
             *bp_id,
             "updated",
             Some(serde_json::json!({ "attributes": before_attrs })),
-            Some(serde_json::json!({ "attributes": _after_attrs })),
+            Some(serde_json::json!({ "attributes": after_attrs })),
         )
         .await
         .map_err(|e| {

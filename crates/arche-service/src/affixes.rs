@@ -187,29 +187,26 @@ pub async fn delete_affix(
                     ProblemResponse::unprocessable_entity("Failed to adjust blueprint affix counts")
                 })?;
 
-                sqlx::query(
-                    "INSERT INTO audit_log (actor_key_id, actor_key_name, client_id, \
-                     resource_type, resource_id, action, before, after) \
-                     VALUES ($1, $2, $3, 'blueprint', $4, 'adjusted'::audit_action, \
-                     $5, $6)",
+                record_audit(
+                    &mut *tx,
+                    &user,
+                    Some(affix_client_id),
+                    "blueprint",
+                    bp_id,
+                    "adjusted",
+                    Some(serde_json::json!({
+                        "min_prefixes": current_min_p,
+                        "max_prefixes": current_max_p,
+                        "min_suffixes": current_min_s,
+                        "max_suffixes": current_max_s,
+                    })),
+                    Some(serde_json::json!({
+                        "min_prefixes": new_min_p,
+                        "max_prefixes": new_max_p,
+                        "min_suffixes": new_min_s,
+                        "max_suffixes": new_max_s,
+                    })),
                 )
-                .bind(user.id)
-                .bind(&user.name)
-                .bind(affix_client_id)
-                .bind(bp_id)
-                .bind(serde_json::json!({
-                    "min_prefixes": current_min_p,
-                    "max_prefixes": current_max_p,
-                    "min_suffixes": current_min_s,
-                    "max_suffixes": current_max_s,
-                }))
-                .bind(serde_json::json!({
-                    "min_prefixes": new_min_p,
-                    "max_prefixes": new_max_p,
-                    "min_suffixes": new_min_s,
-                    "max_suffixes": new_max_s,
-                }))
-                .execute(&mut *tx)
                 .await
                 .map_err(|e| {
                     tracing::error!(error = %e, "affixes: audit log insert failed");

@@ -148,19 +148,16 @@ pub async fn delete_global_meta_attribute(
                 ProblemResponse::unprocessable_entity("Failed to remove blueprint attribute reference")
             })?;
 
-            sqlx::query(
-                "INSERT INTO audit_log (actor_key_id, actor_key_name, client_id, \
-                 resource_type, resource_id, action, before, after) \
-                 VALUES ($1, $2, $3, 'blueprint', $4, 'adjusted'::audit_action, \
-                 $5, $6)",
+            record_audit(
+                &mut *tx,
+                &user,
+                Some(gma_client_id),
+                "blueprint",
+                bp_id,
+                "adjusted",
+                Some(serde_json::json!({"attribute_key": &attr_key, "removed_ref_id": id.to_string()})),
+                Some(serde_json::json!({"attribute_key": &attr_key, "removed": true})),
             )
-            .bind(user.id)
-            .bind(&user.name)
-            .bind(gma_client_id)
-            .bind(bp_id)
-            .bind(serde_json::json!({"attribute_key": &attr_key, "removed_ref_id": id.to_string()}))
-            .bind(serde_json::json!({"attribute_key": &attr_key, "removed": true}))
-            .execute(&mut *tx)
             .await
             .map_err(|e| {
                 tracing::error!(error = %e, "gma: audit log insert failed");
@@ -183,19 +180,16 @@ pub async fn delete_global_meta_attribute(
                 ProblemResponse::unprocessable_entity("Failed to clear affix attribute reference")
             })?;
 
-            sqlx::query(
-                "INSERT INTO audit_log (actor_key_id, actor_key_name, client_id, \
-                 resource_type, resource_id, action, before, after) \
-                 VALUES ($1, $2, $3, 'affix', $4, 'adjusted'::audit_action, \
-                 $5, $6)",
+            record_audit(
+                &mut *tx,
+                &user,
+                Some(gma_client_id),
+                "affix",
+                affix_id,
+                "adjusted",
+                Some(serde_json::json!({"removed_ref_id": id.to_string()})),
+                Some(serde_json::json!({"attribute": {}})),
             )
-            .bind(user.id)
-            .bind(&user.name)
-            .bind(gma_client_id)
-            .bind(affix_id)
-            .bind(serde_json::json!({"removed_ref_id": id.to_string()}))
-            .bind(serde_json::json!({"attribute": {}}))
-            .execute(&mut *tx)
             .await
             .map_err(|e| {
                 tracing::error!(error = %e, "gma: audit log insert failed");

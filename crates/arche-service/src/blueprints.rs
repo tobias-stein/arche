@@ -2052,8 +2052,10 @@ mod tests {
                 assert!(result.is_err());
                 let err = result.unwrap_err();
                 assert_eq!(err.status, 400);
-                let detail = err.detail.unwrap();
-                assert!(detail.contains("5") || detail.contains("1") || detail.contains("-1"));
+                assert!(err.errors.is_some());
+                let errors = err.errors.as_ref().unwrap();
+                assert!(errors.iter().any(|e| e.path == "affixes.max_prefixes"));
+                assert!(errors.iter().any(|e| e.path == "affixes.min_suffixes"));
 
                 sqlx::query("DELETE FROM clients WHERE id = $1")
                     .bind(client_id)
@@ -2713,9 +2715,13 @@ mod tests {
             assert!(result.is_err());
             let err = result.unwrap_err();
             assert_eq!(err.status, 400);
-            let detail = err.detail.unwrap();
-            assert!(detail.contains("cannot have both") || detail.contains("$ref_id"),
-                "expected $ref_id/inline error, got: {detail}");
+            assert!(err.errors.is_some());
+            let errors = err.errors.as_ref().unwrap();
+            assert!(
+                errors.iter().any(|e| e.message.contains("cannot have both")
+                    || e.message.contains("$ref_id")),
+                "expected $ref_id/inline error, got: {errors:?}"
+            );
 
             sqlx::query("DELETE FROM clients WHERE id = $1")
                 .bind(client_id)
@@ -2784,8 +2790,12 @@ mod tests {
             assert!(result.is_err());
             let err = result.unwrap_err();
             assert_eq!(err.status, 400);
-            let detail = err.detail.unwrap();
-            assert!(detail.contains("missing"), "expected missing key error, got: {detail}");
+            assert!(err.errors.is_some());
+            let errors = err.errors.as_ref().unwrap();
+            assert!(
+                errors.iter().any(|e| e.message.contains("missing")),
+                "expected missing key error, got: {errors:?}"
+            );
 
             sqlx::query("DELETE FROM clients WHERE id = $1")
                 .bind(client_id)
@@ -2844,8 +2854,12 @@ mod tests {
             assert!(result.is_err());
             let err = result.unwrap_err();
             assert_eq!(err.status, 400);
-            let detail = err.detail.unwrap();
-            assert!(detail.contains("extra"), "expected extra key error, got: {detail}");
+            assert!(err.errors.is_some());
+            let errors = err.errors.as_ref().unwrap();
+            assert!(
+                errors.iter().any(|e| e.message.contains("extra")),
+                "expected extra key error, got: {errors:?}"
+            );
 
             sqlx::query("DELETE FROM clients WHERE id = $1")
                 .bind(client_id)
@@ -2904,8 +2918,12 @@ mod tests {
             assert!(result.is_err());
             let err = result.unwrap_err();
             assert_eq!(err.status, 400);
-            let detail = err.detail.unwrap();
-            assert!(detail.contains("duplicate"), "expected duplicate key error, got: {detail}");
+            assert!(err.errors.is_some());
+            let errors = err.errors.as_ref().unwrap();
+            assert!(
+                errors.iter().any(|e| e.message.contains("duplicate")),
+                "expected duplicate key error, got: {errors:?}"
+            );
 
             sqlx::query("DELETE FROM clients WHERE id = $1")
                 .bind(client_id)

@@ -1231,7 +1231,7 @@ mod tests {
             assert!(bcrypt::verify(&resp.key, &key_hash).unwrap());
 
             // The response should NOT include the key_hash
-            let resp_json = serde_json::to_value(&resp).unwrap();
+            let resp_json = serde_json::to_value(&*resp).unwrap();
             assert!(!resp_json.as_object().unwrap().contains_key("keyHash"));
 
             // Cleanup

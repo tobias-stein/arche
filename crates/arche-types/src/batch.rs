@@ -25,6 +25,12 @@ pub struct BatchAssignRequest {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
+pub struct BatchAssignResponse {
+    pub count: i64,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct BatchEditRequest {
     pub blueprint_ids: Vec<Uuid>,
     pub attributes: HashMap<String, serde_json::Value>,

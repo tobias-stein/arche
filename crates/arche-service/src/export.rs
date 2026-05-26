@@ -280,7 +280,7 @@ async fn fetch_affixes(
     client_id: Uuid,
 ) -> Result<Vec<AffixExport>, ProblemResponse> {
     let rows = sqlx::query(
-        "SELECT id, name, type, description, attribute \
+        "SELECT id, name, type::text, description, attribute \
          FROM affixes WHERE client_id = $1 ORDER BY id ASC",
     )
     .bind(client_id)

@@ -14,7 +14,7 @@ use crate::auth::permission::CurrentUser;
 use crate::error::{FieldError, ProblemResponse, ReferenceInfo};
 
 const AFFIX_COLUMNS: &str =
-    "id, client_id, name, type, description, attribute, created_at, updated_at";
+    "id, client_id, name, type::text, description, attribute, created_at, updated_at";
 
 impl crate::pagination::HasId for Affix {
     fn id(&self) -> Uuid {

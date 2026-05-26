@@ -373,7 +373,7 @@ pub async fn batch_delete_affixes(
     }
 
     let rows = sqlx::query(
-        "SELECT id, client_id, name, type, description, attribute FROM affixes WHERE id = ANY($1)",
+        "SELECT id, client_id, name, type::text, description, attribute FROM affixes WHERE id = ANY($1)",
     )
     .bind(&req.ids)
     .fetch_all(&*state.pool)
@@ -518,7 +518,7 @@ async fn do_batch_assign(
     }
 
     let affix_rows = sqlx::query(
-        "SELECT id, client_id, type FROM affixes WHERE id = ANY($1)",
+        "SELECT id, client_id, type::text FROM affixes WHERE id = ANY($1)",
     )
     .bind(&req.affix_ids)
     .fetch_all(&*state.pool)

@@ -59,7 +59,7 @@ pub fn required_permission(method: &Method, path: &str) -> Option<RequiredPermis
         }
         Method::PUT | Method::PATCH => Some(RequiredPermission::Regular(Permission::Write)),
         Method::DELETE => {
-            if extract_path_client_id(path).is_some() && path_has_key_uuid(path) {
+            if path_has_key_uuid(path) {
                 return Some(RequiredPermission::Regular(Permission::Admin));
             }
             Some(RequiredPermission::Regular(Permission::Delete))
@@ -87,7 +87,7 @@ fn path_has_key_uuid(path: &str) -> bool {
         None => return false,
     };
     let mut parts = rest.split('/');
-    let _client_id = parts.next();
+    let _ = parts.next();
     let keys_segment = parts.next();
     let key_id = parts.next();
     keys_segment == Some("keys") && key_id.and_then(|s| Uuid::parse_str(s).ok()).is_some()

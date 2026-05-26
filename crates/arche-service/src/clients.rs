@@ -391,7 +391,7 @@ pub async fn create_api_key(
             ProblemResponse::unprocessable_entity("Failed to hash API key")
         })?;
 
-    let perm_strs: Vec<String> = req.permissions.iter().map(|p| permission_to_db(p).to_string()).collect();
+    let perm_strs: Vec<String> = req.permissions.iter().map(permission_to_db).collect();
 
     let row = sqlx::query(
         "INSERT INTO api_keys (client_id, name, key_hash, permissions, is_super) \

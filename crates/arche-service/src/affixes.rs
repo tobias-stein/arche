@@ -1,4 +1,4 @@
-use arche_types::attribute::AffixAttribute;
+use arche_types::attribute::{AffixAttribute, AttributePayload};
 use arche_types::common::{AffixListQuery, PaginatedResponse};
 use arche_types::crud::CreateAffixRequest;
 use arche_types::{Affix, AffixLocation};
@@ -70,6 +70,22 @@ fn resolve_client_id_for_write(
     user.client_id.ok_or_else(|| {
         ProblemResponse::forbidden("Access denied: key is not associated with any client")
     })
+}
+
+fn check_affix_access(
+    user: &crate::auth::AuthenticatedKey,
+    affix_client_id: Uuid,
+    id: Uuid,
+) -> Result<(), ProblemResponse> {
+    if !user.is_super {
+        let user_cid = user.client_id.ok_or_else(|| {
+            ProblemResponse::forbidden("Access denied: key is not associated with any client")
+        })?;
+        if affix_client_id != user_cid {
+            return Err(ProblemResponse::not_found(format!("Affix not found: {id}")));
+        }
+    }
+    Ok(())
 }
 
 fn apply_affix_filters<'a>(
@@ -268,57 +284,23 @@ async fn validate_affix_attribute(
                 ));
             }
 
-            let attr_json = serde_json::to_value(attribute).map_err(|e| {
+            let value_type = match &inline.payload {
+                AttributePayload::Single { .. } => arche_types::ValueType::Single,
+                AttributePayload::Enum { .. } => arche_types::ValueType::Enum,
+                AttributePayload::Range { .. } => arche_types::ValueType::Range,
+                AttributePayload::String { .. } => arche_types::ValueType::String,
+                AttributePayload::Boolean { .. } => arche_types::ValueType::Boolean,
+            };
+
+            let payload_json = serde_json::to_value(&inline.payload).map_err(|e| {
                 ProblemResponse::validation_error(
                     format!("Failed to serialize attribute for validation: {e}"),
                     vec![],
                 )
             })?;
 
-            let obj = attr_json.as_object().ok_or_else(|| {
-                ProblemResponse::validation_error("Invalid attribute format", vec![])
-            })?;
-
-            let value_type_str = obj
-                .get("value_type")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| {
-                    ProblemResponse::validation_error(
-                        "Attribute must have a value_type",
-                        vec![FieldError {
-                            path: "attribute.value_type".into(),
-                            message: "value_type is required for inline attributes".into(),
-                        }],
-                    )
-                })?;
-
-            let value_type = match value_type_str {
-                "single" => arche_types::ValueType::Single,
-                "enum" => arche_types::ValueType::Enum,
-                "range" => arche_types::ValueType::Range,
-                "string" => arche_types::ValueType::String,
-                "boolean" => arche_types::ValueType::Boolean,
-                other => {
-                    return Err(ProblemResponse::validation_error(
-                        format!("Unknown value_type: {other}"),
-                        vec![FieldError {
-                            path: "attribute.value_type".into(),
-                            message: format!("Unknown value_type: {other}"),
-                        }],
-                    ));
-                }
-            };
-
-            let mut payload_map = serde_json::Map::new();
-            for (k, v) in obj {
-                if k != "value_type" && k != "name" && k != "description" {
-                    payload_map.insert(k.clone(), v.clone());
-                }
-            }
-            let payload = serde_json::Value::Object(payload_map);
-
             let payload_errors =
-                arche_types::validation::validate_attribute_payload(&value_type, &payload);
+                arche_types::validation::validate_attribute_payload(&value_type, &payload_json);
             if !payload_errors.is_empty() {
                 let field_errors: Vec<FieldError> = payload_errors
                     .into_iter()
@@ -333,6 +315,12 @@ async fn validate_affix_attribute(
                 ));
             }
 
+            let attr_json = serde_json::to_value(attribute).map_err(|e| {
+                ProblemResponse::validation_error(
+                    format!("Failed to serialize attribute: {e}"),
+                    vec![],
+                )
+            })?;
             Ok(attr_json)
         }
     }
@@ -430,14 +418,7 @@ pub async fn get_affix(
 
     let affix = affix_row_to_affix(&row);
 
-    if !user.is_super {
-        let user_cid = user.client_id.ok_or_else(|| {
-            ProblemResponse::forbidden("Access denied: key is not associated with any client")
-        })?;
-        if affix.client_id != user_cid {
-            return Err(ProblemResponse::not_found(format!("Affix not found: {id}")));
-        }
-    }
+    check_affix_access(&user, affix.client_id, id)?;
 
     Ok(Json(affix))
 }
@@ -462,14 +443,7 @@ pub async fn update_affix(
 
     let existing_affix = affix_row_to_affix(&existing);
 
-    if !user.is_super {
-        let user_cid = user.client_id.ok_or_else(|| {
-            ProblemResponse::forbidden("Access denied: key is not associated with any client")
-        })?;
-        if existing_affix.client_id != user_cid {
-            return Err(ProblemResponse::not_found(format!("Affix not found: {id}")));
-        }
-    }
+    check_affix_access(&user, existing_affix.client_id, id)?;
 
     let client_id = existing_affix.client_id;
 
@@ -561,14 +535,7 @@ pub async fn delete_affix(
 
     let affix_client_id: Uuid = row.get("client_id");
 
-    if !user.is_super {
-        let user_cid = user.client_id.ok_or_else(|| {
-            ProblemResponse::forbidden("Access denied: key is not associated with any client")
-        })?;
-        if affix_client_id != user_cid {
-            return Err(ProblemResponse::not_found(format!("Affix not found: {id}")));
-        }
-    }
+    check_affix_access(&user, affix_client_id, id)?;
 
     let ref_rows = sqlx::query(
         "SELECT ba.blueprint_id, b.name as blueprint_name \

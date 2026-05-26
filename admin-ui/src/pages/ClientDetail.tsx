@@ -42,6 +42,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
+import { formatDate } from '@/lib/utils'
 import { toastSuccess, toastError } from '@/lib/toast-helpers'
 
 const ALL_PERMISSIONS: { value: Permission; label: string }[] = [
@@ -93,24 +94,20 @@ export default function ClientDetail() {
     })
   }
 
-  function handleCreateKey() {
+  async function handleCreateKey() {
     const name = keyName.trim()
     if (!name || keyPermissions.size === 0) return
-    createKeyMutation
-      .mutateAsync({
+    try {
+      const result = await createKeyMutation.mutateAsync({
         clientId: id!,
         request: { name, permissions: Array.from(keyPermissions) },
       })
-      .then(
-        (result) => {
-          setCreatedKey(result)
-          setKeyCopied(false)
-          toastSuccess('api-key', 'created', name)
-        },
-        (err) => {
-          toastError('api-key', 'Create', err, name)
-        },
-      )
+      setCreatedKey(result)
+      setKeyCopied(false)
+      toastSuccess('api-key', 'created', name)
+    } catch (err) {
+      toastError('api-key', 'Create', err, name)
+    }
   }
 
   function handleCopyKey() {
@@ -129,43 +126,29 @@ export default function ClientDetail() {
     setKeyCopied(false)
   }
 
-  function handleRevokeKey() {
+  async function handleRevokeKey() {
     if (!revokingKey) return
-    deleteKeyMutation
-      .mutateAsync({ clientId: id!, keyId: revokingKey.id })
-      .then(
-        () => {
-          toastSuccess('api-key', 'revoked', revokingKey.name)
-          setRevokingKey(null)
-        },
-        (err) => {
-          toastError('api-key', 'Revoke', err, revokingKey.name)
-          setRevokingKey(null)
-        },
-      )
+    try {
+      await deleteKeyMutation.mutateAsync({ clientId: id!, keyId: revokingKey.id })
+      toastSuccess('api-key', 'revoked', revokingKey.name)
+      setRevokingKey(null)
+    } catch (err) {
+      toastError('api-key', 'Revoke', err, revokingKey.name)
+      setRevokingKey(null)
+    }
   }
 
-  function handleDeleteClient() {
+  async function handleDeleteClient() {
     if (!client || deleteConfirmation !== client.name) return
-    deleteClientMutation.mutateAsync(id!).then(
-      () => {
-        toastSuccess('client', 'deleted', client.name)
-        navigate('/clients')
-      },
-      (err) => {
-        toastError('client', 'Delete', err, client.name)
-        setDeleteOpen(false)
-        setDeleteConfirmation('')
-      },
-    )
-  }
-
-  function formatDate(iso: string) {
-    return new Date(iso).toLocaleDateString(undefined, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    })
+    try {
+      await deleteClientMutation.mutateAsync(id!)
+      toastSuccess('client', 'deleted', client.name)
+      navigate('/clients')
+    } catch (err) {
+      toastError('client', 'Delete', err, client.name)
+      setDeleteOpen(false)
+      setDeleteConfirmation('')
+    }
   }
 
   if (isLoading) {
@@ -200,7 +183,7 @@ export default function ClientDetail() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/clients')}>
+        <Button variant="ghost" size="icon" onClick={() => navigate('/clients')} aria-label="Back to clients">
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>

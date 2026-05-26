@@ -26,6 +26,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
+import { formatDate } from '@/lib/utils'
 import { toastSuccess, toastError } from '@/lib/toast-helpers'
 
 const DEFAULT_PER_PAGE = 25
@@ -44,41 +45,29 @@ export default function Clients() {
   const total = data?.total ?? 0
   const totalPages = Math.max(1, Math.ceil(total / DEFAULT_PER_PAGE))
 
-  function handleCreate() {
+  async function handleCreate() {
     const name = newClientName.trim()
     if (!name) return
-    createMutation.mutateAsync({ name }).then(
-      () => {
-        toastSuccess('client', 'created', name)
-        setCreateOpen(false)
-        setNewClientName('')
-      },
-      (err) => {
-        toastError('client', 'Create', err, name)
-      },
-    )
+    try {
+      await createMutation.mutateAsync({ name })
+      toastSuccess('client', 'created', name)
+      setCreateOpen(false)
+      setNewClientName('')
+    } catch (err) {
+      toastError('client', 'Create', err, name)
+    }
   }
 
-  function handleDelete() {
+  async function handleDelete() {
     if (!deletingClient) return
-    deleteMutation.mutateAsync(deletingClient.id).then(
-      () => {
-        toastSuccess('client', 'deleted', deletingClient.name)
-        setDeletingClient(null)
-      },
-      (err) => {
-        toastError('client', 'Delete', err, deletingClient.name)
-        setDeletingClient(null)
-      },
-    )
-  }
-
-  function formatDate(iso: string) {
-    return new Date(iso).toLocaleDateString(undefined, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    })
+    try {
+      await deleteMutation.mutateAsync(deletingClient.id)
+      toastSuccess('client', 'deleted', deletingClient.name)
+      setDeletingClient(null)
+    } catch (err) {
+      toastError('client', 'Delete', err, deletingClient.name)
+      setDeletingClient(null)
+    }
   }
 
   if (isLoading) {
@@ -174,7 +163,7 @@ export default function Clients() {
                             variant="ghost"
                             size="icon"
                             onClick={() => setDeletingClient(client)}
-                            title="Delete client"
+                            aria-label={`Delete ${client.name}`}
                           >
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>

@@ -33,3 +33,11 @@ export function relativeTime(iso: string): string {
   const m = Math.floor(diff / MONTH)
   return `${m} month${m > 1 ? 's' : ''} ago`
 }
+
+export function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  })
+}

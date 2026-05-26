@@ -16,6 +16,7 @@ use cli::{Cli, ClientCommand, Command, KeyCommand};
 use config::Config;
 use error::CliError;
 use output::{print_verbose, OutputFormat};
+use reqwest::Response;
 use std::collections::{HashMap, HashSet};
 use std::process::ExitCode;
 use std::str::FromStr;
@@ -314,20 +315,7 @@ fn cmd_import(args: &cli::ImportArgs, config: &Config) -> Result<(), CliError> {
                 );
 
                 if !resolve_status.is_success() {
-                    let problem: Result<ProblemJson, _> =
-                        rt.block_on(resolve_response.json());
-                    if let Ok(problem) = problem {
-                        return Err(CliError::Api(problem));
-                    }
-                    return Err(CliError::Api(ProblemJson {
-                        type_: format!("/errors/http-{}", resolve_status.as_u16()),
-                        title: resolve_status
-                            .canonical_reason()
-                            .unwrap_or("HTTP Error")
-                            .to_string(),
-                        status: resolve_status.as_u16(),
-                        detail: None,
-                    }));
+                    return Err(api_error_from_response(resolve_response, &rt));
                 }
 
                 let resolve_result: ImportSuccessResponse = rt
@@ -350,21 +338,7 @@ fn cmd_import(args: &cli::ImportArgs, config: &Config) -> Result<(), CliError> {
 
             Err(CliError::Api(conflict_response.problem))
         }
-        _ => {
-            let problem: Result<ProblemJson, _> = rt.block_on(response.json());
-            if let Ok(problem) = problem {
-                return Err(CliError::Api(problem));
-            }
-            Err(CliError::Api(ProblemJson {
-                type_: format!("/errors/http-{}", status.as_u16()),
-                title: status
-                    .canonical_reason()
-                    .unwrap_or("HTTP Error")
-                    .to_string(),
-                status: status.as_u16(),
-                detail: None,
-            }))
-        }
+        _ => Err(api_error_from_response(response, &rt)),
     }
 }
 
@@ -399,21 +373,17 @@ fn validate_resolutions(
         }
 
         if resource_resolution.strategy == ResolutionStrategy::PerAttribute {
-            match &resource_resolution.attributes {
-                None => {
-                    return Err(CliError::Args(format!(
-                        "PerAttribute strategy for resource '{id}' must include an attributes map"
-                    )));
-                }
-                Some(attrs) => {
-                    if let Some(valid_keys) = conflict_attrs.get(id) {
-                        for key in attrs.keys() {
-                            if !valid_keys.contains(key.as_str()) {
-                                return Err(CliError::Args(format!(
-                                    "Attribute key '{key}' for resource '{id}' not found in conflicts"
-                                )));
-                            }
-                        }
+            let attrs = resource_resolution.attributes.as_ref().ok_or_else(|| {
+                CliError::Args(format!(
+                    "PerAttribute strategy for resource '{id}' must include an attributes map"
+                ))
+            })?;
+            if let Some(valid_keys) = conflict_attrs.get(id) {
+                for key in attrs.keys() {
+                    if !valid_keys.contains(key.as_str()) {
+                        return Err(CliError::Args(format!(
+                            "Attribute key '{key}' for resource '{id}' not found in conflicts"
+                        )));
                     }
                 }
             }
@@ -421,6 +391,23 @@ fn validate_resolutions(
     }
 
     Ok(())
+}
+
+fn api_error_from_response(
+    response: Response,
+    rt: &tokio::runtime::Runtime,
+) -> CliError {
+    let status = response.status();
+    let problem: Result<ProblemJson, _> = rt.block_on(response.json());
+    match problem {
+        Ok(problem) => CliError::Api(problem),
+        Err(_) => CliError::Api(ProblemJson {
+            type_: format!("/errors/http-{}", status.as_u16()),
+            title: status.canonical_reason().unwrap_or("HTTP Error").to_string(),
+            status: status.as_u16(),
+            detail: None,
+        }),
+    }
 }
 
 fn cmd_key(_sub: &KeyCommand, _config: &Config) -> Result<(), CliError> {

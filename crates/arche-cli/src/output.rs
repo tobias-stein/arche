@@ -138,7 +138,7 @@ impl OutputWriter {
                 for (key, value) in &response.blueprint_attributes {
                     attrs.add_row(vec![Cell::new(key), Cell::new(value)]);
                 }
-                writeln!(self.stdout, "{}", attrs)?;
+                writeln!(self.stdout, "{attrs}")?;
 
                 if !response.affix_attributes.is_empty() {
                     let mut affixes = build_table(vec![
@@ -153,7 +153,7 @@ impl OutputWriter {
                             Cell::new(&affix.attributes),
                         ]);
                     }
-                    writeln!(self.stdout, "{}", affixes)?;
+                    writeln!(self.stdout, "{affixes}")?;
                 }
 
                 writeln!(
@@ -190,7 +190,7 @@ impl OutputWriter {
                         Cell::new(key.created_at.to_rfc3339()),
                     ]);
                 }
-                writeln!(self.stdout, "{}", table)
+                writeln!(self.stdout, "{table}")
             }
         }
     }
@@ -256,7 +256,38 @@ impl OutputWriter {
                         Cell::new(client.api_keys.len()),
                     ]);
                 }
-                writeln!(self.stdout, "{}", table)
+                writeln!(self.stdout, "{table}")
+            }
+        }
+    }
+
+    pub fn write_client_created(&mut self, response: &ClientResponse) -> io::Result<()> {
+        match self.format {
+            OutputFormat::Quiet => {
+                writeln!(self.stdout, "{}", response.id)
+            }
+            OutputFormat::Json => {
+                let json = serde_json::to_string_pretty(response)?;
+                writeln!(self.stdout, "{json}")
+            }
+            OutputFormat::Pretty => {
+                writeln!(self.stdout, "Client created:")?;
+                writeln!(self.stdout, "  ID:   {}", response.id)?;
+                writeln!(self.stdout, "  Name: {}", response.name)?;
+                Ok(())
+            }
+        }
+    }
+
+    pub fn write_client_deleted(&mut self) -> io::Result<()> {
+        match self.format {
+            OutputFormat::Quiet => Ok(()),
+            OutputFormat::Json => {
+                let json = serde_json::to_string_pretty(&serde_json::json!({"message": "Client deleted."}))?;
+                writeln!(self.stdout, "{json}")
+            }
+            OutputFormat::Pretty => {
+                writeln!(self.stdout, "{}", "Client deleted.".green())
             }
         }
     }
@@ -345,6 +376,17 @@ pub fn print_error(msg: &str) {
 pub fn print_verbose(msg: &str, verbose: bool) {
     if verbose {
         eprintln!("[verbose] {msg}");
+    }
+}
+
+pub fn emit_output(writer: &OutputWriter) {
+    let stdout_content = writer.stdout().contents();
+    if !stdout_content.is_empty() {
+        print!("{stdout_content}");
+    }
+    let stderr_content = writer.stderr().contents();
+    if !stderr_content.is_empty() {
+        eprint!("{stderr_content}");
     }
 }
 
@@ -543,6 +585,73 @@ mod tests {
         writer.write_client_list(&clients).unwrap();
         let output = writer.stdout().contents();
         assert!(output.contains("My Game"));
+    }
+
+    #[test]
+    fn test_write_client_created_json_mode() {
+        let mut writer = OutputWriter::new(OutputFormat::Json, false);
+        let response = ClientResponse {
+            id: Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap(),
+            name: "My Game".into(),
+            created_at: DateTime::<Utc>::from_timestamp_millis(0).unwrap(),
+            api_keys: vec![],
+        };
+        writer.write_client_created(&response).unwrap();
+        let output = writer.stdout().contents();
+        assert!(output.contains("My Game"));
+        assert!(output.contains("00000000-0000-0000-0000-000000000001"));
+    }
+
+    #[test]
+    fn test_write_client_created_pretty_mode() {
+        let mut writer = OutputWriter::new(OutputFormat::Pretty, false);
+        let response = ClientResponse {
+            id: Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap(),
+            name: "My Game".into(),
+            created_at: DateTime::<Utc>::from_timestamp_millis(0).unwrap(),
+            api_keys: vec![],
+        };
+        writer.write_client_created(&response).unwrap();
+        let output = writer.stdout().contents();
+        assert!(output.contains("Client created"));
+        assert!(output.contains("My Game"));
+    }
+
+    #[test]
+    fn test_write_client_created_quiet_mode_outputs_id() {
+        let mut writer = OutputWriter::new(OutputFormat::Quiet, false);
+        let response = ClientResponse {
+            id: Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap(),
+            name: "My Game".into(),
+            created_at: DateTime::<Utc>::from_timestamp_millis(0).unwrap(),
+            api_keys: vec![],
+        };
+        writer.write_client_created(&response).unwrap();
+        let output = writer.stdout().contents();
+        assert_eq!(output.trim(), "00000000-0000-0000-0000-000000000001");
+    }
+
+    #[test]
+    fn test_write_client_deleted_json_mode() {
+        let mut writer = OutputWriter::new(OutputFormat::Json, false);
+        writer.write_client_deleted().unwrap();
+        let output = writer.stdout().contents();
+        assert!(output.contains("Client deleted"));
+    }
+
+    #[test]
+    fn test_write_client_deleted_pretty_mode() {
+        let mut writer = OutputWriter::new(OutputFormat::Pretty, false);
+        writer.write_client_deleted().unwrap();
+        let output = writer.stdout().contents();
+        assert!(output.contains("Client deleted"));
+    }
+
+    #[test]
+    fn test_write_client_deleted_quiet_mode() {
+        let mut writer = OutputWriter::new(OutputFormat::Quiet, false);
+        writer.write_client_deleted().unwrap();
+        assert!(writer.stdout().contents().is_empty());
     }
 
     #[test]

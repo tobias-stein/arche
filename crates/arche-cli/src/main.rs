@@ -5,8 +5,8 @@ pub mod config;
 pub mod error;
 pub mod output;
 
-use arche_types::common::ProblemJson;
-use arche_types::crud::BootstrapResponse;
+use arche_types::common::{PaginatedResponse, ProblemJson};
+use arche_types::crud::{BootstrapResponse, ClientResponse, CreateClientRequest};
 use arche_types::export_import::{
     ConflictResolutionRequest, ImportConflictResponse, ImportSuccessResponse, ResolutionStrategy,
 };
@@ -95,7 +95,7 @@ fn cmd_init(config: &Config) -> Result<(), CliError> {
                 println!("╔══════════════════════════════════════════════════════════════╗");
                 println!("║               === SUPER ADMIN API KEY ===                  ║");
                 println!("║                                                            ║");
-                println!("║  {:<58}║", key);
+                println!("║  {key:<58}║");
                 println!("║                                                            ║");
                 println!("║  Store this key securely. It will not be shown again.      ║");
                 println!("╚══════════════════════════════════════════════════════════════╝");
@@ -414,8 +414,144 @@ fn cmd_key(_sub: &KeyCommand, _config: &Config) -> Result<(), CliError> {
     Err(CliError::Generic("Not yet implemented".into()))
 }
 
-fn cmd_client(_sub: &ClientCommand, _config: &Config) -> Result<(), CliError> {
-    Err(CliError::Generic("Not yet implemented".into()))
+fn cmd_client(sub: &ClientCommand, config: &Config) -> Result<(), CliError> {
+    match sub {
+        ClientCommand::List => cmd_client_list(config),
+        ClientCommand::Create { name } => cmd_client_create(name, config),
+        ClientCommand::Delete { client_id } => cmd_client_delete(client_id, config),
+    }
+}
+
+fn cmd_client_list(config: &Config) -> Result<(), CliError> {
+    let url = format!("{}/api/clients", config.api_url);
+    print_verbose(&format!("Request: GET {url}"), config.verbose);
+
+    let client = client::build_client(config);
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let response = rt
+        .block_on(client.get(&url).send())
+        .map_err(|e| CliError::Generic(format!("Failed to connect to API: {e}")))?;
+
+    let status = response.status();
+    print_verbose(
+        &format!(
+            "Response: {} {}",
+            status.as_u16(),
+            status.canonical_reason().unwrap_or("")
+        ),
+        config.verbose,
+    );
+
+    if !status.is_success() {
+        return Err(api_error_from_response(response, &rt));
+    }
+
+    let paginated: PaginatedResponse<ClientResponse> = rt
+        .block_on(response.json())
+        .map_err(|e| CliError::Generic(format!("Failed to parse response: {e}")))?;
+
+    let format = if config.quiet {
+        OutputFormat::Quiet
+    } else {
+        OutputFormat::Json
+    };
+
+    let mut writer = output::OutputWriter::new(format, config.verbose);
+    writer
+        .write_client_list(&paginated.data)
+        .map_err(|e| CliError::Generic(format!("Failed to write output: {e}")))?;
+
+    output::emit_output(&writer);
+
+    Ok(())
+}
+
+fn cmd_client_create(name: &str, config: &Config) -> Result<(), CliError> {
+    let url = format!("{}/api/clients", config.api_url);
+    print_verbose(&format!("Request: POST {url}"), config.verbose);
+    print_verbose(&format!("Request body: name={name}"), config.verbose);
+
+    let client = client::build_client(config);
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let req = CreateClientRequest {
+        name: name.to_string(),
+    };
+    let response = rt
+        .block_on(client.post(&url).json(&req).send())
+        .map_err(|e| CliError::Generic(format!("Failed to connect to API: {e}")))?;
+
+    let status = response.status();
+    print_verbose(
+        &format!(
+            "Response: {} {}",
+            status.as_u16(),
+            status.canonical_reason().unwrap_or("")
+        ),
+        config.verbose,
+    );
+
+    if !status.is_success() {
+        return Err(api_error_from_response(response, &rt));
+    }
+
+    let client_response: ClientResponse = rt
+        .block_on(response.json())
+        .map_err(|e| CliError::Generic(format!("Failed to parse response: {e}")))?;
+
+    let format = if config.quiet {
+        OutputFormat::Quiet
+    } else {
+        OutputFormat::Json
+    };
+
+    let mut writer = output::OutputWriter::new(format, config.verbose);
+    writer
+        .write_client_created(&client_response)
+        .map_err(|e| CliError::Generic(format!("Failed to write output: {e}")))?;
+
+    output::emit_output(&writer);
+
+    Ok(())
+}
+
+fn cmd_client_delete(client_id: &str, config: &Config) -> Result<(), CliError> {
+    let url = format!("{}/api/clients/{client_id}", config.api_url);
+    print_verbose(&format!("Request: DELETE {url}"), config.verbose);
+
+    let client = client::build_client(config);
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let response = rt
+        .block_on(client.delete(&url).send())
+        .map_err(|e| CliError::Generic(format!("Failed to connect to API: {e}")))?;
+
+    let status = response.status();
+    print_verbose(
+        &format!(
+            "Response: {} {}",
+            status.as_u16(),
+            status.canonical_reason().unwrap_or("")
+        ),
+        config.verbose,
+    );
+
+    if !status.is_success() {
+        return Err(api_error_from_response(response, &rt));
+    }
+
+    let format = if config.quiet {
+        OutputFormat::Quiet
+    } else {
+        OutputFormat::Json
+    };
+
+    let mut writer = output::OutputWriter::new(format, config.verbose);
+    writer
+        .write_client_deleted()
+        .map_err(|e| CliError::Generic(format!("Failed to write output: {e}")))?;
+
+    output::emit_output(&writer);
+
+    Ok(())
 }
 
 #[cfg(test)]
@@ -1644,6 +1780,361 @@ mod import_tests {
                 assert_eq!(CliError::Args(msg.clone()).exit_code(), 2);
             }
             _ => panic!("expected Args error, got {:?}", result),
+        }
+    }
+}
+
+#[cfg(test)]
+mod client_tests {
+    use super::*;
+    use arche_types::crud::ApiKeySummary;
+    use wiremock::matchers::{method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    fn make_config(api_url: &str, quiet: bool, verbose: bool) -> Config {
+        Config {
+            api_url: api_url.to_string(),
+            api_key: None,
+            verbose,
+            quiet,
+        }
+    }
+
+    fn sample_clients() -> Vec<ClientResponse> {
+        vec![
+            ClientResponse {
+                id: uuid::Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap(),
+                name: "My Game".into(),
+                created_at: chrono::DateTime::<chrono::Utc>::from_timestamp_millis(0).unwrap(),
+                api_keys: vec![],
+            },
+            ClientResponse {
+                id: uuid::Uuid::parse_str("00000000-0000-0000-0000-000000000002").unwrap(),
+                name: "Other Client".into(),
+                created_at: chrono::DateTime::<chrono::Utc>::from_timestamp_millis(0).unwrap(),
+                api_keys: vec![ApiKeySummary {
+                    id: uuid::Uuid::parse_str("00000000-0000-0000-0000-000000000003").unwrap(),
+                    name: "test-key".into(),
+                    permissions: vec![arche_types::Permission::Read],
+                    created_at: chrono::DateTime::<chrono::Utc>::from_timestamp_millis(0)
+                        .unwrap(),
+                }],
+            },
+        ]
+    }
+
+    async fn run_client_list(config: Config) -> Result<(), CliError> {
+        tokio::task::spawn_blocking(move || cmd_client_list(&config))
+            .await
+            .unwrap()
+    }
+
+    async fn run_client_create(name: String, config: Config) -> Result<(), CliError> {
+        tokio::task::spawn_blocking(move || cmd_client_create(&name, &config))
+            .await
+            .unwrap()
+    }
+
+    async fn run_client_delete(client_id: String, config: Config) -> Result<(), CliError> {
+        tokio::task::spawn_blocking(move || cmd_client_delete(&client_id, &config))
+            .await
+            .unwrap()
+    }
+
+    #[tokio::test]
+    async fn test_client_list_returns_clients() {
+        let mock_server = MockServer::start().await;
+        let uri = mock_server.uri();
+
+        Mock::given(method("GET"))
+            .and(path("/api/clients"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                    "data": sample_clients(),
+                    "total": 2
+                })),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let config = make_config(&uri, false, false);
+        let result = run_client_list(config).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_client_list_quiet_suppresses_output() {
+        let mock_server = MockServer::start().await;
+        let uri = mock_server.uri();
+
+        Mock::given(method("GET"))
+            .and(path("/api/clients"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                    "data": sample_clients(),
+                    "total": 2
+                })),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let config = make_config(&uri, true, false);
+        let result = run_client_list(config).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_client_list_returns_api_error() {
+        let mock_server = MockServer::start().await;
+        let uri = mock_server.uri();
+
+        Mock::given(method("GET"))
+            .and(path("/api/clients"))
+            .respond_with(
+                ResponseTemplate::new(403).set_body_json(serde_json::json!({
+                    "type": "/errors/forbidden",
+                    "title": "Forbidden",
+                    "status": 403,
+                    "detail": "Super admin required"
+                })),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let config = make_config(&uri, false, false);
+        let result = run_client_list(config).await;
+        assert!(result.is_err());
+        match &result {
+            Err(CliError::Api(problem)) => {
+                assert_eq!(problem.status, 403);
+            }
+            _ => panic!("expected Api error, got {:?}", result),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_client_create_returns_created_client() {
+        let mock_server = MockServer::start().await;
+        let uri = mock_server.uri();
+
+        let created = ClientResponse {
+            id: uuid::Uuid::parse_str("00000000-0000-0000-0000-00000000000a").unwrap(),
+            name: "My Game".into(),
+            created_at: chrono::DateTime::<chrono::Utc>::from_timestamp_millis(0).unwrap(),
+            api_keys: vec![],
+        };
+
+        Mock::given(method("POST"))
+            .and(path("/api/clients"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(serde_json::to_value(&created).unwrap()),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let config = make_config(&uri, false, false);
+        let result = run_client_create("My Game".into(), config).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_client_create_quiet_outputs_only_id() {
+        let mock_server = MockServer::start().await;
+        let uri = mock_server.uri();
+
+        let created = ClientResponse {
+            id: uuid::Uuid::parse_str("00000000-0000-0000-0000-00000000000b").unwrap(),
+            name: "QuietGame".into(),
+            created_at: chrono::DateTime::<chrono::Utc>::from_timestamp_millis(0).unwrap(),
+            api_keys: vec![],
+        };
+
+        Mock::given(method("POST"))
+            .and(path("/api/clients"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(serde_json::to_value(&created).unwrap()),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let config = make_config(&uri, true, false);
+        let result = run_client_create("QuietGame".into(), config).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_client_create_duplicate_name_returns_409() {
+        let mock_server = MockServer::start().await;
+        let uri = mock_server.uri();
+
+        Mock::given(method("POST"))
+            .and(path("/api/clients"))
+            .respond_with(
+                ResponseTemplate::new(409).set_body_json(serde_json::json!({
+                    "type": "/errors/conflict",
+                    "title": "Conflict",
+                    "status": 409,
+                    "detail": "Client name 'My Game' already exists"
+                })),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let config = make_config(&uri, false, false);
+        let result = run_client_create("My Game".into(), config).await;
+        assert!(result.is_err());
+        match &result {
+            Err(CliError::Api(problem)) => {
+                assert_eq!(problem.status, 409);
+            }
+            _ => panic!("expected Api error, got {:?}", result),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_client_delete_succeeds() {
+        let mock_server = MockServer::start().await;
+        let uri = mock_server.uri();
+        let client_id = "00000000-0000-0000-0000-000000000001";
+
+        Mock::given(method("DELETE"))
+            .and(path(format!("/api/clients/{client_id}")))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(serde_json::json!({"deleted": true})),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let config = make_config(&uri, false, false);
+        let result = run_client_delete(client_id.to_string(), config).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_client_delete_quiet_suppresses_output() {
+        let mock_server = MockServer::start().await;
+        let uri = mock_server.uri();
+        let client_id = "00000000-0000-0000-0000-000000000002";
+
+        Mock::given(method("DELETE"))
+            .and(path(format!("/api/clients/{client_id}")))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(serde_json::json!({"deleted": true})),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let config = make_config(&uri, true, false);
+        let result = run_client_delete(client_id.to_string(), config).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_client_delete_with_active_keys_returns_409() {
+        let mock_server = MockServer::start().await;
+        let uri = mock_server.uri();
+        let client_id = "00000000-0000-0000-0000-000000000001";
+
+        Mock::given(method("DELETE"))
+            .and(path(format!("/api/clients/{client_id}")))
+            .respond_with(
+                ResponseTemplate::new(409).set_body_json(serde_json::json!({
+                    "type": "/errors/delete-referenced-resource",
+                    "title": "Delete Referenced Resource",
+                    "status": 409,
+                    "detail": "Client 00000000-0000-0000-0000-000000000001 has 3 active API key(s). Revoke all keys before deleting the client."
+                })),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let config = make_config(&uri, false, false);
+        let result = run_client_delete(client_id.to_string(), config).await;
+        assert!(result.is_err());
+        match &result {
+            Err(CliError::Api(problem)) => {
+                assert_eq!(problem.status, 409);
+                assert_eq!(problem.type_, "/errors/delete-referenced-resource");
+                let detail = problem.detail.as_deref().unwrap();
+                assert!(detail.contains("3 active API key"));
+                assert!(detail.contains("Revoke all keys"));
+            }
+            _ => panic!("expected Api error, got {:?}", result),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_client_delete_not_found_returns_404() {
+        let mock_server = MockServer::start().await;
+        let uri = mock_server.uri();
+        let client_id = "00000000-0000-0000-0000-000000000099";
+
+        Mock::given(method("DELETE"))
+            .and(path(format!("/api/clients/{client_id}")))
+            .respond_with(
+                ResponseTemplate::new(404).set_body_json(serde_json::json!({
+                    "type": "/errors/not-found",
+                    "title": "Not Found",
+                    "status": 404,
+                    "detail": "Client not found: 00000000-0000-0000-0000-000000000099"
+                })),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let config = make_config(&uri, false, false);
+        let result = run_client_delete(client_id.to_string(), config).await;
+        assert!(result.is_err());
+        match &result {
+            Err(CliError::Api(problem)) => {
+                assert_eq!(problem.status, 404);
+            }
+            _ => panic!("expected Api error, got {:?}", result),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_client_create_forbidden_returns_403() {
+        let mock_server = MockServer::start().await;
+        let uri = mock_server.uri();
+
+        Mock::given(method("POST"))
+            .and(path("/api/clients"))
+            .respond_with(
+                ResponseTemplate::new(403).set_body_json(serde_json::json!({
+                    "type": "/errors/forbidden",
+                    "title": "Forbidden",
+                    "status": 403,
+                    "detail": "Super admin required"
+                })),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let config = make_config(&uri, false, false);
+        let result = run_client_create("ForbiddenGame".into(), config).await;
+        assert!(result.is_err());
+        match &result {
+            Err(CliError::Api(problem)) => {
+                assert_eq!(problem.status, 403);
+            }
+            _ => panic!("expected Api error, got {:?}", result),
+        }
+    }
+
+    #[test]
+    fn test_client_list_connection_refused_returns_generic_error() {
+        let config = make_config("http://127.0.0.1:1", false, false);
+        let result = cmd_client_list(&config);
+        assert!(result.is_err());
+        match &result {
+            Err(CliError::Generic(msg)) => {
+                assert!(
+                    msg.contains("Failed to connect"),
+                    "expected connect error, got: {msg}"
+                );
+            }
+            _ => panic!("expected Generic error, got {:?}", result),
         }
     }
 }

@@ -6,20 +6,19 @@ use arche_types::crud::{
 use arche_types::Permission;
 use axum::extract::{Path, Query, State};
 use axum::Json;
-use chrono::{DateTime, Utc};
 use sqlx::Row;
 use uuid::Uuid;
 
 use crate::auth::permission::CurrentUser;
 use crate::error::ProblemResponse;
 
-fn permission_to_db(p: &Permission) -> &'static str {
+fn permission_to_db(p: &Permission) -> String {
     match p {
-        Permission::Read => "read",
-        Permission::Write => "write",
-        Permission::Delete => "delete",
-        Permission::Generate => "generate",
-        Permission::Admin => "admin",
+        Permission::Read => "read".into(),
+        Permission::Write => "write".into(),
+        Permission::Delete => "delete".into(),
+        Permission::Generate => "generate".into(),
+        Permission::Admin => "admin".into(),
     }
 }
 
@@ -557,7 +556,7 @@ mod tests {
             Permission::Generate,
             Permission::Admin,
         ];
-        let strings: Vec<&str> = perms.iter().map(permission_to_db).collect();
+        let strings: Vec<String> = perms.iter().map(permission_to_db).collect();
         let back: Vec<Permission> =
             strings.iter().filter_map(|s| db_to_permission(s)).collect();
         assert_eq!(perms, back);
@@ -636,6 +635,6 @@ mod tests {
             created_at: chrono::Utc::now(),
             api_keys: vec![],
         };
-        assert_eq!(resp.id(), id);
+        assert_eq!(resp.id, id);
     }
 }

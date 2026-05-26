@@ -1,19 +1,544 @@
+use arche_types::attribute::AffixAttribute;
+use arche_types::common::{AffixListQuery, PaginatedResponse};
+use arche_types::crud::CreateAffixRequest;
+use arche_types::{Affix, AffixLocation};
 use axum::extract::{Path, Query, State};
 use axum::Json;
 use serde::Deserialize;
-use sqlx::Row;
+use sqlx::postgres::PgRow;
+use sqlx::{QueryBuilder, Row};
 use uuid::Uuid;
 
 use crate::auth::permission::CurrentUser;
-use crate::error::{ProblemResponse, ReferenceInfo};
+use crate::error::{FieldError, ProblemResponse, ReferenceInfo};
 
 const AFFIX_COLUMNS: &str =
     "id, client_id, name, type, description, attribute, created_at, updated_at";
+
+impl crate::pagination::HasId for Affix {
+    fn id(&self) -> Uuid {
+        self.id
+    }
+}
+
+fn affix_location_str(loc: &AffixLocation) -> &'static str {
+    match loc {
+        AffixLocation::Prefix => "prefix",
+        AffixLocation::Suffix => "suffix",
+    }
+}
+
+fn affix_row_to_affix(row: &PgRow) -> Affix {
+    let type_str: String = row.get("type");
+    Affix {
+        id: row.get("id"),
+        client_id: row.get("client_id"),
+        name: row.get("name"),
+        location: match type_str.as_str() {
+            "prefix" => AffixLocation::Prefix,
+            "suffix" => AffixLocation::Suffix,
+            _ => panic!("Unexpected affix type from DB: {type_str}"),
+        },
+        description: row.get("description"),
+        attribute: row.get("attribute"),
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
+    }
+}
+
+fn resolve_client_id(
+    user: &crate::auth::AuthenticatedKey,
+    query_client_id: Option<Uuid>,
+) -> Result<Option<Uuid>, ProblemResponse> {
+    if user.is_super {
+        Ok(query_client_id)
+    } else {
+        user.client_id.map(Some).ok_or_else(|| {
+            ProblemResponse::forbidden("Access denied: key is not associated with any client")
+        })
+    }
+}
+
+fn resolve_client_id_for_write(
+    user: &crate::auth::AuthenticatedKey,
+) -> Result<Uuid, ProblemResponse> {
+    if user.is_super {
+        return Err(ProblemResponse::forbidden(
+            "Super admin must specify a client context for write operations",
+        ));
+    }
+    user.client_id.ok_or_else(|| {
+        ProblemResponse::forbidden("Access denied: key is not associated with any client")
+    })
+}
+
+fn apply_affix_filters<'a>(
+    builder: &mut QueryBuilder<'a, sqlx::Postgres>,
+    client_id: Option<Uuid>,
+    location: Option<&'a AffixLocation>,
+    search: Option<&'a str>,
+    cursor: Option<Uuid>,
+) {
+    let mut first = true;
+
+    if let Some(cid) = client_id {
+        builder.push(" WHERE client_id = ");
+        builder.push_bind(cid);
+        first = false;
+    }
+
+    if let Some(loc) = location {
+        if first {
+            builder.push(" WHERE ");
+            first = false;
+        } else {
+            builder.push(" AND ");
+        }
+        builder.push("type = ");
+        builder.push_bind(affix_location_str(loc));
+    }
+
+    if let Some(s) = search {
+        if first {
+            builder.push(" WHERE ");
+        } else {
+            builder.push(" AND ");
+        }
+        builder.push("name ILIKE ");
+        builder.push_bind(format!("%{s}%"));
+    }
+
+    if let Some(c) = cursor {
+        if first {
+            builder.push(" WHERE ");
+        } else {
+            builder.push(" AND ");
+        }
+        builder.push("id > ");
+        builder.push_bind(c);
+    }
+}
 
 #[derive(Debug, Deserialize)]
 pub struct DeleteAffixQuery {
     #[serde(default)]
     pub force: bool,
+}
+
+pub async fn list_affixes(
+    State(state): State<crate::AppState>,
+    CurrentUser(user): CurrentUser,
+    Query(query): Query<AffixListQuery>,
+) -> Result<Json<PaginatedResponse<Affix>>, ProblemResponse> {
+    let client_id_filter = resolve_client_id(&user, query.client_id)?;
+
+    let params = crate::pagination::PaginationParams {
+        cursor: query.cursor.clone(),
+        limit: query.limit,
+        page: query.page,
+        per_page: query.per_page,
+    };
+
+    let mode = params.mode().map_err(|e| {
+        ProblemResponse::validation_error(e.to_string(), vec![])
+    })?;
+
+    match mode {
+        crate::pagination::PaginationMode::Cursor { after, limit } => {
+            let fetch_limit = limit + 1;
+
+            let mut builder =
+                QueryBuilder::new(format!("SELECT {AFFIX_COLUMNS} FROM affixes"));
+            apply_affix_filters(
+                &mut builder,
+                client_id_filter,
+                query.location.as_ref(),
+                query.search.as_deref(),
+                after,
+            );
+            builder.push(" ORDER BY id ASC LIMIT ");
+            builder.push_bind(fetch_limit);
+
+            let rows = builder.build().fetch_all(&*state.pool).await.map_err(|e| {
+                tracing::error!(error = %e, "affixes: list cursor query failed");
+                ProblemResponse::unprocessable_entity("Failed to list affixes")
+            })?;
+
+            let affixes: Vec<Affix> = rows.iter().map(affix_row_to_affix).collect();
+            let response = crate::pagination::paginate_cursor(affixes, limit);
+            Ok(Json(response))
+        }
+        crate::pagination::PaginationMode::Offset {
+            per_page,
+            offset,
+            ..
+        } => {
+            let mut count_builder = QueryBuilder::new("SELECT COUNT(*) FROM affixes");
+            apply_affix_filters(
+                &mut count_builder,
+                client_id_filter,
+                query.location.as_ref(),
+                query.search.as_deref(),
+                None,
+            );
+
+            let total: i64 = count_builder
+                .build()
+                .fetch_one(&*state.pool)
+                .await
+                .map_err(|e| {
+                    tracing::error!(error = %e, "affixes: list count query failed");
+                    ProblemResponse::unprocessable_entity("Failed to count affixes")
+                })?
+                .get(0);
+
+            let mut builder =
+                QueryBuilder::new(format!("SELECT {AFFIX_COLUMNS} FROM affixes"));
+            apply_affix_filters(
+                &mut builder,
+                client_id_filter,
+                query.location.as_ref(),
+                query.search.as_deref(),
+                None,
+            );
+            builder.push(" ORDER BY id ASC LIMIT ");
+            builder.push_bind(per_page);
+            builder.push(" OFFSET ");
+            builder.push_bind(offset);
+
+            let rows = builder.build().fetch_all(&*state.pool).await.map_err(|e| {
+                tracing::error!(error = %e, "affixes: list offset query failed");
+                ProblemResponse::unprocessable_entity("Failed to list affixes")
+            })?;
+
+            let affixes: Vec<Affix> = rows.iter().map(affix_row_to_affix).collect();
+            let response = crate::pagination::paginate_offset(affixes, total);
+            Ok(Json(response))
+        }
+    }
+}
+
+async fn validate_affix_attribute(
+    pool: &sqlx::PgPool,
+    client_id: Uuid,
+    attribute: &AffixAttribute,
+) -> Result<serde_json::Value, ProblemResponse> {
+    match attribute {
+        AffixAttribute::Ref { ref_id } => {
+            let exists = sqlx::query(
+                "SELECT id FROM global_meta_attributes WHERE id = $1 AND client_id = $2",
+            )
+            .bind(ref_id)
+            .bind(client_id)
+            .fetch_optional(pool)
+            .await
+            .map_err(|e| {
+                tracing::error!(error = %e, "affixes: check ref_id failed");
+                ProblemResponse::unprocessable_entity("Failed to validate attribute reference")
+            })?;
+
+            if exists.is_none() {
+                return Err(ProblemResponse::validation_error(
+                    format!("Global meta attribute not found: {ref_id}"),
+                    vec![FieldError {
+                        path: "attribute.$ref_id".into(),
+                        message: format!(
+                            "Referenced global meta attribute {ref_id} does not exist"
+                        ),
+                    }],
+                ));
+            }
+
+            let json = serde_json::to_value(attribute).map_err(|e| {
+                ProblemResponse::validation_error(
+                    format!("Failed to serialize attribute: {e}"),
+                    vec![],
+                )
+            })?;
+            Ok(json)
+        }
+        AffixAttribute::Inline(inline) => {
+            if inline.name.is_empty() {
+                return Err(ProblemResponse::validation_error(
+                    "Attribute name must not be empty",
+                    vec![FieldError {
+                        path: "attribute.name".into(),
+                        message: "name must not be empty".into(),
+                    }],
+                ));
+            }
+
+            let attr_json = serde_json::to_value(attribute).map_err(|e| {
+                ProblemResponse::validation_error(
+                    format!("Failed to serialize attribute for validation: {e}"),
+                    vec![],
+                )
+            })?;
+
+            let obj = attr_json.as_object().ok_or_else(|| {
+                ProblemResponse::validation_error("Invalid attribute format", vec![])
+            })?;
+
+            let value_type_str = obj
+                .get("value_type")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| {
+                    ProblemResponse::validation_error(
+                        "Attribute must have a value_type",
+                        vec![FieldError {
+                            path: "attribute.value_type".into(),
+                            message: "value_type is required for inline attributes".into(),
+                        }],
+                    )
+                })?;
+
+            let value_type = match value_type_str {
+                "single" => arche_types::ValueType::Single,
+                "enum" => arche_types::ValueType::Enum,
+                "range" => arche_types::ValueType::Range,
+                "string" => arche_types::ValueType::String,
+                "boolean" => arche_types::ValueType::Boolean,
+                other => {
+                    return Err(ProblemResponse::validation_error(
+                        format!("Unknown value_type: {other}"),
+                        vec![FieldError {
+                            path: "attribute.value_type".into(),
+                            message: format!("Unknown value_type: {other}"),
+                        }],
+                    ));
+                }
+            };
+
+            let mut payload_map = serde_json::Map::new();
+            for (k, v) in obj {
+                if k != "value_type" && k != "name" && k != "description" {
+                    payload_map.insert(k.clone(), v.clone());
+                }
+            }
+            let payload = serde_json::Value::Object(payload_map);
+
+            let payload_errors =
+                arche_types::validation::validate_attribute_payload(&value_type, &payload);
+            if !payload_errors.is_empty() {
+                let field_errors: Vec<FieldError> = payload_errors
+                    .into_iter()
+                    .map(|e| FieldError {
+                        path: format!("attribute.{}", e.path),
+                        message: e.message,
+                    })
+                    .collect();
+                return Err(ProblemResponse::validation_error(
+                    "Attribute payload validation failed",
+                    field_errors,
+                ));
+            }
+
+            Ok(attr_json)
+        }
+    }
+}
+
+pub async fn create_affix(
+    State(state): State<crate::AppState>,
+    CurrentUser(user): CurrentUser,
+    Json(req): Json<CreateAffixRequest>,
+) -> Result<Json<Affix>, ProblemResponse> {
+    let client_id = resolve_client_id_for_write(&user)?;
+
+    if req.name.is_empty() {
+        return Err(ProblemResponse::validation_error(
+            "Affix name must not be empty",
+            vec![FieldError {
+                path: "name".into(),
+                message: "name must not be empty".into(),
+            }],
+        ));
+    }
+
+    let existing = sqlx::query(
+        "SELECT id FROM affixes WHERE client_id = $1 AND name = $2",
+    )
+    .bind(client_id)
+    .bind(&req.name)
+    .fetch_optional(&*state.pool)
+    .await
+    .map_err(|e| {
+        tracing::error!(error = %e, "affixes: check name uniqueness failed");
+        ProblemResponse::unprocessable_entity("Failed to check affix name uniqueness")
+    })?;
+
+    if existing.is_some() {
+        return Err(ProblemResponse::conflict(format!(
+            "An affix with name '{}' already exists for this client",
+            req.name
+        )));
+    }
+
+    let attribute_json =
+        validate_affix_attribute(&state.pool, client_id, &req.attribute).await?;
+
+    let row = sqlx::query(
+        "INSERT INTO affixes (client_id, name, type, description, attribute) \
+         VALUES ($1, $2, $3::affix_location, $4, $5) \
+         RETURNING id, created_at, updated_at",
+    )
+    .bind(client_id)
+    .bind(&req.name)
+    .bind(affix_location_str(&req.location))
+    .bind(&req.description)
+    .bind(&attribute_json)
+    .fetch_one(&*state.pool)
+    .await
+    .map_err(|e| {
+        tracing::error!(error = %e, "affixes: insert failed");
+        ProblemResponse::validation_error(
+            format!("Failed to create affix: {e}"),
+            vec![],
+        )
+    })?;
+
+    let affix = Affix {
+        id: row.get("id"),
+        client_id,
+        name: req.name,
+        location: req.location,
+        description: req.description,
+        attribute: attribute_json,
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
+    };
+
+    Ok(Json(affix))
+}
+
+pub async fn get_affix(
+    State(state): State<crate::AppState>,
+    CurrentUser(user): CurrentUser,
+    Path(id): Path<Uuid>,
+) -> Result<Json<Affix>, ProblemResponse> {
+    let row = sqlx::query(&format!(
+        "SELECT {AFFIX_COLUMNS} FROM affixes WHERE id = $1"
+    ))
+    .bind(id)
+    .fetch_optional(&*state.pool)
+    .await
+    .map_err(|e| {
+        tracing::error!(error = %e, "affixes: get query failed");
+        ProblemResponse::unprocessable_entity("Failed to get affix")
+    })?
+    .ok_or_else(|| ProblemResponse::not_found(format!("Affix not found: {id}")))?;
+
+    let affix = affix_row_to_affix(&row);
+
+    if !user.is_super {
+        let user_cid = user.client_id.ok_or_else(|| {
+            ProblemResponse::forbidden("Access denied: key is not associated with any client")
+        })?;
+        if affix.client_id != user_cid {
+            return Err(ProblemResponse::not_found(format!("Affix not found: {id}")));
+        }
+    }
+
+    Ok(Json(affix))
+}
+
+pub async fn update_affix(
+    State(state): State<crate::AppState>,
+    CurrentUser(user): CurrentUser,
+    Path(id): Path<Uuid>,
+    Json(req): Json<CreateAffixRequest>,
+) -> Result<Json<Affix>, ProblemResponse> {
+    let existing = sqlx::query(&format!(
+        "SELECT {AFFIX_COLUMNS} FROM affixes WHERE id = $1"
+    ))
+    .bind(id)
+    .fetch_optional(&*state.pool)
+    .await
+    .map_err(|e| {
+        tracing::error!(error = %e, "affixes: get for update failed");
+        ProblemResponse::unprocessable_entity("Failed to get affix for update")
+    })?
+    .ok_or_else(|| ProblemResponse::not_found(format!("Affix not found: {id}")))?;
+
+    let existing_affix = affix_row_to_affix(&existing);
+
+    if !user.is_super {
+        let user_cid = user.client_id.ok_or_else(|| {
+            ProblemResponse::forbidden("Access denied: key is not associated with any client")
+        })?;
+        if existing_affix.client_id != user_cid {
+            return Err(ProblemResponse::not_found(format!("Affix not found: {id}")));
+        }
+    }
+
+    let client_id = existing_affix.client_id;
+
+    if req.name.is_empty() {
+        return Err(ProblemResponse::validation_error(
+            "Affix name must not be empty",
+            vec![FieldError {
+                path: "name".into(),
+                message: "name must not be empty".into(),
+            }],
+        ));
+    }
+
+    let name_conflict = sqlx::query(
+        "SELECT id FROM affixes WHERE client_id = $1 AND name = $2 AND id != $3",
+    )
+    .bind(client_id)
+    .bind(&req.name)
+    .bind(id)
+    .fetch_optional(&*state.pool)
+    .await
+    .map_err(|e| {
+        tracing::error!(error = %e, "affixes: check name uniqueness failed");
+        ProblemResponse::unprocessable_entity("Failed to check affix name uniqueness")
+    })?;
+
+    if name_conflict.is_some() {
+        return Err(ProblemResponse::conflict(format!(
+            "An affix with name '{}' already exists for this client",
+            req.name
+        )));
+    }
+
+    let attribute_json =
+        validate_affix_attribute(&state.pool, client_id, &req.attribute).await?;
+
+    let row = sqlx::query(
+        "UPDATE affixes SET name=$1, type=$2::affix_location, description=$3, \
+         attribute=$4, updated_at=now() \
+         WHERE id=$5 \
+         RETURNING created_at, updated_at",
+    )
+    .bind(&req.name)
+    .bind(affix_location_str(&req.location))
+    .bind(&req.description)
+    .bind(&attribute_json)
+    .bind(id)
+    .fetch_one(&*state.pool)
+    .await
+    .map_err(|e| {
+        tracing::error!(error = %e, "affixes: update failed");
+        ProblemResponse::validation_error(
+            format!("Failed to update affix: {e}"),
+            vec![],
+        )
+    })?;
+
+    let affix = Affix {
+        id,
+        client_id,
+        name: req.name,
+        location: req.location,
+        description: req.description,
+        attribute: attribute_json,
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
+    };
+
+    Ok(Json(affix))
 }
 
 pub async fn delete_affix(
@@ -754,6 +1279,727 @@ mod tests {
                 .unwrap();
             sqlx::query("DELETE FROM clients WHERE id = $1")
                 .bind(client_b)
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+
+        #[tokio::test]
+        async fn test_create_affix_inline_attribute_succeeds() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_id = create_test_client(&pool).await;
+
+            let state = test_state(Arc::new(pool.clone()));
+            let user = test_user(client_id, Permission::Write);
+
+            let req = CreateAffixRequest {
+                name: "Fire".into(),
+                location: AffixLocation::Prefix,
+                description: Some("Burning effect".into()),
+                attribute: arche_types::attribute::AffixAttribute::Inline(
+                    arche_types::attribute::AffixInlineAttributeDef {
+                        name: "fire_damage".into(),
+                        description: Some("Fire damage bonus".into()),
+                        payload: arche_types::attribute::AttributePayload::Range {
+                            min: 5.0,
+                            max: 15.0,
+                            distribution: None,
+                        },
+                    },
+                ),
+            };
+
+            let result = create_affix(
+                axum::extract::State(state),
+                user,
+                axum::Json(req),
+            )
+            .await;
+
+            assert!(result.is_ok(), "create failed: {:?}", result.err());
+            let resp = result.unwrap();
+            let affix = resp.0;
+            assert_eq!(affix.name, "Fire");
+            assert_eq!(affix.location, AffixLocation::Prefix);
+            assert_eq!(affix.description, Some("Burning effect".into()));
+            assert_eq!(affix.client_id, client_id);
+
+            let count: i64 = sqlx::query("SELECT COUNT(*) FROM affixes WHERE name = 'Fire' AND client_id = $1")
+                .bind(client_id)
+                .fetch_one(&pool)
+                .await
+                .unwrap()
+                .get(0);
+            assert_eq!(count, 1);
+
+            sqlx::query("DELETE FROM affixes WHERE id = $1")
+                .bind(affix.id)
+                .execute(&pool)
+                .await
+                .unwrap();
+            sqlx::query("DELETE FROM clients WHERE id = $1")
+                .bind(client_id)
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+
+        #[tokio::test]
+        async fn test_create_affix_ref_id_succeeds() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_id = create_test_client(&pool).await;
+
+            let gma_id = Uuid::new_v4();
+            sqlx::query(
+                "INSERT INTO global_meta_attributes (id, client_id, name, value_type, payload) \
+                 VALUES ($1,$2,$3,'range','{\"min\":1,\"max\":10}')",
+            )
+            .bind(gma_id)
+            .bind(client_id)
+            .bind("test_gma")
+            .execute(&pool)
+            .await
+            .unwrap();
+
+            let state = test_state(Arc::new(pool.clone()));
+            let user = test_user(client_id, Permission::Write);
+
+            let req = CreateAffixRequest {
+                name: "Ice".into(),
+                location: AffixLocation::Suffix,
+                description: None,
+                attribute: arche_types::attribute::AffixAttribute::Ref {
+                    ref_id: gma_id,
+                },
+            };
+
+            let result = create_affix(
+                axum::extract::State(state),
+                user,
+                axum::Json(req),
+            )
+            .await;
+
+            assert!(result.is_ok(), "create failed: {:?}", result.err());
+            let resp = result.unwrap();
+            let affix = resp.0;
+            assert_eq!(affix.name, "Ice");
+            assert_eq!(affix.location, AffixLocation::Suffix);
+
+            sqlx::query("DELETE FROM affixes WHERE id = $1")
+                .bind(affix.id)
+                .execute(&pool)
+                .await
+                .unwrap();
+            sqlx::query("DELETE FROM global_meta_attributes WHERE id = $1")
+                .bind(gma_id)
+                .execute(&pool)
+                .await
+                .unwrap();
+            sqlx::query("DELETE FROM clients WHERE id = $1")
+                .bind(client_id)
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+
+        #[tokio::test]
+        async fn test_create_affix_nonexistent_ref_id_returns_400() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_id = create_test_client(&pool).await;
+
+            let state = test_state(Arc::new(pool.clone()));
+            let user = test_user(client_id, Permission::Write);
+
+            let req = CreateAffixRequest {
+                name: "Ghost".into(),
+                location: AffixLocation::Prefix,
+                description: None,
+                attribute: arche_types::attribute::AffixAttribute::Ref {
+                    ref_id: Uuid::new_v4(),
+                },
+            };
+
+            let result = create_affix(
+                axum::extract::State(state),
+                user,
+                axum::Json(req),
+            )
+            .await;
+
+            assert!(result.is_err());
+            let err = result.unwrap_err();
+            assert_eq!(err.status, 400);
+            assert!(err.detail.unwrap().contains("not found"));
+
+            sqlx::query("DELETE FROM clients WHERE id = $1")
+                .bind(client_id)
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+
+        #[tokio::test]
+        async fn test_create_affix_invalid_attribute_payload_returns_400() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_id = create_test_client(&pool).await;
+
+            let state = test_state(Arc::new(pool.clone()));
+            let user = test_user(client_id, Permission::Write);
+
+            let req = CreateAffixRequest {
+                name: "BadRange".into(),
+                location: AffixLocation::Prefix,
+                description: None,
+                attribute: arche_types::attribute::AffixAttribute::Inline(
+                    arche_types::attribute::AffixInlineAttributeDef {
+                        name: "bad_range".into(),
+                        description: None,
+                        payload: arche_types::attribute::AttributePayload::Range {
+                            min: 100.0,
+                            max: 1.0,
+                            distribution: None,
+                        },
+                    },
+                ),
+            };
+
+            let result = create_affix(
+                axum::extract::State(state),
+                user,
+                axum::Json(req),
+            )
+            .await;
+
+            assert!(result.is_err());
+            let err = result.unwrap_err();
+            assert_eq!(err.status, 400);
+            assert!(err.detail.unwrap().contains("payload"));
+
+            sqlx::query("DELETE FROM clients WHERE id = $1")
+                .bind(client_id)
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+
+        #[tokio::test]
+        async fn test_create_affix_empty_name_returns_400() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_id = create_test_client(&pool).await;
+
+            let state = test_state(Arc::new(pool.clone()));
+            let user = test_user(client_id, Permission::Write);
+
+            let req = CreateAffixRequest {
+                name: "".into(),
+                location: AffixLocation::Prefix,
+                description: None,
+                attribute: arche_types::attribute::AffixAttribute::Inline(
+                    arche_types::attribute::AffixInlineAttributeDef {
+                        name: "test".into(),
+                        description: None,
+                        payload: arche_types::attribute::AttributePayload::Single {
+                            value: 1.0,
+                            distribution: None,
+                        },
+                    },
+                ),
+            };
+
+            let result = create_affix(
+                axum::extract::State(state),
+                user,
+                axum::Json(req),
+            )
+            .await;
+
+            assert!(result.is_err());
+            let err = result.unwrap_err();
+            assert_eq!(err.status, 400);
+            assert!(err.detail.unwrap().contains("name"));
+
+            sqlx::query("DELETE FROM clients WHERE id = $1")
+                .bind(client_id)
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+
+        #[tokio::test]
+        async fn test_create_affix_duplicate_name_returns_409() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_id = create_test_client(&pool).await;
+            let affix_id = create_test_affix(&pool, client_id, "Fire", "prefix").await;
+
+            let state = test_state(Arc::new(pool.clone()));
+            let user = test_user(client_id, Permission::Write);
+
+            let req = CreateAffixRequest {
+                name: "Fire".into(),
+                location: AffixLocation::Suffix,
+                description: None,
+                attribute: arche_types::attribute::AffixAttribute::Inline(
+                    arche_types::attribute::AffixInlineAttributeDef {
+                        name: "fire_dmg".into(),
+                        description: None,
+                        payload: arche_types::attribute::AttributePayload::Single {
+                            value: 1.0,
+                            distribution: None,
+                        },
+                    },
+                ),
+            };
+
+            let result = create_affix(
+                axum::extract::State(state),
+                user,
+                axum::Json(req),
+            )
+            .await;
+
+            assert!(result.is_err());
+            let err = result.unwrap_err();
+            assert_eq!(err.status, 409);
+            assert!(err.detail.unwrap().contains("already exists"));
+
+            sqlx::query("DELETE FROM affixes WHERE id = $1")
+                .bind(affix_id)
+                .execute(&pool)
+                .await
+                .unwrap();
+            sqlx::query("DELETE FROM clients WHERE id = $1")
+                .bind(client_id)
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+
+        #[tokio::test]
+        async fn test_get_affix_succeeds() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_id = create_test_client(&pool).await;
+            let affix_id = create_test_affix(&pool, client_id, "Fire", "prefix").await;
+
+            let state = test_state(Arc::new(pool.clone()));
+            let user = test_user(client_id, Permission::Read);
+
+            let result = get_affix(
+                axum::extract::State(state),
+                user,
+                axum::extract::Path(affix_id),
+            )
+            .await;
+
+            assert!(result.is_ok(), "get failed: {:?}", result.err());
+            let resp = result.unwrap();
+            let affix = resp.0;
+            assert_eq!(affix.id, affix_id);
+            assert_eq!(affix.name, "Fire");
+            assert_eq!(affix.location, AffixLocation::Prefix);
+            assert_eq!(affix.client_id, client_id);
+
+            sqlx::query("DELETE FROM affixes WHERE id = $1")
+                .bind(affix_id)
+                .execute(&pool)
+                .await
+                .unwrap();
+            sqlx::query("DELETE FROM clients WHERE id = $1")
+                .bind(client_id)
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+
+        #[tokio::test]
+        async fn test_get_nonexistent_affix_returns_404() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_id = create_test_client(&pool).await;
+
+            let state = test_state(Arc::new(pool.clone()));
+            let user = test_user(client_id, Permission::Read);
+
+            let result = get_affix(
+                axum::extract::State(state),
+                user,
+                axum::extract::Path(Uuid::new_v4()),
+            )
+            .await;
+
+            assert!(result.is_err());
+            let err = result.unwrap_err();
+            assert_eq!(err.status, 404);
+            assert!(err.detail.unwrap().contains("Affix not found"));
+
+            sqlx::query("DELETE FROM clients WHERE id = $1")
+                .bind(client_id)
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+
+        #[tokio::test]
+        async fn test_get_affix_wrong_client_returns_404() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_a = create_test_client(&pool).await;
+            let client_b = create_test_client(&pool).await;
+            let affix_id = create_test_affix(&pool, client_a, "Fire", "prefix").await;
+
+            let state = test_state(Arc::new(pool.clone()));
+            let user = test_user(client_b, Permission::Read);
+
+            let result = get_affix(
+                axum::extract::State(state),
+                user,
+                axum::extract::Path(affix_id),
+            )
+            .await;
+
+            assert!(result.is_err());
+            let err = result.unwrap_err();
+            assert_eq!(err.status, 404);
+            assert!(err.detail.unwrap().contains("Affix not found"));
+
+            sqlx::query("DELETE FROM affixes WHERE id = $1")
+                .bind(affix_id)
+                .execute(&pool)
+                .await
+                .unwrap();
+            sqlx::query("DELETE FROM clients WHERE id = $1")
+                .bind(client_a)
+                .execute(&pool)
+                .await
+                .unwrap();
+            sqlx::query("DELETE FROM clients WHERE id = $1")
+                .bind(client_b)
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+
+        #[tokio::test]
+        async fn test_update_affix_succeeds() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_id = create_test_client(&pool).await;
+            let affix_id = create_test_affix(&pool, client_id, "Fire", "prefix").await;
+
+            let state = test_state(Arc::new(pool.clone()));
+            let user = test_user(client_id, Permission::Write);
+
+            let req = CreateAffixRequest {
+                name: "Inferno".into(),
+                location: AffixLocation::Suffix,
+                description: Some("Updated".into()),
+                attribute: arche_types::attribute::AffixAttribute::Inline(
+                    arche_types::attribute::AffixInlineAttributeDef {
+                        name: "inferno_dmg".into(),
+                        description: None,
+                        payload: arche_types::attribute::AttributePayload::Single {
+                            value: 42.0,
+                            distribution: None,
+                        },
+                    },
+                ),
+            };
+
+            let result = update_affix(
+                axum::extract::State(state),
+                user,
+                axum::extract::Path(affix_id),
+                axum::Json(req),
+            )
+            .await;
+
+            assert!(result.is_ok(), "update failed: {:?}", result.err());
+            let resp = result.unwrap();
+            let affix = resp.0;
+            assert_eq!(affix.id, affix_id);
+            assert_eq!(affix.name, "Inferno");
+            assert_eq!(affix.location, AffixLocation::Suffix);
+            assert_eq!(affix.description, Some("Updated".into()));
+
+            sqlx::query("DELETE FROM affixes WHERE id = $1")
+                .bind(affix_id)
+                .execute(&pool)
+                .await
+                .unwrap();
+            sqlx::query("DELETE FROM clients WHERE id = $1")
+                .bind(client_id)
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+
+        #[tokio::test]
+        async fn test_update_affix_nonexistent_returns_404() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_id = create_test_client(&pool).await;
+
+            let state = test_state(Arc::new(pool.clone()));
+            let user = test_user(client_id, Permission::Write);
+
+            let req = CreateAffixRequest {
+                name: "Ghost".into(),
+                location: AffixLocation::Prefix,
+                description: None,
+                attribute: arche_types::attribute::AffixAttribute::Inline(
+                    arche_types::attribute::AffixInlineAttributeDef {
+                        name: "ghost".into(),
+                        description: None,
+                        payload: arche_types::attribute::AttributePayload::Single {
+                            value: 1.0,
+                            distribution: None,
+                        },
+                    },
+                ),
+            };
+
+            let result = update_affix(
+                axum::extract::State(state),
+                user,
+                axum::extract::Path(Uuid::new_v4()),
+                axum::Json(req),
+            )
+            .await;
+
+            assert!(result.is_err());
+            let err = result.unwrap_err();
+            assert_eq!(err.status, 404);
+            assert!(err.detail.unwrap().contains("Affix not found"));
+
+            sqlx::query("DELETE FROM clients WHERE id = $1")
+                .bind(client_id)
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+
+        #[tokio::test]
+        async fn test_update_affix_duplicate_name_returns_409() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_id = create_test_client(&pool).await;
+            let affix_a = create_test_affix(&pool, client_id, "Fire", "prefix").await;
+            let affix_b = create_test_affix(&pool, client_id, "Ice", "prefix").await;
+
+            let state = test_state(Arc::new(pool.clone()));
+            let user = test_user(client_id, Permission::Write);
+
+            let req = CreateAffixRequest {
+                name: "Ice".into(),
+                location: AffixLocation::Prefix,
+                description: None,
+                attribute: arche_types::attribute::AffixAttribute::Inline(
+                    arche_types::attribute::AffixInlineAttributeDef {
+                        name: "test".into(),
+                        description: None,
+                        payload: arche_types::attribute::AttributePayload::Single {
+                            value: 1.0,
+                            distribution: None,
+                        },
+                    },
+                ),
+            };
+
+            let result = update_affix(
+                axum::extract::State(state),
+                user,
+                axum::extract::Path(affix_a),
+                axum::Json(req),
+            )
+            .await;
+
+            assert!(result.is_err());
+            let err = result.unwrap_err();
+            assert_eq!(err.status, 409);
+            assert!(err.detail.unwrap().contains("already exists"));
+
+            sqlx::query("DELETE FROM affixes WHERE id = ANY($1)")
+                .bind(&[affix_a, affix_b])
+                .execute(&pool)
+                .await
+                .unwrap();
+            sqlx::query("DELETE FROM clients WHERE id = $1")
+                .bind(client_id)
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+
+        #[tokio::test]
+        async fn test_list_affixes_cursor_pagination() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_id = create_test_client(&pool).await;
+            let a1 = create_test_affix(&pool, client_id, "Fire", "prefix").await;
+            let a2 = create_test_affix(&pool, client_id, "Ice", "suffix").await;
+            let a3 = create_test_affix(&pool, client_id, "Poison", "prefix").await;
+
+            let state = test_state(Arc::new(pool.clone()));
+            let user = test_user(client_id, Permission::Read);
+
+            let query = AffixListQuery {
+                cursor: None,
+                limit: Some(2),
+                page: None,
+                per_page: None,
+                client_id: None,
+                location: None,
+                search: None,
+            };
+
+            let result = list_affixes(
+                axum::extract::State(state),
+                user,
+                axum::extract::Query(query),
+            )
+            .await;
+
+            assert!(result.is_ok(), "list failed: {:?}", result.err());
+            let resp = result.unwrap();
+            assert_eq!(resp.0.data.len(), 2);
+            assert!(resp.0.next_cursor.is_some());
+
+            sqlx::query("DELETE FROM affixes WHERE id = ANY($1)")
+                .bind(&[a1, a2, a3])
+                .execute(&pool)
+                .await
+                .unwrap();
+            sqlx::query("DELETE FROM clients WHERE id = $1")
+                .bind(client_id)
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+
+        #[tokio::test]
+        async fn test_list_affixes_filter_by_type() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_id = create_test_client(&pool).await;
+            let a1 = create_test_affix(&pool, client_id, "Fire", "prefix").await;
+            let a2 = create_test_affix(&pool, client_id, "Ice", "suffix").await;
+
+            let state = test_state(Arc::new(pool.clone()));
+            let user = test_user(client_id, Permission::Read);
+
+            let query = AffixListQuery {
+                cursor: None,
+                limit: None,
+                page: Some(1),
+                per_page: Some(10),
+                client_id: None,
+                location: Some(AffixLocation::Suffix),
+                search: None,
+            };
+
+            let result = list_affixes(
+                axum::extract::State(state),
+                user,
+                axum::extract::Query(query),
+            )
+            .await;
+
+            assert!(result.is_ok(), "list failed: {:?}", result.err());
+            let resp = result.unwrap();
+            let ids: Vec<Uuid> = resp.0.data.iter().map(|a| a.id).collect();
+            assert!(ids.contains(&a2));
+            assert!(!ids.contains(&a1));
+
+            sqlx::query("DELETE FROM affixes WHERE id = ANY($1)")
+                .bind(&[a1, a2])
+                .execute(&pool)
+                .await
+                .unwrap();
+            sqlx::query("DELETE FROM clients WHERE id = $1")
+                .bind(client_id)
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+
+        #[tokio::test]
+        async fn test_list_affixes_search_by_name() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_id = create_test_client(&pool).await;
+            let a1 = create_test_affix(&pool, client_id, "FireBlade", "prefix").await;
+            let a2 = create_test_affix(&pool, client_id, "IceShard", "suffix").await;
+
+            let state = test_state(Arc::new(pool.clone()));
+            let user = test_user(client_id, Permission::Read);
+
+            let query = AffixListQuery {
+                cursor: None,
+                limit: None,
+                page: Some(1),
+                per_page: Some(10),
+                client_id: None,
+                location: None,
+                search: Some("Blade".into()),
+            };
+
+            let result = list_affixes(
+                axum::extract::State(state),
+                user,
+                axum::extract::Query(query),
+            )
+            .await;
+
+            assert!(result.is_ok(), "list failed: {:?}", result.err());
+            let resp = result.unwrap();
+            let ids: Vec<Uuid> = resp.0.data.iter().map(|a| a.id).collect();
+            assert!(ids.contains(&a1));
+            assert!(!ids.contains(&a2));
+
+            sqlx::query("DELETE FROM affixes WHERE id = ANY($1)")
+                .bind(&[a1, a2])
+                .execute(&pool)
+                .await
+                .unwrap();
+            sqlx::query("DELETE FROM clients WHERE id = $1")
+                .bind(client_id)
                 .execute(&pool)
                 .await
                 .unwrap();

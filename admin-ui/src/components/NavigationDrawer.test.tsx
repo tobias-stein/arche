@@ -117,12 +117,11 @@ describe('NavigationDrawer', () => {
     expect(screen.queryByText('All clients')).not.toBeInTheDocument()
   })
 
-  it('has desktop stacking classes so links are clickable above main content', () => {
+  it('renders aside with desktop stacking context', () => {
     renderDrawer()
 
-    const aside = document.querySelector('aside')
-    expect(aside).toBeInTheDocument()
-    expect(aside?.className).toContain('md:relative')
-    expect(aside?.className).toMatch(/md:z-\d+/)
+    const aside = screen.getByRole('complementary')
+    expect(aside.className).toContain('md:relative')
+    expect(aside.className).toMatch(/md:z-\d+/)
   })
 })

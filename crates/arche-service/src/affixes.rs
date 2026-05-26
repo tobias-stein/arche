@@ -327,6 +327,23 @@ async fn validate_affix_attribute(
     }
 }
 
+fn reject_ambiguous_attribute(
+    attr_obj: &serde_json::Map<String, serde_json::Value>,
+) -> Result<(), ProblemResponse> {
+    let has_ref_id = attr_obj.contains_key("$ref_id");
+    let has_inline = attr_obj.contains_key("name");
+    if has_ref_id && has_inline {
+        return Err(ProblemResponse::validation_error(
+            "affix attribute must be either an inline definition (with 'name') or a $ref_id reference, not both",
+            vec![FieldError {
+                path: "attribute".into(),
+                message: "attribute must be either an inline definition or a $ref_id reference, not both".into(),
+            }],
+        ));
+    }
+    Ok(())
+}
+
 pub async fn create_affix(
     State(state): State<crate::AppState>,
     CurrentUser(user): CurrentUser,
@@ -347,19 +364,9 @@ pub async fn create_affix(
             )
         })?;
 
-    let has_ref_id = attr_obj.contains_key("$ref_id");
-    let has_inline = attr_obj.contains_key("name");
-    if has_ref_id && has_inline {
-        return Err(ProblemResponse::validation_error(
-            "affix attribute must be either an inline definition (with 'name') or a $ref_id reference, not both",
-            vec![FieldError {
-                path: "attribute".into(),
-                message: "attribute must be either an inline definition or a $ref_id reference, not both".into(),
-            }],
-        ));
-    }
+    reject_ambiguous_attribute(attr_obj)?;
 
-    let req: CreateAffixRequest = serde_json::from_value(body.clone()).map_err(|e| {
+    let req: CreateAffixRequest = serde_json::from_value(body).map_err(|e| {
         ProblemResponse::validation_error(
             format!("Invalid request body: {e}"),
             vec![],
@@ -497,17 +504,7 @@ pub async fn update_affix(
     let client_id = existing_affix.client_id;
 
     if let Some(attr_obj) = body.get("attribute").and_then(|v| v.as_object()) {
-        let has_ref_id = attr_obj.contains_key("$ref_id");
-        let has_inline = attr_obj.contains_key("name");
-        if has_ref_id && has_inline {
-            return Err(ProblemResponse::validation_error(
-                "affix attribute must be either an inline definition (with 'name') or a $ref_id reference, not both",
-                vec![FieldError {
-                    path: "attribute".into(),
-                    message: "attribute must be either an inline definition or a $ref_id reference, not both".into(),
-                }],
-            ));
-        }
+        reject_ambiguous_attribute(attr_obj)?;
     }
 
     let req: CreateAffixRequest = serde_json::from_value(body).map_err(|e| {

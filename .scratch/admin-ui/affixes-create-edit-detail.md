@@ -1,6 +1,6 @@
 ---
 title: Affixes — create/edit modal & detail page
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

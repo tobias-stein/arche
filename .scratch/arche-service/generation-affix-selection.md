@@ -1,6 +1,6 @@
 ---
 title: Generation engine — affix selection
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

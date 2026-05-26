@@ -1,6 +1,6 @@
 ---
 title: arche client subcommands
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

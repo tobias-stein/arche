@@ -1,6 +1,6 @@
 ---
 title: Export endpoint
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

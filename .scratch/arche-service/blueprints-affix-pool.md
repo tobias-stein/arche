@@ -1,6 +1,6 @@
 ---
 title: Blueprints — affix pool management
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

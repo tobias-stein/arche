@@ -1,3 +1,4 @@
+pub mod affixes;
 pub mod audit_log;
 pub mod auth;
 pub mod batch;
@@ -6,6 +7,7 @@ pub mod blueprints;
 mod config;
 pub mod generate;
 pub mod generation;
+pub mod global_meta_attributes;
 pub mod import;
 mod schema;
 pub mod cache;
@@ -15,7 +17,7 @@ pub mod redis_pubsub;
 
 use axum::extract::State;
 use axum::middleware;
-use axum::{routing::{get, post}, Json, Router};
+use axum::{routing::{delete, get, post}, Json, Router};
 use arche_types::crud::BootstrapResponse;
 use serde_json::{json, Value};
 use sqlx::postgres::PgPoolOptions;
@@ -84,7 +86,9 @@ fn build_router(state: AppState) -> Router {
         .route("/api/blueprints/{id}", get(blueprints::get_blueprint).put(blueprints::update_blueprint).delete(blueprints::delete_blueprint))
         .route("/api/blueprints/batch/edit", post(batch::batch_edit_blueprints))
         .route("/api/blueprints/batch/delete", post(batch::batch_delete_blueprints))
+        .route("/api/affixes/{id}", delete(affixes::delete_affix))
         .route("/api/affixes/batch/delete", post(batch::batch_delete_affixes))
+        .route("/api/global-meta-attributes/{id}", delete(global_meta_attributes::delete_global_meta_attribute))
         .route("/api/audit-log", get(audit_log::list_audit_log))
         .route("/api/generate", post(generate::generate_handler))
         .route("/api/import", post(import::import_parse_handler))

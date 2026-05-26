@@ -11,7 +11,7 @@ use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
 
 use crate::auth::permission::CurrentUser;
-use crate::error::{FieldError, ProblemResponse};
+use crate::error::{FieldError, ProblemResponse, ReferenceInfo};
 
 impl crate::pagination::HasId for Blueprint {
     fn id(&self) -> Uuid {
@@ -485,22 +485,40 @@ pub async fn delete_blueprint(
     }
 
     if !query.force {
-        let count: i64 = sqlx::query(
-            "SELECT COUNT(*) FROM blueprint_affixes WHERE blueprint_id = $1",
+        let ref_rows = sqlx::query(
+            "SELECT a.id, a.name FROM blueprint_affixes ba \
+             JOIN affixes a ON a.id = ba.affix_id \
+             WHERE ba.blueprint_id = $1",
         )
         .bind(id)
-        .fetch_one(&*state.pool)
+        .fetch_all(&*state.pool)
         .await
         .map_err(|e| {
             tracing::error!(error = %e, "blueprints: check references failed");
             ProblemResponse::unprocessable_entity("Failed to check blueprint references")
-        })?
-        .get(0);
+        })?;
 
-        if count > 0 {
-            return Err(ProblemResponse::delete_referenced_resource(format!(
-                "Blueprint {id} is referenced by {count} affix pool entries. Use force=true to cascade delete.",
-            )));
+        if !ref_rows.is_empty() {
+            let references: Vec<ReferenceInfo> = ref_rows
+                .iter()
+                .map(|r| {
+                    let affix_id: Uuid = r.get("id");
+                    let affix_name: String = r.get("name");
+                    ReferenceInfo {
+                        resource_type: "affix".into(),
+                        resource_id: affix_id,
+                        resource_name: affix_name,
+                    }
+                })
+                .collect();
+
+            return Err(ProblemResponse::delete_referenced_resource_with_refs(
+                format!(
+                    "Blueprint {id} is referenced by {} affix pool entries. Use force=true to cascade delete.",
+                    ref_rows.len()
+                ),
+                references,
+            ));
         }
     }
 

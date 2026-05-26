@@ -83,6 +83,10 @@ vi.mock('@/api/generated', async () => {
       mutateAsync: vi.fn().mockResolvedValue(undefined),
       isPending: false,
     }),
+    useCreateGlobalMetaAttribute: () => ({
+      mutateAsync: vi.fn().mockResolvedValue(undefined),
+      isPending: false,
+    }),
     useBlueprintsList: () => ({
       data: { data: [], total: 0 },
       isLoading: false,

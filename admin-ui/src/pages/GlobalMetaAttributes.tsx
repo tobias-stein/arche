@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ChevronLeft, ChevronRight, Pencil, Trash2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Pencil, Plus, Trash2 } from 'lucide-react'
 
 import {
   useAffixesList,
   useBlueprintsList,
+  useCreateGlobalMetaAttribute,
   useDeleteGlobalMetaAttribute,
   useGlobalMetaAttributesList,
   useUpdateGlobalMetaAttribute,
 } from '@/api/generated'
-import type { GlobalMetaAttribute, ValueType } from '@/api/generated'
+import type { CreateGlobalMetaAttributeRequest, GlobalMetaAttribute, ValueType } from '@/api/generated'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -190,6 +191,395 @@ function EditGlobalMetaAttributeDialog({
   )
 }
 
+function CreateGlobalMetaAttributeDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
+  const { toast } = useToast()
+  const createMutation = useCreateGlobalMetaAttribute()
+
+  const [name, setName] = useState('')
+  const [description, setDescription] = useState('')
+  const [valueType, setValueType] = useState<ValueType>('single')
+  const [singleValue, setSingleValue] = useState('')
+  const [enumValues, setEnumValues] = useState('')
+  const [rangeMin, setRangeMin] = useState('')
+  const [rangeMax, setRangeMax] = useState('')
+  const [strMinLen, setStrMinLen] = useState('')
+  const [strMaxLen, setStrMaxLen] = useState('')
+  const [boolVal, setBoolVal] = useState(false)
+  const [useDist, setUseDist] = useState(false)
+  const [distType, setDistType] = useState<'uniform' | 'normal' | 'exponential'>('uniform')
+  const [distStdDev, setDistStdDev] = useState('')
+  const [distRate, setDistRate] = useState('')
+
+  function resetForm() {
+    setName('')
+    setDescription('')
+    setValueType('single')
+    setSingleValue('')
+    setEnumValues('')
+    setRangeMin('')
+    setRangeMax('')
+    setStrMinLen('')
+    setStrMaxLen('')
+    setBoolVal(false)
+    setUseDist(false)
+    setDistType('uniform')
+    setDistStdDev('')
+    setDistRate('')
+  }
+
+  function buildDistribution(): { type: string; stdDev?: number; rate?: number } | null {
+    if (distType === 'uniform') return { type: 'uniform' }
+    if (distType === 'normal') {
+      const sd = parseFloat(distStdDev)
+      if (isNaN(sd) || sd <= 0) return null
+      return { type: 'normal', stdDev: sd }
+    }
+    const rate = parseFloat(distRate)
+    if (isNaN(rate) || rate <= 0) return null
+    return { type: 'exponential', rate }
+  }
+
+  function buildRequest(): CreateGlobalMetaAttributeRequest | null {
+    if (!name.trim()) return null
+
+    switch (valueType) {
+      case 'single': {
+        const val = parseFloat(singleValue)
+        if (isNaN(val)) return null
+        const req: CreateGlobalMetaAttributeRequest = {
+          name: name.trim(),
+          description: description.trim() || null,
+          valueType: 'single',
+          value: val,
+        }
+        if (useDist) {
+          const dist = buildDistribution()
+          if (!dist) return null
+          ;(req as Record<string, unknown>).distribution = dist
+        }
+        return req
+      }
+      case 'enum': {
+        const vals = enumValues.split(',').map((v) => v.trim()).filter(Boolean)
+        if (vals.length === 0) return null
+        return {
+          name: name.trim(),
+          description: description.trim() || null,
+          valueType: 'enum',
+          values: vals,
+        }
+      }
+      case 'range': {
+        const min = parseFloat(rangeMin)
+        const max = parseFloat(rangeMax)
+        if (isNaN(min) || isNaN(max) || min > max) return null
+        const req: CreateGlobalMetaAttributeRequest = {
+          name: name.trim(),
+          description: description.trim() || null,
+          valueType: 'range',
+          min,
+          max,
+        }
+        if (useDist) {
+          const dist = buildDistribution()
+          if (!dist) return null
+          ;(req as Record<string, unknown>).distribution = dist
+        }
+        return req
+      }
+      case 'string': {
+        const minL = strMinLen ? parseInt(strMinLen, 10) : undefined
+        const maxL = strMaxLen ? parseInt(strMaxLen, 10) : undefined
+        if (minL !== undefined && isNaN(minL)) return null
+        if (maxL !== undefined && isNaN(maxL)) return null
+        return {
+          name: name.trim(),
+          description: description.trim() || null,
+          valueType: 'string',
+          ...(minL !== undefined ? { minLength: minL } : {}),
+          ...(maxL !== undefined ? { maxLength: maxL } : {}),
+        }
+      }
+      case 'boolean':
+        return {
+          name: name.trim(),
+          description: description.trim() || null,
+          valueType: 'boolean',
+          value: boolVal,
+        }
+    }
+  }
+
+  const canSubmit = name.trim().length > 0 && buildRequest() !== null
+
+  const handleSubmit = async () => {
+    const request = buildRequest()
+    if (!request) return
+    try {
+      await createMutation.mutateAsync(request)
+      toast({ title: 'Global meta attribute created' })
+      onOpenChange(false)
+    } catch {
+      toast({ title: 'Failed to create global meta attribute', variant: 'destructive' })
+    }
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) resetForm()
+        onOpenChange(o)
+      }}
+    >
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Create Global Meta Attribute</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <label htmlFor="create-gma-name" className="text-sm font-medium">
+              Name
+            </label>
+            <Input
+              id="create-gma-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Attribute name"
+            />
+          </div>
+          <div className="space-y-2">
+            <label htmlFor="create-gma-desc" className="text-sm font-medium">
+              Description
+            </label>
+            <Input
+              id="create-gma-desc"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Optional"
+            />
+          </div>
+          <div className="space-y-2">
+            <label htmlFor="create-gma-vtype" className="text-sm font-medium">
+              Value Type
+            </label>
+            <select
+              id="create-gma-vtype"
+              value={valueType}
+              onChange={(e) => setValueType(e.target.value as ValueType)}
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              {VALUE_TYPE_OPTIONS.filter((o) => o.value !== 'all').map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {valueType === 'single' && (
+            <div className="space-y-2">
+              <label htmlFor="create-gma-value" className="text-sm font-medium">
+                Value
+              </label>
+              <Input
+                id="create-gma-value"
+                type="number"
+                value={singleValue}
+                onChange={(e) => setSingleValue(e.target.value)}
+                placeholder="0"
+              />
+            </div>
+          )}
+
+          {valueType === 'enum' && (
+            <div className="space-y-2">
+              <label htmlFor="create-gma-values" className="text-sm font-medium">
+                Values (comma-separated)
+              </label>
+              <Input
+                id="create-gma-values"
+                value={enumValues}
+                onChange={(e) => setEnumValues(e.target.value)}
+                placeholder="fire, ice, lightning"
+              />
+            </div>
+          )}
+
+          {valueType === 'range' && (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <label htmlFor="create-gma-min" className="text-sm font-medium">
+                  Min
+                </label>
+                <Input
+                  id="create-gma-min"
+                  type="number"
+                  value={rangeMin}
+                  onChange={(e) => setRangeMin(e.target.value)}
+                  placeholder="0"
+                />
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="create-gma-max" className="text-sm font-medium">
+                  Max
+                </label>
+                <Input
+                  id="create-gma-max"
+                  type="number"
+                  value={rangeMax}
+                  onChange={(e) => setRangeMax(e.target.value)}
+                  placeholder="100"
+                />
+              </div>
+            </div>
+          )}
+
+          {valueType === 'string' && (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <label htmlFor="create-gma-minlen" className="text-sm font-medium">
+                  Min Length
+                </label>
+                <Input
+                  id="create-gma-minlen"
+                  type="number"
+                  value={strMinLen}
+                  onChange={(e) => setStrMinLen(e.target.value)}
+                  placeholder="0"
+                />
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="create-gma-maxlen" className="text-sm font-medium">
+                  Max Length
+                </label>
+                <Input
+                  id="create-gma-maxlen"
+                  type="number"
+                  value={strMaxLen}
+                  onChange={(e) => setStrMaxLen(e.target.value)}
+                  placeholder="100"
+                />
+              </div>
+            </div>
+          )}
+
+          {valueType === 'boolean' && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium block">Value</label>
+              <div className="flex items-center gap-3">
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="radio"
+                    name="create-bool-val"
+                    checked={boolVal}
+                    onChange={() => setBoolVal(true)}
+                    className="h-4 w-4"
+                  />
+                  True
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="radio"
+                    name="create-bool-val"
+                    checked={!boolVal}
+                    onChange={() => setBoolVal(false)}
+                    className="h-4 w-4"
+                  />
+                  False
+                </label>
+              </div>
+            </div>
+          )}
+
+          {(valueType === 'single' || valueType === 'range') && (
+            <div className="space-y-3 border rounded-md p-3">
+              <label className="flex items-center gap-2 text-sm font-medium">
+                <input
+                  type="checkbox"
+                  checked={useDist}
+                  onChange={(e) => setUseDist(e.target.checked)}
+                  className="rounded"
+                />
+                Enable Distribution
+              </label>
+              {useDist && (
+                <>
+                  <div className="space-y-2">
+                    <label htmlFor="create-dist-type" className="text-sm font-medium">
+                      Distribution Type
+                    </label>
+                    <select
+                      id="create-dist-type"
+                      value={distType}
+                      onChange={(e) =>
+                        setDistType(e.target.value as 'uniform' | 'normal' | 'exponential')
+                      }
+                      className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    >
+                      <option value="uniform">Uniform</option>
+                      <option value="normal">Normal</option>
+                      <option value="exponential">Exponential</option>
+                    </select>
+                  </div>
+                  {distType === 'normal' && (
+                    <div className="space-y-2">
+                      <label htmlFor="create-dist-stddev" className="text-sm font-medium">
+                        Std Dev
+                      </label>
+                      <Input
+                        id="create-dist-stddev"
+                        type="number"
+                        step="0.01"
+                        value={distStdDev}
+                        onChange={(e) => setDistStdDev(e.target.value)}
+                        placeholder="1.0"
+                      />
+                    </div>
+                  )}
+                  {distType === 'exponential' && (
+                    <div className="space-y-2">
+                      <label htmlFor="create-dist-rate" className="text-sm font-medium">
+                        Rate
+                      </label>
+                      <Input
+                        id="create-dist-rate"
+                        type="number"
+                        step="0.01"
+                        value={distRate}
+                        onChange={(e) => setDistRate(e.target.value)}
+                        placeholder="1.0"
+                      />
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+        </div>
+        <DialogFooter>
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={createMutation.isPending}
+          >
+            Cancel
+          </Button>
+          <Button onClick={handleSubmit} disabled={!canSubmit || createMutation.isPending}>
+            {createMutation.isPending ? 'Creating...' : 'Create'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 export default function GlobalMetaAttributes() {
   const { toast } = useToast()
 
@@ -200,6 +590,8 @@ export default function GlobalMetaAttributes() {
 
   const [editingGma, setEditingGma] = useState<GlobalMetaAttribute | null>(null)
   const [showEditDialog, setShowEditDialog] = useState(false)
+
+  const [showCreateDialog, setShowCreateDialog] = useState(false)
 
   const [deletingGma, setDeletingGma] = useState<GlobalMetaAttribute | null>(null)
   const deleteMutation = useDeleteGlobalMetaAttribute()
@@ -303,6 +695,10 @@ export default function GlobalMetaAttributes() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Global Meta Attributes</h2>
+        <Button onClick={() => setShowCreateDialog(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          Create Global Meta Attribute
+        </Button>
       </div>
 
       {/* Filter bar */}
@@ -552,6 +948,12 @@ export default function GlobalMetaAttributes() {
         gma={editingGma}
         open={showEditDialog}
         onOpenChange={setShowEditDialog}
+      />
+
+      {/* Create dialog */}
+      <CreateGlobalMetaAttributeDialog
+        open={showCreateDialog}
+        onOpenChange={setShowCreateDialog}
       />
     </div>
   )

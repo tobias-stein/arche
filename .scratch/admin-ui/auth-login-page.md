@@ -26,15 +26,15 @@ Implement the login flow:
 
 ## Acceptance criteria
 
-- [ ] Login form renders, accepts API key, calls login store method
-- [ ] Valid key: redirects to dashboard
-- [ ] Invalid key: shows error message, stays on login page
-- [ ] Key is stored in memory only (check: not in localStorage)
-- [ ] After login, protected routes render (not redirected)
-- [ ] After logout, protected routes redirect to login
-- [ ] 401/403 from any API call triggers auto-logout
-- [ ] Unit tests for auth store state transitions
-- [ ] Integration test: login flow with mocked API
+- [x] Login form renders, accepts API key, calls login store method
+- [x] Valid key: redirects to dashboard
+- [x] Invalid key: shows error message, stays on login page
+- [x] Key is stored in memory only (check: not in localStorage)
+- [x] After login, protected routes render (not redirected)
+- [x] After logout, protected routes redirect to login
+- [x] 401/403 from any API call triggers auto-logout
+- [x] Unit tests for auth store state transitions
+- [x] Integration test: login flow with mocked API
 
 ## Blocked by
 

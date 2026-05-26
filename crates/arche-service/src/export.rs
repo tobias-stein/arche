@@ -119,7 +119,7 @@ pub async fn export_handler(
     let mut zip = ZipWriter::new(Cursor::new(&mut buf));
     let options = FileOptions::<()>::default();
 
-    for client_id in &client_ids {
+    for client_id in client_ids {
         let client_row = sqlx::query("SELECT id, name FROM clients WHERE id = $1")
             .bind(client_id)
             .fetch_optional(&*state.pool)
@@ -139,100 +139,33 @@ pub async fn export_handler(
 
         let folder = format!("client-{}", client.id);
 
-        let gmas = fetch_gmas(&state.pool, *client_id).await?;
+        let gmas = fetch_gmas(&state.pool, client_id).await?;
         let gma_map: HashMap<Uuid, &GmaExport> =
             gmas.iter().map(|g| (g.id, g)).collect();
 
-        let mut blueprints = fetch_blueprints(&state.pool, *client_id).await?;
-        let mut affixes = fetch_affixes(&state.pool, *client_id).await?;
-        let blueprint_affixes = fetch_blueprint_affixes(&state.pool, *client_id).await?;
+        let mut blueprints = fetch_blueprints(&state.pool, client_id).await?;
+        let mut affixes = fetch_affixes(&state.pool, client_id).await?;
+        let blueprint_affixes = fetch_blueprint_affixes(&state.pool, client_id).await?;
 
         if req.inline_global_refs {
             inline_blueprint_refs(&mut blueprints, &gma_map);
             inline_affix_refs(&mut affixes, &gma_map);
         }
 
-        write_json_entry(
-            &mut zip,
-            options,
-            &format!("{}/client.json", folder),
-            &client,
-        )
-        .map_err(|e| {
-            tracing::error!(error = %e, "export: write client.json failed");
-            ProblemResponse::unprocessable_entity("Failed to write ZIP entry")
-        })?;
-
-        write_json_entry(
-            &mut zip,
-            options,
-            &format!("{}/global_meta_attributes.json", folder),
-            &gmas,
-        )
-        .map_err(|e| {
-            tracing::error!(error = %e, "export: write global_meta_attributes.json failed");
-            ProblemResponse::unprocessable_entity("Failed to write ZIP entry")
-        })?;
-
-        write_json_entry(
-            &mut zip,
-            options,
-            &format!("{}/blueprints.json", folder),
-            &blueprints,
-        )
-        .map_err(|e| {
-            tracing::error!(error = %e, "export: write blueprints.json failed");
-            ProblemResponse::unprocessable_entity("Failed to write ZIP entry")
-        })?;
-
-        write_json_entry(
-            &mut zip,
-            options,
-            &format!("{}/affixes.json", folder),
-            &affixes,
-        )
-        .map_err(|e| {
-            tracing::error!(error = %e, "export: write affixes.json failed");
-            ProblemResponse::unprocessable_entity("Failed to write ZIP entry")
-        })?;
-
-        write_json_entry(
-            &mut zip,
-            options,
-            &format!("{}/blueprint_affixes.json", folder),
-            &blueprint_affixes,
-        )
-        .map_err(|e| {
-            tracing::error!(error = %e, "export: write blueprint_affixes.json failed");
-            ProblemResponse::unprocessable_entity("Failed to write ZIP entry")
-        })?;
+        write_entry(&mut zip, options, &format!("{}/client.json", folder), &client)?;
+        write_entry(&mut zip, options, &format!("{}/global_meta_attributes.json", folder), &gmas)?;
+        write_entry(&mut zip, options, &format!("{}/blueprints.json", folder), &blueprints)?;
+        write_entry(&mut zip, options, &format!("{}/affixes.json", folder), &affixes)?;
+        write_entry(&mut zip, options, &format!("{}/blueprint_affixes.json", folder), &blueprint_affixes)?;
 
         if req.include_api_keys {
-            let api_keys = fetch_api_keys(&state.pool, *client_id).await?;
-            write_json_entry(
-                &mut zip,
-                options,
-                &format!("{}/api-keys.json", folder),
-                &api_keys,
-            )
-            .map_err(|e| {
-                tracing::error!(error = %e, "export: write api-keys.json failed");
-                ProblemResponse::unprocessable_entity("Failed to write ZIP entry")
-            })?;
+            let api_keys = fetch_api_keys(&state.pool, client_id).await?;
+            write_entry(&mut zip, options, &format!("{}/api-keys.json", folder), &api_keys)?;
         }
 
         if req.include_audit_log {
-            let audit_entries = fetch_audit_log(&state.pool, *client_id).await?;
-            write_json_entry(
-                &mut zip,
-                options,
-                &format!("{}/audit-log.json", folder),
-                &audit_entries,
-            )
-            .map_err(|e| {
-                tracing::error!(error = %e, "export: write audit-log.json failed");
-                ProblemResponse::unprocessable_entity("Failed to write ZIP entry")
-            })?;
+            let audit_entries = fetch_audit_log(&state.pool, client_id).await?;
+            write_entry(&mut zip, options, &format!("{}/audit-log.json", folder), &audit_entries)?;
         }
     }
 
@@ -262,6 +195,18 @@ fn write_json_entry<W: std::io::Write + std::io::Seek, T: Serialize>(
     let json_bytes = serde_json::to_vec_pretty(data)?;
     std::io::Write::write_all(zip, &json_bytes)?;
     Ok(())
+}
+
+fn write_entry<W: std::io::Write + std::io::Seek, T: Serialize>(
+    zip: &mut ZipWriter<W>,
+    options: FileOptions<()>,
+    name: &str,
+    data: &T,
+) -> Result<(), ProblemResponse> {
+    write_json_entry(zip, options, name, data).map_err(|e| {
+        tracing::error!(error = %e, "export: write {name} failed");
+        ProblemResponse::unprocessable_entity("Failed to write ZIP entry")
+    })
 }
 
 async fn fetch_gmas(

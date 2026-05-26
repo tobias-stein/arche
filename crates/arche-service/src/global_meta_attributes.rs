@@ -9,6 +9,7 @@ use sqlx::postgres::PgRow;
 use sqlx::{QueryBuilder, Row};
 use uuid::Uuid;
 
+use crate::audit_log::record_audit;
 use crate::auth::permission::CurrentUser;
 use crate::error::{FieldError, ProblemResponse, ReferenceInfo};
 
@@ -450,6 +451,19 @@ pub async fn delete_global_meta_attribute(
     })?;
 
     let gma_client_id: Uuid = row.get("client_id");
+    let gma_name: String = row.get("name");
+    let gma_description: Option<String> = row.get("description");
+    let gma_value_type: String = row.get("value_type");
+    let gma_payload: serde_json::Value = row.get("payload");
+
+    let before_snapshot = serde_json::json!({
+        "id": id,
+        "client_id": gma_client_id,
+        "name": &gma_name,
+        "description": &gma_description,
+        "value_type": &gma_value_type,
+        "payload": &gma_payload,
+    });
 
     if !user.is_super {
         let user_cid = user.client_id.ok_or_else(|| {
@@ -547,19 +561,16 @@ pub async fn delete_global_meta_attribute(
                 ProblemResponse::unprocessable_entity("Failed to remove blueprint attribute reference")
             })?;
 
-            sqlx::query(
-                "INSERT INTO audit_log (actor_key_id, actor_key_name, client_id, \
-                 resource_type, resource_id, action, before, after) \
-                 VALUES ($1, $2, $3, 'blueprint', $4, 'adjusted'::audit_action, \
-                 $5, $6)",
+            record_audit(
+                &mut *tx,
+                &user,
+                Some(gma_client_id),
+                "blueprint",
+                bp_id,
+                "adjusted",
+                Some(serde_json::json!({"attribute_key": &attr_key, "removed_ref_id": id.to_string()})),
+                Some(serde_json::json!({"attribute_key": &attr_key, "removed": true})),
             )
-            .bind(user.id)
-            .bind(&user.name)
-            .bind(gma_client_id)
-            .bind(bp_id)
-            .bind(serde_json::json!({"attribute_key": &attr_key, "removed_ref_id": id.to_string()}))
-            .bind(serde_json::json!({"attribute_key": &attr_key, "removed": true}))
-            .execute(&mut *tx)
             .await
             .map_err(|e| {
                 tracing::error!(error = %e, "gma: audit log insert failed");
@@ -582,19 +593,16 @@ pub async fn delete_global_meta_attribute(
                 ProblemResponse::unprocessable_entity("Failed to clear affix attribute reference")
             })?;
 
-            sqlx::query(
-                "INSERT INTO audit_log (actor_key_id, actor_key_name, client_id, \
-                 resource_type, resource_id, action, before, after) \
-                 VALUES ($1, $2, $3, 'affix', $4, 'adjusted'::audit_action, \
-                 $5, $6)",
+            record_audit(
+                &mut *tx,
+                &user,
+                Some(gma_client_id),
+                "affix",
+                affix_id,
+                "adjusted",
+                Some(serde_json::json!({"removed_ref_id": id.to_string()})),
+                Some(serde_json::json!({"attribute": {}})),
             )
-            .bind(user.id)
-            .bind(&user.name)
-            .bind(gma_client_id)
-            .bind(affix_id)
-            .bind(serde_json::json!({"removed_ref_id": id.to_string()}))
-            .bind(serde_json::json!({"attribute": {}}))
-            .execute(&mut *tx)
             .await
             .map_err(|e| {
                 tracing::error!(error = %e, "gma: audit log insert failed");
@@ -611,6 +619,22 @@ pub async fn delete_global_meta_attribute(
                 ProblemResponse::unprocessable_entity("Failed to delete global meta attribute")
             })?;
 
+        record_audit(
+            &mut *tx,
+            &user,
+            Some(gma_client_id),
+            "global_meta_attribute",
+            id,
+            "force_deleted",
+            Some(before_snapshot),
+            None,
+        )
+        .await
+        .map_err(|e| {
+            tracing::error!(error = %e, "gma: audit log insert failed");
+            ProblemResponse::unprocessable_entity("Failed to write audit log")
+        })?;
+
         tx.commit().await.map_err(|e| {
             tracing::error!(error = %e, "gma: commit transaction failed");
             ProblemResponse::unprocessable_entity("Failed to commit force delete transaction")
@@ -624,6 +648,21 @@ pub async fn delete_global_meta_attribute(
                 tracing::error!(error = %e, "gma: delete gma failed");
                 ProblemResponse::unprocessable_entity("Failed to delete global meta attribute")
             })?;
+
+        if let Err(e) = record_audit(
+            &*state.pool,
+            &user,
+            Some(gma_client_id),
+            "global_meta_attribute",
+            id,
+            "deleted",
+            Some(before_snapshot),
+            None,
+        )
+        .await
+        {
+            tracing::error!(error = %e, "gma: audit log insert failed");
+        }
     }
 
     Ok(Json(serde_json::json!({"deleted": true})))

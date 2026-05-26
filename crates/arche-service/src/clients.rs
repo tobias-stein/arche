@@ -9,6 +9,7 @@ use axum::Json;
 use sqlx::Row;
 use uuid::Uuid;
 
+use crate::audit_log::record_audit;
 use crate::auth::permission::CurrentUser;
 use crate::error::{FieldError, ProblemResponse};
 
@@ -219,9 +220,27 @@ pub async fn create_client(
         )
     })?;
 
+    let client_id: Uuid = row.get("id");
+    let client_name: String = row.get("name");
+
+    if let Err(e) = record_audit(
+        &*state.pool,
+        &user,
+        Some(client_id),
+        "client",
+        client_id,
+        "created",
+        None,
+        Some(serde_json::json!({ "id": client_id, "name": &client_name })),
+    )
+    .await
+    {
+        tracing::error!(error = %e, "clients: audit log insert failed");
+    }
+
     Ok(Json(ClientResponse {
-        id: row.get("id"),
-        name: row.get("name"),
+        id: client_id,
+        name: client_name,
         created_at: row.get("created_at"),
         api_keys: vec![],
     }))
@@ -233,7 +252,7 @@ pub async fn delete_client(
     Path(id): Path<Uuid>,
 ) -> Result<Json<serde_json::Value>, ProblemResponse> {
     user.require_super_admin()?;
-    let exists = sqlx::query("SELECT id FROM clients WHERE id = $1")
+    let row = sqlx::query("SELECT id, name FROM clients WHERE id = $1")
         .bind(id)
         .fetch_optional(&*state.pool)
         .await
@@ -241,13 +260,9 @@ pub async fn delete_client(
             tracing::error!(error = %e, "clients: check existence failed");
             ProblemResponse::unprocessable_entity("Failed to check client existence")
         })?
-        .is_some();
+        .ok_or_else(|| ProblemResponse::not_found(format!("Client not found: {id}")))?;
 
-    if !exists {
-        return Err(ProblemResponse::not_found(format!(
-            "Client not found: {id}"
-        )));
-    }
+    let client_name: String = row.get("name");
 
     let key_count: i64 = sqlx::query_scalar(
         "SELECT COUNT(*) FROM api_keys WHERE client_id = $1 AND is_super = false",
@@ -266,6 +281,8 @@ pub async fn delete_client(
         )));
     }
 
+    let before_snapshot = serde_json::json!({ "id": id, "name": &client_name });
+
     sqlx::query("DELETE FROM clients WHERE id = $1")
         .bind(id)
         .execute(&*state.pool)
@@ -274,6 +291,21 @@ pub async fn delete_client(
             tracing::error!(error = %e, "clients: delete failed");
             ProblemResponse::unprocessable_entity("Failed to delete client")
         })?;
+
+    if let Err(e) = record_audit(
+        &*state.pool,
+        &user,
+        Some(id),
+        "client",
+        id,
+        "deleted",
+        Some(before_snapshot),
+        None,
+    )
+    .await
+    {
+        tracing::error!(error = %e, "clients: audit log insert failed");
+    }
 
     Ok(Json(serde_json::json!({"deleted": true})))
 }
@@ -330,7 +362,7 @@ pub async fn list_api_keys(
 
 pub async fn create_api_key(
     State(state): State<crate::AppState>,
-    CurrentUser(_user): CurrentUser,
+    CurrentUser(user): CurrentUser,
     Path(client_id): Path<Uuid>,
     Json(req): Json<CreateApiKeyRequest>,
 ) -> Result<Json<CreateApiKeyResponse>, ProblemResponse> {
@@ -377,10 +409,30 @@ pub async fn create_api_key(
         )
     })?;
 
-    let id: Uuid = row.get("id");
+    let key_id: Uuid = row.get("id");
+
+    if let Err(e) = record_audit(
+        &*state.pool,
+        &user,
+        Some(client_id),
+        "api_key",
+        key_id,
+        "created",
+        None,
+        Some(serde_json::json!({
+            "id": key_id,
+            "client_id": client_id,
+            "name": &req.name,
+            "permissions": &perm_strs,
+        })),
+    )
+    .await
+    {
+        tracing::error!(error = %e, "api-keys: audit log insert failed");
+    }
 
     Ok(Json(CreateApiKeyResponse {
-        id,
+        id: key_id,
         name: req.name,
         permissions: req.permissions,
         key: raw_key,
@@ -389,11 +441,11 @@ pub async fn create_api_key(
 
 pub async fn delete_api_key(
     State(state): State<crate::AppState>,
-    CurrentUser(_user): CurrentUser,
+    CurrentUser(user): CurrentUser,
     Path((client_id, key_id)): Path<(Uuid, Uuid)>,
 ) -> Result<Json<serde_json::Value>, ProblemResponse> {
-    let exists = sqlx::query(
-        "SELECT id FROM api_keys WHERE id = $1 AND client_id = $2 AND is_super = false",
+    let row = sqlx::query(
+        "SELECT id, name, permissions FROM api_keys WHERE id = $1 AND client_id = $2 AND is_super = false",
     )
     .bind(key_id)
     .bind(client_id)
@@ -403,13 +455,17 @@ pub async fn delete_api_key(
         tracing::error!(error = %e, "api-keys: existence check failed");
         ProblemResponse::unprocessable_entity("Failed to check API key existence")
     })?
-    .is_some();
+    .ok_or_else(|| ProblemResponse::not_found(format!("API key not found: {key_id}")))?;
 
-    if !exists {
-        return Err(ProblemResponse::not_found(format!(
-            "API key not found: {key_id}"
-        )));
-    }
+    let key_name: String = row.get("name");
+    let perm_strs: Vec<String> = row.get("permissions");
+
+    let before_snapshot = serde_json::json!({
+        "id": key_id,
+        "client_id": client_id,
+        "name": &key_name,
+        "permissions": &perm_strs,
+    });
 
     sqlx::query("DELETE FROM api_keys WHERE id = $1 AND is_super = false")
         .bind(key_id)
@@ -419,6 +475,21 @@ pub async fn delete_api_key(
             tracing::error!(error = %e, "api-keys: delete failed");
             ProblemResponse::unprocessable_entity("Failed to delete API key")
         })?;
+
+    if let Err(e) = record_audit(
+        &*state.pool,
+        &user,
+        Some(client_id),
+        "api_key",
+        key_id,
+        "deleted",
+        Some(before_snapshot),
+        None,
+    )
+    .await
+    {
+        tracing::error!(error = %e, "api-keys: audit log insert failed");
+    }
 
     Ok(Json(serde_json::json!({"deleted": true})))
 }

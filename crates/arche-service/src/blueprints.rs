@@ -10,6 +10,7 @@ use sqlx::{QueryBuilder, Row};
 use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
 
+use crate::audit_log::record_audit;
 use crate::auth::permission::CurrentUser;
 use crate::error::{FieldError, ProblemResponse, ReferenceInfo};
 
@@ -240,6 +241,35 @@ pub async fn create_blueprint(
     insert_affix_entries(&mut tx, bp_id, &affix_rows, AffixLocation::Prefix, &mut sort_order).await?;
     insert_affix_entries(&mut tx, bp_id, &suffix_affix_rows, AffixLocation::Suffix, &mut sort_order).await?;
 
+    record_audit(
+        &mut *tx,
+        &user,
+        Some(client_id),
+        "blueprint",
+        bp_id,
+        "created",
+        None,
+        Some(serde_json::json!({
+            "id": bp_id,
+            "client_id": client_id,
+            "name": &req.name,
+            "archetype": &req.archetype,
+            "weight": req.weight,
+            "description": &req.description,
+            "attributes": &attributes_json,
+            "attribute_order": &req.attribute_order,
+            "min_prefixes": req.affixes.min_prefixes,
+            "max_prefixes": req.affixes.max_prefixes,
+            "min_suffixes": req.affixes.min_suffixes,
+            "max_suffixes": req.affixes.max_suffixes,
+        })),
+    )
+    .await
+    .map_err(|e| {
+        tracing::error!(error = %e, "blueprints: audit log insert failed");
+        ProblemResponse::unprocessable_entity("Failed to create blueprint")
+    })?;
+
     tx.commit().await.map_err(|e| {
         tracing::error!(error = %e, "blueprints: commit transaction failed");
         ProblemResponse::unprocessable_entity("Failed to create blueprint")
@@ -422,6 +452,40 @@ pub async fn update_blueprint(
     upsert_affix_pool_entries(&mut tx, id, &req.affixes.prefixes, AffixLocation::Prefix, &existing_set, &mut sort_order).await?;
     upsert_affix_pool_entries(&mut tx, id, &req.affixes.suffixes, AffixLocation::Suffix, &existing_set, &mut sort_order).await?;
 
+    let before_snapshot = serde_json::to_value(&existing_bp).map_err(|e| {
+        tracing::error!(error = %e, "blueprints: serialize before snapshot failed");
+        ProblemResponse::unprocessable_entity("Failed to update blueprint")
+    })?;
+
+    record_audit(
+        &mut *tx,
+        &user,
+        Some(client_id),
+        "blueprint",
+        id,
+        "updated",
+        Some(before_snapshot),
+        Some(serde_json::json!({
+            "id": id,
+            "client_id": client_id,
+            "name": &req.name,
+            "archetype": &req.archetype,
+            "weight": req.weight,
+            "description": &req.description,
+            "attributes": &attributes_json,
+            "attribute_order": &req.attribute_order,
+            "min_prefixes": req.affixes.min_prefixes,
+            "max_prefixes": req.affixes.max_prefixes,
+            "min_suffixes": req.affixes.min_suffixes,
+            "max_suffixes": req.affixes.max_suffixes,
+        })),
+    )
+    .await
+    .map_err(|e| {
+        tracing::error!(error = %e, "blueprints: audit log insert failed");
+        ProblemResponse::unprocessable_entity("Failed to update blueprint")
+    })?;
+
     tx.commit().await.map_err(|e| {
         tracing::error!(error = %e, "blueprints: commit update transaction failed");
         ProblemResponse::unprocessable_entity("Failed to update blueprint")
@@ -522,14 +586,47 @@ pub async fn delete_blueprint(
         }
     }
 
+    let before_snapshot = serde_json::to_value(&bp).map_err(|e| {
+        tracing::error!(error = %e, "blueprints: serialize before snapshot failed");
+        ProblemResponse::unprocessable_entity("Failed to delete blueprint")
+    })?;
+
+    let action = if query.force { "force_deleted" } else { "deleted" };
+
+    let mut tx = state.pool.begin().await.map_err(|e| {
+        tracing::error!(error = %e, "blueprints: begin transaction for delete failed");
+        ProblemResponse::unprocessable_entity("Failed to delete blueprint")
+    })?;
+
     sqlx::query("DELETE FROM blueprints WHERE id = $1")
         .bind(id)
-        .execute(&*state.pool)
+        .execute(&mut *tx)
         .await
         .map_err(|e| {
             tracing::error!(error = %e, "blueprints: delete failed");
             ProblemResponse::unprocessable_entity("Failed to delete blueprint")
         })?;
+
+    record_audit(
+        &mut *tx,
+        &user,
+        Some(bp.client_id),
+        "blueprint",
+        id,
+        action,
+        Some(before_snapshot),
+        None,
+    )
+    .await
+    .map_err(|e| {
+        tracing::error!(error = %e, "blueprints: audit log insert failed");
+        ProblemResponse::unprocessable_entity("Failed to delete blueprint")
+    })?;
+
+    tx.commit().await.map_err(|e| {
+        tracing::error!(error = %e, "blueprints: commit delete transaction failed");
+        ProblemResponse::unprocessable_entity("Failed to delete blueprint")
+    })?;
 
     Ok(Json(serde_json::json!({"deleted": true})))
 }

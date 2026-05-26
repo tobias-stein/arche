@@ -7,10 +7,42 @@ use sqlx::{QueryBuilder, Row};
 use uuid::Uuid;
 
 use crate::auth::permission::CurrentUser;
+use crate::auth::AuthenticatedKey;
 use crate::error::ProblemResponse;
 
 const AUDIT_LOG_COLUMNS: &str =
     "id, timestamp, actor_key_id, actor_key_name, client_id, resource_type, resource_id, action, before, after";
+
+pub async fn record_audit<'a, E>(
+    executor: E,
+    actor: &AuthenticatedKey,
+    client_id: Option<Uuid>,
+    resource_type: &str,
+    resource_id: Uuid,
+    action: &str,
+    before: Option<serde_json::Value>,
+    after: Option<serde_json::Value>,
+) -> Result<(), sqlx::Error>
+where
+    E: sqlx::Executor<'a, Database = sqlx::Postgres>,
+{
+    sqlx::query(
+        "INSERT INTO audit_log (actor_key_id, actor_key_name, client_id, \
+         resource_type, resource_id, action, before, after) \
+         VALUES ($1, $2, $3, $4, $5, $6::audit_action, $7, $8)",
+    )
+    .bind(actor.id)
+    .bind(&actor.name)
+    .bind(client_id)
+    .bind(resource_type)
+    .bind(resource_id)
+    .bind(action)
+    .bind(before)
+    .bind(after)
+    .execute(executor)
+    .await?;
+    Ok(())
+}
 
 const VALID_AUDIT_ACTIONS: &[&str] = &["created", "updated", "deleted", "force_deleted", "adjusted"];
 

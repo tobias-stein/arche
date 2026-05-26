@@ -9,12 +9,13 @@ use sqlx::Row;
 use std::collections::HashSet;
 use uuid::Uuid;
 
+use crate::audit_log::record_audit;
 use crate::auth::permission::CurrentUser;
 use crate::error::{FieldError, ProblemResponse, ReferenceInfo};
 
 pub async fn batch_edit_blueprints(
     State(state): State<crate::AppState>,
-    CurrentUser(_user): CurrentUser,
+    CurrentUser(user): CurrentUser,
     Json(req): Json<BatchEditRequest>,
 ) -> Result<Json<BatchEditResponse>, ProblemResponse> {
     if req.blueprint_ids.is_empty() {
@@ -38,7 +39,7 @@ pub async fn batch_edit_blueprints(
     }
 
     let rows = sqlx::query(
-        "SELECT id, attributes FROM blueprints WHERE id = ANY($1)",
+        "SELECT id, client_id, attributes FROM blueprints WHERE id = ANY($1)",
     )
     .bind(&req.blueprint_ids)
     .fetch_all(&*state.pool)
@@ -73,10 +74,11 @@ pub async fn batch_edit_blueprints(
             .collect(),
     );
 
-    let mut to_update: Vec<(Uuid, Value)> = Vec::new();
+    let mut to_update: Vec<(Uuid, Uuid, Value, Value)> = Vec::new();
 
     for row in &rows {
         let bp_id: Uuid = row.get("id");
+        let bp_client_id: Uuid = row.get("client_id");
         let existing_attrs: Value = row.get("attributes");
 
         let existing_obj = match existing_attrs.as_object() {
@@ -132,7 +134,8 @@ pub async fn batch_edit_blueprints(
         }
 
         if has_all_keys {
-            to_update.push((bp_id, patch.clone()));
+            let after_attrs = merge_json_objects(existing_attrs.clone(), patch.clone());
+            to_update.push((bp_id, bp_client_id, existing_attrs.clone(), after_attrs));
         }
     }
 
@@ -145,17 +148,33 @@ pub async fn batch_edit_blueprints(
         ProblemResponse::unprocessable_entity("Failed to begin transaction for batch edit")
     })?;
 
-    for (bp_id, merged) in &to_update {
+    for (bp_id, bp_client_id, before_attrs, after_attrs) in &to_update {
         sqlx::query(
             "UPDATE blueprints SET attributes = attributes || $1::jsonb, updated_at = now() WHERE id = $2",
         )
-        .bind(merged)
+        .bind(&patch)
         .bind(bp_id)
         .execute(&mut *tx)
         .await
         .map_err(|e| {
             tracing::error!(error = %e, bp_id = %bp_id, "batch edit: update query failed");
             ProblemResponse::unprocessable_entity("Failed to update blueprint in batch edit")
+        })?;
+
+        record_audit(
+            &mut *tx,
+            &user,
+            Some(*bp_client_id),
+            "blueprint",
+            *bp_id,
+            "updated",
+            Some(serde_json::json!({ "attributes": before_attrs })),
+            Some(serde_json::json!({ "attributes": after_attrs })),
+        )
+        .await
+        .map_err(|e| {
+            tracing::error!(error = %e, bp_id = %bp_id, "batch edit: audit log insert failed");
+            ProblemResponse::unprocessable_entity("Failed to write audit log for batch edit")
         })?;
     }
 
@@ -167,6 +186,15 @@ pub async fn batch_edit_blueprints(
     Ok(Json(BatchEditResponse {
         updated_count: to_update.len() as i64,
     }))
+}
+
+fn merge_json_objects(mut base: Value, overlay: Value) -> Value {
+    if let (Value::Object(ref mut base_map), Value::Object(overlay_map)) = (&mut base, &overlay) {
+        for (k, v) in overlay_map {
+            base_map.insert(k.clone(), v.clone());
+        }
+    }
+    base
 }
 
 #[allow(clippy::result_large_err)]
@@ -196,7 +224,9 @@ pub async fn batch_delete_blueprints(
     }
 
     let rows = sqlx::query(
-        "SELECT id, client_id FROM blueprints WHERE id = ANY($1)",
+        "SELECT id, client_id, name, archetype, weight, description, \
+         attributes, attribute_order, min_prefixes, max_prefixes, \
+         min_suffixes, max_suffixes FROM blueprints WHERE id = ANY($1)",
     )
     .bind(&req.ids)
     .fetch_all(&*state.pool)
@@ -206,7 +236,7 @@ pub async fn batch_delete_blueprints(
         ProblemResponse::unprocessable_entity("Failed to fetch blueprints for batch delete")
     })?;
 
-    let mut to_delete: Vec<Uuid> = Vec::new();
+    let mut to_delete: Vec<(Uuid, Uuid, serde_json::Value)> = Vec::new();
 
     for row in &rows {
         let bp_id: Uuid = row.get("id");
@@ -252,7 +282,33 @@ pub async fn batch_delete_blueprints(
             ));
         }
 
-        to_delete.push(bp_id);
+        let name: String = row.get("name");
+        let archetype: String = row.get("archetype");
+        let weight: f64 = row.get("weight");
+        let description: Option<String> = row.get("description");
+        let attributes: serde_json::Value = row.get("attributes");
+        let attribute_order: Vec<String> = row.get("attribute_order");
+        let min_prefixes: i32 = row.get("min_prefixes");
+        let max_prefixes: i32 = row.get("max_prefixes");
+        let min_suffixes: i32 = row.get("min_suffixes");
+        let max_suffixes: i32 = row.get("max_suffixes");
+
+        let snapshot = serde_json::json!({
+            "id": bp_id,
+            "client_id": bp_client_id,
+            "name": name,
+            "archetype": archetype,
+            "weight": weight,
+            "description": description,
+            "attributes": attributes,
+            "attribute_order": attribute_order,
+            "min_prefixes": min_prefixes,
+            "max_prefixes": max_prefixes,
+            "min_suffixes": min_suffixes,
+            "max_suffixes": max_suffixes,
+        });
+
+        to_delete.push((bp_id, bp_client_id, snapshot));
     }
 
     if to_delete.is_empty() {
@@ -264,7 +320,7 @@ pub async fn batch_delete_blueprints(
         ProblemResponse::unprocessable_entity("Failed to begin transaction for batch delete")
     })?;
 
-    for bp_id in &to_delete {
+    for (bp_id, bp_client_id, before_snapshot) in &to_delete {
         sqlx::query("DELETE FROM blueprints WHERE id = $1")
             .bind(bp_id)
             .execute(&mut *tx)
@@ -273,6 +329,22 @@ pub async fn batch_delete_blueprints(
                 tracing::error!(error = %e, bp_id = %bp_id, "batch delete: delete query failed");
                 ProblemResponse::unprocessable_entity("Failed to delete blueprint in batch")
             })?;
+
+        record_audit(
+            &mut *tx,
+            &user,
+            Some(*bp_client_id),
+            "blueprint",
+            *bp_id,
+            "deleted",
+            Some(before_snapshot.clone()),
+            None,
+        )
+        .await
+        .map_err(|e| {
+            tracing::error!(error = %e, bp_id = %bp_id, "batch delete: audit log insert failed");
+            ProblemResponse::unprocessable_entity("Failed to write audit log for batch delete")
+        })?;
     }
 
     tx.commit().await.map_err(|e| {
@@ -301,7 +373,7 @@ pub async fn batch_delete_affixes(
     }
 
     let rows = sqlx::query(
-        "SELECT id, client_id FROM affixes WHERE id = ANY($1)",
+        "SELECT id, client_id, name, type, description, attribute FROM affixes WHERE id = ANY($1)",
     )
     .bind(&req.ids)
     .fetch_all(&*state.pool)
@@ -311,7 +383,7 @@ pub async fn batch_delete_affixes(
         ProblemResponse::unprocessable_entity("Failed to fetch affixes for batch delete")
     })?;
 
-    let mut to_delete: Vec<Uuid> = Vec::new();
+    let mut to_delete: Vec<(Uuid, Uuid, serde_json::Value)> = Vec::new();
 
     for row in &rows {
         let affix_id: Uuid = row.get("id");
@@ -357,7 +429,21 @@ pub async fn batch_delete_affixes(
             ));
         }
 
-        to_delete.push(affix_id);
+        let name: String = row.get("name");
+        let type_: String = row.get("type");
+        let description: Option<String> = row.get("description");
+        let attribute: serde_json::Value = row.get("attribute");
+
+        let snapshot = serde_json::json!({
+            "id": affix_id,
+            "client_id": affix_client_id,
+            "name": name,
+            "type": type_,
+            "description": description,
+            "attribute": attribute,
+        });
+
+        to_delete.push((affix_id, affix_client_id, snapshot));
     }
 
     if to_delete.is_empty() {
@@ -369,7 +455,7 @@ pub async fn batch_delete_affixes(
         ProblemResponse::unprocessable_entity("Failed to begin transaction for batch delete")
     })?;
 
-    for affix_id in &to_delete {
+    for (affix_id, affix_client_id, before_snapshot) in &to_delete {
         sqlx::query("DELETE FROM affixes WHERE id = $1")
             .bind(affix_id)
             .execute(&mut *tx)
@@ -378,6 +464,22 @@ pub async fn batch_delete_affixes(
                 tracing::error!(error = %e, affix_id = %affix_id, "batch delete: delete affix query failed");
                 ProblemResponse::unprocessable_entity("Failed to delete affix in batch")
             })?;
+
+        record_audit(
+            &mut *tx,
+            &user,
+            Some(*affix_client_id),
+            "affix",
+            *affix_id,
+            "deleted",
+            Some(before_snapshot.clone()),
+            None,
+        )
+        .await
+        .map_err(|e| {
+            tracing::error!(error = %e, affix_id = %affix_id, "batch delete: audit log insert failed");
+            ProblemResponse::unprocessable_entity("Failed to write audit log for batch delete")
+        })?;
     }
 
     tx.commit().await.map_err(|e| {

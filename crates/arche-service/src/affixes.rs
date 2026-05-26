@@ -9,6 +9,7 @@ use sqlx::postgres::PgRow;
 use sqlx::{QueryBuilder, Row};
 use uuid::Uuid;
 
+use crate::audit_log::record_audit;
 use crate::auth::permission::CurrentUser;
 use crate::error::{FieldError, ProblemResponse, ReferenceInfo};
 
@@ -534,6 +535,19 @@ pub async fn delete_affix(
     .ok_or_else(|| ProblemResponse::not_found(format!("Affix not found: {id}")))?;
 
     let affix_client_id: Uuid = row.get("client_id");
+    let affix_name: String = row.get("name");
+    let affix_type: String = row.get("type");
+    let affix_description: Option<String> = row.get("description");
+    let affix_attribute: serde_json::Value = row.get("attribute");
+
+    let before_snapshot = serde_json::json!({
+        "id": id,
+        "client_id": affix_client_id,
+        "name": &affix_name,
+        "type": &affix_type,
+        "description": &affix_description,
+        "attribute": &affix_attribute,
+    });
 
     check_affix_access(&user, affix_client_id, id)?;
 
@@ -665,29 +679,26 @@ pub async fn delete_affix(
                     ProblemResponse::unprocessable_entity("Failed to adjust blueprint affix counts")
                 })?;
 
-                sqlx::query(
-                    "INSERT INTO audit_log (actor_key_id, actor_key_name, client_id, \
-                     resource_type, resource_id, action, before, after) \
-                     VALUES ($1, $2, $3, 'blueprint', $4, 'adjusted'::audit_action, \
-                     $5, $6)",
+                record_audit(
+                    &mut *tx,
+                    &user,
+                    Some(affix_client_id),
+                    "blueprint",
+                    bp_id,
+                    "adjusted",
+                    Some(serde_json::json!({
+                        "min_prefixes": current_min_p,
+                        "max_prefixes": current_max_p,
+                        "min_suffixes": current_min_s,
+                        "max_suffixes": current_max_s,
+                    })),
+                    Some(serde_json::json!({
+                        "min_prefixes": new_min_p,
+                        "max_prefixes": new_max_p,
+                        "min_suffixes": new_min_s,
+                        "max_suffixes": new_max_s,
+                    })),
                 )
-                .bind(user.id)
-                .bind(&user.name)
-                .bind(affix_client_id)
-                .bind(bp_id)
-                .bind(serde_json::json!({
-                    "min_prefixes": current_min_p,
-                    "max_prefixes": current_max_p,
-                    "min_suffixes": current_min_s,
-                    "max_suffixes": current_max_s,
-                }))
-                .bind(serde_json::json!({
-                    "min_prefixes": new_min_p,
-                    "max_prefixes": new_max_p,
-                    "min_suffixes": new_min_s,
-                    "max_suffixes": new_max_s,
-                }))
-                .execute(&mut *tx)
                 .await
                 .map_err(|e| {
                     tracing::error!(error = %e, "affixes: audit log insert failed");
@@ -714,6 +725,22 @@ pub async fn delete_affix(
                 ProblemResponse::unprocessable_entity("Failed to delete affix")
             })?;
 
+        record_audit(
+            &mut *tx,
+            &user,
+            Some(affix_client_id),
+            "affix",
+            id,
+            "force_deleted",
+            Some(before_snapshot),
+            None,
+        )
+        .await
+        .map_err(|e| {
+            tracing::error!(error = %e, "affixes: audit log insert failed");
+            ProblemResponse::unprocessable_entity("Failed to write audit log")
+        })?;
+
         tx.commit().await.map_err(|e| {
             tracing::error!(error = %e, "affixes: commit transaction failed");
             ProblemResponse::unprocessable_entity("Failed to commit force delete transaction")
@@ -727,6 +754,21 @@ pub async fn delete_affix(
                 tracing::error!(error = %e, "affixes: delete affix failed");
                 ProblemResponse::unprocessable_entity("Failed to delete affix")
             })?;
+
+        if let Err(e) = record_audit(
+            &*state.pool,
+            &user,
+            Some(affix_client_id),
+            "affix",
+            id,
+            "deleted",
+            Some(before_snapshot),
+            None,
+        )
+        .await
+        {
+            tracing::error!(error = %e, "affixes: audit log insert failed");
+        }
     }
 
     Ok(Json(serde_json::json!({"deleted": true})))

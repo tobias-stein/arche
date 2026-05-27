@@ -182,13 +182,13 @@ mod tests {
                     value: 10.0,
                     distribution: None,
                 },
-                json!({"value_type": "single", "value": 10.0}),
+                json!({"valueType": "single", "value": 10.0}),
             ),
             (
                 AttributePayload::Enum {
                     values: vec!["a".into(), "b".into()],
                 },
-                json!({"value_type": "enum", "values": ["a", "b"]}),
+                json!({"valueType": "enum", "values": ["a", "b"]}),
             ),
             (
                 AttributePayload::Range {
@@ -196,18 +196,18 @@ mod tests {
                     max: 10.0,
                     distribution: Some(DistributionConfig::Uniform),
                 },
-                json!({"value_type": "range", "min": 1.0, "max": 10.0, "distribution": {"type": "uniform"}}),
+                json!({"valueType": "range", "min": 1.0, "max": 10.0, "distribution": {"type": "uniform"}}),
             ),
             (
                 AttributePayload::String {
                     min_length: Some(1),
                     max_length: None,
                 },
-                json!({"value_type": "string", "minLength": 1}),
+                json!({"valueType": "string", "minLength": 1}),
             ),
             (
                 AttributePayload::Boolean { value: true },
-                json!({"value_type": "boolean", "value": true}),
+                json!({"valueType": "boolean", "value": true}),
             ),
         ];
         for (variant, expected) in cases {
@@ -231,7 +231,7 @@ mod tests {
         let value = serde_json::to_value(&attr).unwrap();
         assert_eq!(
             value,
-            json!({"description": "Physical damage", "value_type": "range", "min": 10.0, "max": 23.0, "distribution": {"type": "uniform"}})
+            json!({"description": "Physical damage", "valueType": "range", "min": 10.0, "max": 23.0, "distribution": {"type": "uniform"}})
         );
         let deserialized: BlueprintAttribute = serde_json::from_value(value).unwrap();
         assert_eq!(deserialized, attr);
@@ -261,7 +261,7 @@ mod tests {
         let value = serde_json::to_value(&attr).unwrap();
         assert_eq!(
             value,
-            json!({"name": "fire_damage", "description": "Fire damage", "value_type": "range", "min": 5.0, "max": 15.0})
+            json!({"name": "fire_damage", "description": "Fire damage", "valueType": "range", "min": 5.0, "max": 15.0})
         );
         let deserialized: AffixAttribute = serde_json::from_value(value).unwrap();
         assert_eq!(deserialized, attr);
@@ -646,7 +646,7 @@ mod tests {
         let value = serde_json::to_value(&req).unwrap();
         assert_eq!(
             value,
-            json!({"name": "rarity", "description": "Quality tier", "value_type": "enum", "values": ["common", "rare", "legendary"]})
+            json!({"name": "rarity", "description": "Quality tier", "valueType": "enum", "values": ["common", "rare", "legendary"]})
         );
         let deserialized: CreateGlobalMetaAttributeRequest = serde_json::from_value(value).unwrap();
         assert_eq!(deserialized, req);

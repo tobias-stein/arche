@@ -96,10 +96,12 @@ pub async fn batch_edit_blueprints(
                 }
                 Some(existing) => {
                     let existing_type = existing
-                        .get("value_type")
+                        .get("valueType")
+                        .or_else(|| existing.get("value_type"))
                         .and_then(|v| v.as_str());
                     let new_type = new_attr
-                        .get("value_type")
+                        .get("valueType")
+                        .or_else(|| new_attr.get("value_type"))
                         .and_then(|v| v.as_str());
 
                     match (existing_type, new_type) {

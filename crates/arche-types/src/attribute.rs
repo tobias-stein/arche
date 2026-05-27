@@ -16,7 +16,7 @@ pub enum DistributionConfig {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(
-    tag = "value_type",
+    tag = "valueType",
     rename_all = "camelCase",
     rename_all_fields = "camelCase"
 )]

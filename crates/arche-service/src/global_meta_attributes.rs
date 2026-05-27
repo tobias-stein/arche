@@ -79,7 +79,7 @@ fn resolve_client_id_for_write(
 
 fn strip_value_type_from_payload(mut payload: serde_json::Value) -> serde_json::Value {
     if let Some(obj) = payload.as_object_mut() {
-        obj.remove("value_type");
+        obj.remove("valueType");
     }
     payload
 }
@@ -753,7 +753,7 @@ mod tests {
 
     #[test]
     fn test_strip_value_type_removes_key() {
-        let payload = serde_json::json!({"value_type": "enum", "values": ["a", "b"]});
+        let payload = serde_json::json!({"valueType": "enum", "values": ["a", "b"]});
         let stripped = strip_value_type_from_payload(payload);
         assert_eq!(
             stripped,
@@ -928,7 +928,7 @@ mod tests {
         };
         let value = serde_json::to_value(&req).unwrap();
         assert_eq!(value.get("name").unwrap(), "rarity");
-        assert_eq!(value.get("value_type").unwrap(), "range");
+        assert_eq!(value.get("valueType").unwrap(), "range");
         assert_eq!(value.get("min").unwrap(), 1.0);
         assert_eq!(value.get("max").unwrap(), 10.0);
     }
@@ -1214,7 +1214,7 @@ mod tests {
             .bind("Sword")
             .bind("sword")
             .bind(1.0)
-            .bind(&json!({"rarity": {"$ref_id": gma_id.to_string()}, "damage": {"value_type": "single", "value": 10.0}}))
+            .bind(&json!({"rarity": {"$ref_id": gma_id.to_string()}, "damage": {"valueType": "single", "value": 10.0}}))
             .bind(&vec!["rarity".to_string(), "damage".to_string()])
             .execute(&pool)
             .await

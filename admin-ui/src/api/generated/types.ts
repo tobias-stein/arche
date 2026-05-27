@@ -132,6 +132,7 @@ export interface GenerateRequest {
   seed?: number | null;
   constraints?: Record<string, ConstraintValue> | null;
   affixes?: AffixConstraints | null;
+  clientId?: string | null;
 }
 
 export interface GenerateResponse {

@@ -47,6 +47,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/hooks/use-toast'
 import { computeWarnings, type Warning } from '@/lib/warnings'
+import { useUi } from '@/stores/ui'
 import { Link } from 'react-router-dom'
 
 interface ConstraintRow {
@@ -158,6 +159,7 @@ function AffixCheckboxList({
 
 export default function Dashboard() {
   const { toast } = useToast()
+  const { selectedClientId } = useUi()
 
   const { data: blueprintsData, isLoading: bpLoading, isError: bpError } = useBlueprintsList({
     perPage: 500,
@@ -285,6 +287,7 @@ export default function Dashboard() {
       seed: seed.trim() ? Number(seed.trim()) : null,
       constraints: buildConstraints(constraints),
       affixes: affixConstraints,
+      clientId: selectedClientId,
     }
 
     try {
@@ -611,7 +614,7 @@ export default function Dashboard() {
               <div className="flex flex-wrap items-center gap-2">
                 <Button
                   onClick={handleGenerate}
-                  disabled={generateMutation.isPending || blueprints.length === 0}
+                  disabled={generateMutation.isPending || blueprints.length === 0 || !selectedClientId}
                 >
                   {generateMutation.isPending ? (
                     <>

@@ -31,6 +31,10 @@ pub fn required_permission(method: &Method, path: &str) -> Option<RequiredPermis
         return None;
     }
 
+    if path == "/api/me" {
+        return None;
+    }
+
     if !path.starts_with("/api/") {
         return None;
     }
@@ -252,6 +256,11 @@ mod tests {
             required_permission(&Method::GET, "/api/schema/generate"),
             None
         );
+    }
+
+    #[test]
+    fn test_public_me() {
+        assert_eq!(required_permission(&Method::GET, "/api/me"), None);
     }
 
     #[test]

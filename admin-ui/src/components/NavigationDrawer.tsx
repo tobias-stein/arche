@@ -132,7 +132,7 @@ export function NavigationDrawer() {
         <div className="px-3 pt-20 md:pt-4 pb-2">
           <ClientSwitcher />
         </div>
-        <nav className="flex-1 overflow-y-auto px-4 pb-4 space-y-1">
+        <nav className="overflow-y-auto px-4 pb-4 space-y-1">
           {navItems.map((item) => (
             <NavLink
               key={item.to}
@@ -147,7 +147,7 @@ export function NavigationDrawer() {
           ))}
         </nav>
 
-        <div className="border-t p-4 space-y-1">
+        <div className="border-t p-4 space-y-1 mt-auto">
           <NavLink
             to="/clients"
             className={navLinkClass}

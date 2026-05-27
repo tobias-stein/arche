@@ -3,18 +3,19 @@ import * as sandcastle from "@ai-hero/sandcastle";
 import { docker } from "@ai-hero/sandcastle/sandboxes/docker";
 import { execSync } from "node:child_process";
 
-const MAX_ITERATIONS = 3;
-const MAX_PARALLEL = 4;
+const MAX_ITERATIONS = 1;
+const MAX_PARALLEL = 2;
 const IDLE_TIMEOUT = 30 * 60; // 30 minutes
 
-// const PLAN_MODEL = "opencode/big-pickle";
-const PLAN_MODEL = "opencode-go/deepseek-v4-pro";
-// const IMPL_MODEL = "opencode/big-pickle";
-const IMPL_MODEL = "opencode-go/deepseek-v4-pro";
-// const REVI_MODEL = "opencode/big-pickle";
-const REVI_MODEL = "opencode-go/deepseek-v4-flash";
-// const MERG_MODEL = "opencode/big-pickle";
-const MERG_MODEL = "opencode-go/qwen3.6-plus";
+const FALLBACK_MODEL = "opencode/deepseek-v4-flash-free";
+const PLAN_MODEL = FALLBACK_MODEL;
+const IMPL_MODEL = FALLBACK_MODEL;
+const REVI_MODEL = FALLBACK_MODEL;
+const MERG_MODEL = FALLBACK_MODEL;
+// const PLAN_MODEL = "opencode-go/deepseek-v4-pro";
+// const IMPL_MODEL = "opencode-go/deepseek-v4-pro";
+// const REVI_MODEL = "opencode-go/deepseek-v4-flash";
+// const MERG_MODEL = "opencode-go/qwen3.6-plus";
 
 
 

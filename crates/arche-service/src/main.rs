@@ -5,6 +5,7 @@ pub mod batch;
 mod bootstrap;
 pub mod blueprints;
 pub mod clients;
+pub mod me;
 mod config;
 pub mod export;
 pub mod generate;
@@ -85,6 +86,7 @@ fn build_router(state: AppState) -> Router {
         .route("/api/schema/blueprints", get(get_blueprints_schema))
         .route("/api/schema/affixes", get(get_affixes_schema))
         .route("/api/schema/generate", get(get_generate_schema))
+        .route("/api/me", get(me::me_handler))
         .route("/api/blueprints", get(blueprints::list_blueprints).post(blueprints::create_blueprint))
         .route("/api/blueprints/{id}", get(blueprints::get_blueprint).put(blueprints::update_blueprint).delete(blueprints::delete_blueprint))
         .route("/api/blueprints/batch/edit", post(batch::batch_edit_blueprints))

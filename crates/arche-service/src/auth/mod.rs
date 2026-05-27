@@ -12,7 +12,8 @@ use crate::error::ProblemResponse;
 
 pub mod permission;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AuthenticatedKey {
     pub id: Uuid,
     pub name: String,

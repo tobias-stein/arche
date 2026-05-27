@@ -1,6 +1,6 @@
 ---
 title: Implement client-scoped key login in frontend
-status: ready-for-agent
+status: completed
 ---
 
 ## What to build

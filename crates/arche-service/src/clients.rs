@@ -971,6 +971,71 @@ mod tests {
             assert_eq!(bp_count, 0);
         }
 
+        // --- Acceptance: Delete client with existing audit log entries succeeds (cascade deletes audit entries) ---
+
+        #[tokio::test]
+        async fn test_delete_client_with_audit_log_entries_succeeds() {
+            let pool = match ensure_db().await {
+                Some(p) => p,
+                None => return,
+            };
+            let client_id = create_test_client(&pool, "AuditedGame").await;
+
+            let key_id = Uuid::new_v4();
+            sqlx::query(
+                "INSERT INTO api_keys (id, name, key_hash, permissions, is_super) \
+                 VALUES ($1, 'audit-key', 'hash', ARRAY['read']::text[], true)",
+            )
+            .bind(key_id)
+            .execute(&pool)
+            .await
+            .unwrap();
+
+            sqlx::query(
+                "INSERT INTO audit_log (actor_key_id, actor_key_name, client_id, resource_type, resource_id, action) \
+                 VALUES ($1, 'test', $2, 'client', $2, 'created'::audit_action)",
+            )
+            .bind(key_id)
+            .bind(client_id)
+            .execute(&pool)
+            .await
+            .unwrap();
+
+            let state = test_state(Arc::new(pool.clone()));
+            let user = super_user();
+
+            let result = delete_client(
+                axum::extract::State(state),
+                user,
+                axum::extract::Path(client_id),
+            )
+            .await;
+
+            let resp = result.unwrap();
+            assert_eq!(resp["deleted"], true);
+
+            let client_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM clients WHERE id = $1")
+                .bind(client_id)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+            assert_eq!(client_count, 0);
+
+            let audit_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM audit_log WHERE client_id = $1")
+                .bind(client_id)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+            assert_eq!(audit_count, 0);
+
+            // Cleanup orphaned test key (not cascade-deleted since it's a super key with no client_id)
+            sqlx::query("DELETE FROM api_keys WHERE id = $1")
+                .bind(key_id)
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+
         // --- Acceptance: Delete client with active keys returns 409 with key count in error detail ---
 
         #[tokio::test]

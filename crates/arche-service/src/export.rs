@@ -376,8 +376,8 @@ async fn fetch_audit_log(
 ) -> Result<Vec<AuditLogExport>, ProblemResponse> {
     let rows = sqlx::query(
         "SELECT id, timestamp, actor_key_id, actor_key_name, client_id, \
-          resource_type, resource_id, action::text AS action, before, after \
-          FROM audit_log WHERE client_id = $1 ORDER BY timestamp DESC, id DESC",
+         resource_type, resource_id, action::text AS action, before, after \
+         FROM audit_log WHERE client_id = $1 ORDER BY timestamp DESC, id DESC",
     )
     .bind(client_id)
     .fetch_all(pool)

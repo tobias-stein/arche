@@ -53,6 +53,8 @@ pub struct GenerateRequest {
     pub constraints: Option<HashMap<String, ConstraintValue>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub affixes: Option<AffixConstraints>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub client_id: Option<Uuid>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]

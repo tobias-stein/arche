@@ -25,6 +25,10 @@ vi.mock('@/hooks/use-toast', () => ({
   useToast: () => ({ toast: mockToast, dismiss: vi.fn(), toasts: [] }),
 }))
 
+vi.mock('@/stores/ui', () => ({
+  useUi: () => ({ selectedClientId: 'client-1' }),
+}))
+
 import Dashboard from '@/pages/Dashboard'
 
 function makeBlueprint(overrides: Record<string, unknown> = {}) {

@@ -24,9 +24,19 @@ pub async fn generate_handler(
     headers: HeaderMap,
     Json(req): Json<GenerateRequest>,
 ) -> Result<Json<GenerateResponse>, ProblemResponse> {
-    let client_id = user
-        .client_id
-        .ok_or_else(|| ProblemResponse::forbidden("API key is not scoped to a client"))?;
+    let client_id = match user.client_id {
+        Some(cid) => cid,
+        None => {
+            let cid = req.client_id.ok_or_else(|| {
+                ProblemResponse::validation_error(
+                    "Super admin must specify a clientId in the request body for generation",
+                    vec![],
+                )
+            })?;
+            user.require_client_access(cid)?;
+            cid
+        }
+    };
 
     let is_cache_refresh = headers
         .get("X-Cache-Refresh")

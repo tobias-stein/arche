@@ -27,31 +27,20 @@ export const useAuth = create<AuthState>((set) => ({
     const client = getClient()
     client.setApiKey(key)
     const me = await client.getMe()
-    if (me.isSuper) {
-      useUi.getState().setSelectedClientId(null)
-      set({
-        apiKey: key,
-        isAuthenticated: true,
-        isSuperAdmin: true,
-        keyId: me.id,
-        keyName: me.name,
-        clientId: null,
-        permissions: me.permissions,
-      })
-    } else if (me.clientId) {
-      useUi.getState().setSelectedClientId(me.clientId)
-      set({
-        apiKey: key,
-        isAuthenticated: true,
-        isSuperAdmin: false,
-        keyId: me.id,
-        keyName: me.name,
-        clientId: me.clientId,
-        permissions: me.permissions,
-      })
-    } else {
+    if (!me.isSuper && !me.clientId) {
       throw new Error('Invalid API key response: missing clientId and isSuper')
     }
+    const selectedClientId = me.isSuper ? null : me.clientId
+    useUi.getState().setSelectedClientId(selectedClientId)
+    set({
+      apiKey: key,
+      isAuthenticated: true,
+      isSuperAdmin: me.isSuper,
+      keyId: me.id,
+      keyName: me.name,
+      clientId: selectedClientId,
+      permissions: me.permissions,
+    })
   },
   logout: () => {
     getClient().setApiKey('')

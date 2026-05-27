@@ -1,6 +1,6 @@
 ---
 title: Fix BlueprintAttribute serde tag mismatch
-status: ready-for-agent
+status: completed
 ---
 
 ## What to build

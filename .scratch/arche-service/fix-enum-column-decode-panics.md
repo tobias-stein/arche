@@ -1,6 +1,6 @@
 ---
 title: Fix enum column decode panics in audit log and export
-status: ready-for-agent
+status: completed
 ---
 
 ## What to build

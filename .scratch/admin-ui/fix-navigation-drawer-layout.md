@@ -1,6 +1,6 @@
 ---
 title: Fix navigation drawer bottom items pushed off-screen
-status: ready-for-agent
+status: completed
 ---
 
 ## What to build

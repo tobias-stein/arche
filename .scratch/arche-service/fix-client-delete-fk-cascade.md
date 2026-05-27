@@ -1,6 +1,6 @@
 ---
 title: Fix client delete FK cascade on audit_log
-status: ready-for-agent
+status: completed
 ---
 
 ## What to build

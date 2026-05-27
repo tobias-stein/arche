@@ -1,6 +1,6 @@
 ---
 title: Fix destructive button text and icon readability
-status: ready-for-agent
+status: completed
 ---
 
 ## What to build

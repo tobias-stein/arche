@@ -1,6 +1,6 @@
 ---
 title: Fix generation from client-specific domain
-status: ready-for-agent
+status: completed
 ---
 
 ## What to build

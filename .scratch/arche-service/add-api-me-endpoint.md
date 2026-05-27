@@ -1,6 +1,6 @@
 ---
 title: Add /api/me endpoint returning authenticated key info
-status: ready-for-agent
+status: completed
 ---
 
 ## What to build

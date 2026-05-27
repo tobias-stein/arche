@@ -311,7 +311,7 @@ async fn fetch_blueprint_affixes(
     client_id: Uuid,
 ) -> Result<Vec<BaExport>, ProblemResponse> {
     let rows = sqlx::query(
-        "SELECT ba.id, ba.blueprint_id, ba.affix_id, ba.weight, ba.location, ba.sort_order \
+        "SELECT ba.id, ba.blueprint_id, ba.affix_id, ba.weight, ba.location::text AS location, ba.sort_order \
          FROM blueprint_affixes ba \
          JOIN blueprints b ON ba.blueprint_id = b.id \
          WHERE b.client_id = $1 ORDER BY ba.id ASC",
@@ -376,8 +376,8 @@ async fn fetch_audit_log(
 ) -> Result<Vec<AuditLogExport>, ProblemResponse> {
     let rows = sqlx::query(
         "SELECT id, timestamp, actor_key_id, actor_key_name, client_id, \
-         resource_type, resource_id, action, before, after \
-         FROM audit_log WHERE client_id = $1 ORDER BY timestamp DESC, id DESC",
+          resource_type, resource_id, action::text AS action, before, after \
+          FROM audit_log WHERE client_id = $1 ORDER BY timestamp DESC, id DESC",
     )
     .bind(client_id)
     .fetch_all(pool)

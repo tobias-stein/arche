@@ -11,7 +11,7 @@ use crate::auth::AuthenticatedKey;
 use crate::error::ProblemResponse;
 
 const AUDIT_LOG_COLUMNS: &str =
-    "id, timestamp, actor_key_id, actor_key_name, client_id, resource_type, resource_id, action, before, after";
+    "id, timestamp, actor_key_id, actor_key_name, client_id, resource_type, resource_id, action::text AS action, before, after";
 
 pub async fn record_audit<'a, E>(
     executor: E,

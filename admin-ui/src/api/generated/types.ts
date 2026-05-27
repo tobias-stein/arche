@@ -240,6 +240,14 @@ export interface ApiKeyResponse {
   permissions: Permission[];
 }
 
+export interface MeResponse {
+  id: string;
+  name: string;
+  clientId: string | null;
+  permissions: Permission[];
+  isSuper: boolean;
+}
+
 // --- Audit Log ---
 
 export interface AuditLogEntry {

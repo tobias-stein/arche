@@ -7,14 +7,22 @@ import { ApiError } from '@/api/generated/errors'
 import Login from '@/pages/Login'
 
 const mockSetApiKey = vi.fn()
-const mockListClients = vi.fn()
+const mockGetMe = vi.fn()
 
 vi.mock('@/api/generated/hooks', () => ({
   getClient: () => ({
     setApiKey: mockSetApiKey,
-    listClients: mockListClients,
+    getMe: mockGetMe,
   }),
   setClient: vi.fn(),
+}))
+
+vi.mock('@/stores/ui', () => ({
+  useUi: {
+    getState: () => ({
+      setSelectedClientId: vi.fn(),
+    }),
+  },
 }))
 
 function renderLogin() {
@@ -72,7 +80,7 @@ describe('Login page', () => {
       status: 401,
       detail: 'Invalid API key',
     })
-    mockListClients.mockRejectedValue(error)
+    mockGetMe.mockRejectedValue(error)
 
     renderLogin()
 
@@ -88,7 +96,7 @@ describe('Login page', () => {
   })
 
   it('shows connection error on network failure', async () => {
-    mockListClients.mockRejectedValue(new Error('Failed to fetch'))
+    mockGetMe.mockRejectedValue(new Error('Failed to fetch'))
 
     renderLogin()
 
@@ -104,7 +112,13 @@ describe('Login page', () => {
   })
 
   it('redirects to dashboard on successful login', async () => {
-    mockListClients.mockResolvedValue({ data: [], nextCursor: undefined })
+    mockGetMe.mockResolvedValue({
+      id: 'key-1',
+      name: 'Super Key',
+      clientId: null,
+      permissions: ['admin', 'read', 'write', 'delete', 'generate'],
+      isSuper: true,
+    })
 
     renderLogin()
 

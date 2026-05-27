@@ -29,6 +29,7 @@ import type {
   GenerateRequest,
   GenerateResponse,
   ImportSuccessResponse,
+  MeResponse,
   PaginatedResponse,
   UpdateAffixRequest,
   UpdateBlueprintRequest,
@@ -124,6 +125,12 @@ export class ArcheClient {
     }
 
     return response.json() as Promise<T>;
+  }
+
+  // --- Me ---
+
+  async getMe(): Promise<MeResponse> {
+    return this.request<MeResponse>('GET', '/api/me');
   }
 
   // --- Generate ---

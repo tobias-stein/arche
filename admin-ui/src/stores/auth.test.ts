@@ -1,16 +1,45 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { ApiError } from '@/api/generated/errors'
 
 const mockSetApiKey = vi.fn()
-const mockListClients = vi.fn()
+const mockGetMe = vi.fn()
+const mockSetSelectedClientId = vi.fn()
 
 vi.mock('@/api/generated/hooks', () => ({
   getClient: () => ({
     setApiKey: mockSetApiKey,
-    listClients: mockListClients,
+    getMe: mockGetMe,
   }),
   setClient: vi.fn(),
 }))
+
+vi.mock('@/stores/ui', () => ({
+  useUi: {
+    getState: () => ({
+      setSelectedClientId: mockSetSelectedClientId,
+    }),
+  },
+}))
+
+function superKeyResponse() {
+  return {
+    id: 'key-super-1',
+    name: 'Super Admin Key',
+    clientId: null,
+    permissions: ['admin', 'read', 'write', 'delete', 'generate'],
+    isSuper: true,
+  }
+}
+
+function clientKeyResponse(clientId: string) {
+  return {
+    id: 'key-client-1',
+    name: 'Client Key',
+    clientId,
+    permissions: ['read', 'write', 'generate'],
+    isSuper: false,
+  }
+}
 
 describe('useAuth store', () => {
   async function getState() {
@@ -29,18 +58,44 @@ describe('useAuth store', () => {
     expect(get().apiKey).toBeNull()
     expect(get().isAuthenticated).toBe(false)
     expect(get().isSuperAdmin).toBe(false)
+    expect(get().keyId).toBeNull()
+    expect(get().keyName).toBeNull()
+    expect(get().clientId).toBeNull()
+    expect(get().permissions).toEqual([])
   })
 
-  it('login sets apiKey, isAuthenticated, and isSuperAdmin on success', async () => {
-    mockListClients.mockResolvedValue({ data: [], nextCursor: undefined })
+  it('login with super key sets isSuperAdmin and clears selectedClientId', async () => {
+    mockGetMe.mockResolvedValue(superKeyResponse())
 
     const get = await getState()
-    await get().login('valid-key')
+    await get().login('super-key')
 
-    expect(get().apiKey).toBe('valid-key')
+    expect(get().apiKey).toBe('super-key')
     expect(get().isAuthenticated).toBe(true)
     expect(get().isSuperAdmin).toBe(true)
-    expect(mockSetApiKey).toHaveBeenCalledWith('valid-key')
+    expect(get().keyId).toBe('key-super-1')
+    expect(get().keyName).toBe('Super Admin Key')
+    expect(get().clientId).toBeNull()
+    expect(get().permissions).toEqual(['admin', 'read', 'write', 'delete', 'generate'])
+    expect(mockSetApiKey).toHaveBeenCalledWith('super-key')
+    expect(mockSetSelectedClientId).toHaveBeenCalledWith(null)
+  })
+
+  it('login with client-scoped key sets isSuperAdmin false and selects client', async () => {
+    mockGetMe.mockResolvedValue(clientKeyResponse('client-abc'))
+
+    const get = await getState()
+    await get().login('client-key')
+
+    expect(get().apiKey).toBe('client-key')
+    expect(get().isAuthenticated).toBe(true)
+    expect(get().isSuperAdmin).toBe(false)
+    expect(get().keyId).toBe('key-client-1')
+    expect(get().keyName).toBe('Client Key')
+    expect(get().clientId).toBe('client-abc')
+    expect(get().permissions).toEqual(['read', 'write', 'generate'])
+    expect(mockSetApiKey).toHaveBeenCalledWith('client-key')
+    expect(mockSetSelectedClientId).toHaveBeenCalledWith('client-abc')
   })
 
   it('login throws and does not set state on 401', async () => {
@@ -50,7 +105,7 @@ describe('useAuth store', () => {
       status: 401,
       detail: 'Invalid API key',
     })
-    mockListClients.mockRejectedValue(error)
+    mockGetMe.mockRejectedValue(error)
 
     const get = await getState()
     await expect(get().login('bad-key')).rejects.toThrow()
@@ -58,6 +113,8 @@ describe('useAuth store', () => {
     expect(get().apiKey).toBeNull()
     expect(get().isAuthenticated).toBe(false)
     expect(get().isSuperAdmin).toBe(false)
+    expect(get().keyId).toBeNull()
+    expect(get().keyName).toBeNull()
   })
 
   it('login throws and does not set state on 403', async () => {
@@ -67,46 +124,52 @@ describe('useAuth store', () => {
       status: 403,
       detail: 'Insufficient permissions',
     })
-    mockListClients.mockRejectedValue(error)
+    mockGetMe.mockRejectedValue(error)
 
     const get = await getState()
-    await expect(get().login('client-key')).rejects.toThrow()
+    await expect(get().login('forbidden-key')).rejects.toThrow()
 
     expect(get().apiKey).toBeNull()
     expect(get().isAuthenticated).toBe(false)
     expect(get().isSuperAdmin).toBe(false)
   })
 
-  it('logout clears api key, auth state, and client', async () => {
-    mockListClients.mockResolvedValue({ data: [], nextCursor: undefined })
+  it('login throws on response lacking both isSuper and clientId', async () => {
+    mockGetMe.mockResolvedValue({
+      id: 'key-bad',
+      name: 'Bad Key',
+      clientId: null,
+      permissions: [],
+      isSuper: false,
+    })
 
     const get = await getState()
-    await get().login('valid-key')
+    await expect(get().login('bad-key')).rejects.toThrow('missing clientId and isSuper')
 
-    expect(get().apiKey).toBe('valid-key')
+    expect(get().apiKey).toBeNull()
+    expect(get().isAuthenticated).toBe(false)
+    expect(get().isSuperAdmin).toBe(false)
+  })
+
+  it('logout clears all auth state', async () => {
+    mockGetMe.mockResolvedValue(superKeyResponse())
+
+    const get = await getState()
+    await get().login('super-key')
+
+    expect(get().apiKey).toBe('super-key')
     expect(get().isAuthenticated).toBe(true)
+    expect(get().isSuperAdmin).toBe(true)
 
     get().logout()
 
     expect(get().apiKey).toBeNull()
     expect(get().isAuthenticated).toBe(false)
     expect(get().isSuperAdmin).toBe(false)
+    expect(get().keyId).toBeNull()
+    expect(get().keyName).toBeNull()
+    expect(get().clientId).toBeNull()
+    expect(get().permissions).toEqual([])
     expect(mockSetApiKey).toHaveBeenCalledWith('')
-  })
-
-  it('isAuthenticated reflects apiKey state', async () => {
-    const get = await getState()
-    expect(get().isAuthenticated).toBe(false)
-
-    mockListClients.mockResolvedValue({ data: [], nextCursor: undefined })
-    await get().login('key')
-
-    expect(get().isAuthenticated).toBe(true)
-    expect(get().apiKey).toBe('key')
-
-    get().logout()
-
-    expect(get().isAuthenticated).toBe(false)
-    expect(get().apiKey).toBeNull()
   })
 })

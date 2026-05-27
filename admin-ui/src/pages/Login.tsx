@@ -47,7 +47,7 @@ export default function Login() {
       <Card className="w-full max-w-sm">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl">Arche Admin</CardTitle>
-          <CardDescription>Enter your super admin API key to continue.</CardDescription>
+          <CardDescription>Enter your API key to continue.</CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">

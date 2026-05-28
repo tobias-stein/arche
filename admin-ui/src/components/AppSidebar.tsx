@@ -41,6 +41,7 @@ const navItems = [
   { to: '/audit-log', icon: History, label: 'Audit Log' },
   { to: '/import', icon: Upload, label: 'Import' },
   { to: '/export', icon: Download, label: 'Export' },
+  { to: '/clients', icon: Key, label: 'API Keys' },
 ]
 
 export function AppSidebar() {
@@ -55,7 +56,6 @@ export function AppSidebar() {
 
   const handleLogout = () => {
     logout()
-    navigate('/login')
   }
 
   const isActive = (to: string) => {
@@ -64,7 +64,7 @@ export function AppSidebar() {
   }
 
   const visibleNavItems = navItems.filter((item) => {
-    if (item.to === '/import' || item.to === '/export') return !!isSuperAdmin
+    if (item.to === '/import' || item.to === '/export') return isSuperAdmin
     return true
   })
 

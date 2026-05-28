@@ -109,6 +109,7 @@ describe('AppShell', () => {
     expect(screen.getByText('Affixes')).toBeInTheDocument()
     expect(screen.getByText('Global Meta Attributes')).toBeInTheDocument()
     expect(screen.getByText('Audit Log')).toBeInTheDocument()
+    expect(screen.getByText('API Keys')).toBeInTheDocument()
   })
 
   it('does not render activity panel when closed', () => {

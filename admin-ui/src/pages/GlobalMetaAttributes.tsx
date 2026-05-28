@@ -126,7 +126,7 @@ function EditGlobalMetaAttributeDialog({
         const req: Record<string, unknown> = {
           name: name.trim(),
           description: description.trim() || null,
-          valueType: 'single',
+          value_type: 'single',
           value: val,
         }
         if (useDist) {
@@ -142,7 +142,7 @@ function EditGlobalMetaAttributeDialog({
         return {
           name: name.trim(),
           description: description.trim() || null,
-          valueType: 'enum',
+          value_type: 'enum',
           values: vals,
         }
       }
@@ -153,7 +153,7 @@ function EditGlobalMetaAttributeDialog({
         const req: Record<string, unknown> = {
           name: name.trim(),
           description: description.trim() || null,
-          valueType: 'range',
+          value_type: 'range',
           min,
           max,
         }
@@ -172,7 +172,7 @@ function EditGlobalMetaAttributeDialog({
         return {
           name: name.trim(),
           description: description.trim() || null,
-          valueType: 'string',
+          value_type: 'string',
           ...(minL !== undefined ? { minLength: minL } : {}),
           ...(maxL !== undefined ? { maxLength: maxL } : {}),
         }
@@ -181,7 +181,7 @@ function EditGlobalMetaAttributeDialog({
         return {
           name: name.trim(),
           description: description.trim() || null,
-          valueType: 'boolean',
+          value_type: 'boolean',
           value: boolVal,
         }
       default:
@@ -497,7 +497,7 @@ function CreateGlobalMetaAttributeDialog({
         const req: CreateGlobalMetaAttributeRequest = {
           name: name.trim(),
           description: description.trim() || null,
-          valueType: 'single',
+          value_type: 'single',
           value: val,
         }
         if (useDist) {
@@ -513,7 +513,7 @@ function CreateGlobalMetaAttributeDialog({
         return {
           name: name.trim(),
           description: description.trim() || null,
-          valueType: 'enum',
+          value_type: 'enum',
           values: vals,
         }
       }
@@ -524,7 +524,7 @@ function CreateGlobalMetaAttributeDialog({
         const req: CreateGlobalMetaAttributeRequest = {
           name: name.trim(),
           description: description.trim() || null,
-          valueType: 'range',
+          value_type: 'range',
           min,
           max,
         }
@@ -543,7 +543,7 @@ function CreateGlobalMetaAttributeDialog({
         return {
           name: name.trim(),
           description: description.trim() || null,
-          valueType: 'string',
+          value_type: 'string',
           ...(minL !== undefined ? { minLength: minL } : {}),
           ...(maxL !== undefined ? { maxLength: maxL } : {}),
         }
@@ -552,7 +552,7 @@ function CreateGlobalMetaAttributeDialog({
         return {
           name: name.trim(),
           description: description.trim() || null,
-          valueType: 'boolean',
+          value_type: 'boolean',
           value: boolVal,
         }
       default:

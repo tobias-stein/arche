@@ -1,6 +1,6 @@
 ---
 title: Add header client selector and client-scoped UI refinements
-status: ready-for-agent
+status: completed
 ---
 
 ## What to build

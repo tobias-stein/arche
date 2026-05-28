@@ -1,9 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
   Box,
-  Building2,
-  Check,
-  ChevronDown,
   Download,
   Globe,
   History,
@@ -11,22 +8,12 @@ import {
   LayoutDashboard,
   LogIn,
   LogOut,
-  Moon,
   Puzzle,
-  Sun,
   Upload,
 } from 'lucide-react'
 import { useAuth } from '@/stores/auth'
-import { useTheme } from '@/stores/theme'
 import { useUi } from '@/stores/ui'
-import { useClientsList } from '@/api/generated/hooks'
 import { cn } from '@/lib/utils'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 
 const buttonClass =
   'flex w-full items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors'
@@ -41,56 +28,9 @@ const navItems = [
   { to: '/export', icon: Download, label: 'Export' },
 ]
 
-function ClientSwitcher() {
-  const { data, isLoading } = useClientsList()
-  const { selectedClientId, setSelectedClientId } = useUi()
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground">
-        <Building2 className="h-4 w-4" />
-        <span>Loading clients...</span>
-      </div>
-    )
-  }
-
-  if (!data || data.data.length === 0) {
-    return null
-  }
-
-  const selected = data.data.find((c) => c.id === selectedClientId)
-  const label = selected ? selected.name : 'All clients'
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger className="flex w-full items-center gap-2 px-3 py-2 text-sm font-medium rounded-md hover:bg-accent hover:text-accent-foreground transition-colors">
-        <Building2 className="h-4 w-4" />
-        <span className="truncate">{label}</span>
-        <ChevronDown className="h-3 w-3 ml-auto opacity-50" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-56">
-        <DropdownMenuItem onClick={() => setSelectedClientId(null)}>
-          <span>All clients</span>
-          {!selectedClientId && <Check className="h-4 w-4 ml-auto" />}
-        </DropdownMenuItem>
-        {data.data.map((client) => (
-          <DropdownMenuItem
-            key={client.id}
-            onClick={() => setSelectedClientId(client.id)}
-          >
-            <span className="truncate">{client.name}</span>
-            {selectedClientId === client.id && <Check className="h-4 w-4 ml-auto" />}
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
-}
-
 export function NavigationDrawer() {
   const { drawerOpen, closeDrawer } = useUi()
-  const { isAuthenticated, logout } = useAuth()
-  const { mode, toggle: toggleTheme } = useTheme()
+  const { isAuthenticated, isSuperAdmin, logout } = useAuth()
   const navigate = useNavigate()
 
   const handleLogout = () => {
@@ -112,6 +52,11 @@ export function NavigationDrawer() {
         : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
     )
 
+  const visibleNavItems = navItems.filter((item) => {
+    if (item.to === '/import' || item.to === '/export') return isSuperAdmin
+    return true
+  })
+
   return (
     <>
       {drawerOpen && (
@@ -129,11 +74,8 @@ export function NavigationDrawer() {
           drawerOpen ? 'md:w-64' : 'md:w-0 md:border-r-0 md:overflow-hidden',
         )}
       >
-        <div className="px-3 pt-20 md:pt-4 pb-2">
-          <ClientSwitcher />
-        </div>
-        <nav className="overflow-y-auto px-4 pb-4 space-y-1">
-          {navItems.map((item) => (
+        <nav className="overflow-y-auto px-4 pb-4 space-y-1 pt-20 md:pt-4">
+          {visibleNavItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
@@ -167,10 +109,6 @@ export function NavigationDrawer() {
               Login
             </button>
           )}
-          <button onClick={toggleTheme} className={buttonClass}>
-            {mode === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            <span>{mode === 'dark' ? 'Light mode' : 'Dark mode'}</span>
-          </button>
         </div>
       </aside>
     </>

@@ -44,6 +44,28 @@ describe('AppShell', () => {
     expect(screen.getByText('Arche Admin')).toBeInTheDocument()
   })
 
+  it('shows Arche Admin title for super admin', async () => {
+    const { useAuth } = await import('@/stores/auth')
+    useAuth.setState({ isAuthenticated: true, isSuperAdmin: true })
+
+    renderShell()
+
+    expect(screen.getByText('Arche Admin')).toBeInTheDocument()
+  })
+
+  it('replaces title with client name for client-scoped keys', async () => {
+    const { useAuth } = await import('@/stores/auth')
+    useAuth.setState({
+      isAuthenticated: true,
+      isSuperAdmin: false,
+      clientId: 'client-abc',
+    })
+
+    renderShell()
+
+    expect(screen.queryByText('Arche Admin')).not.toBeInTheDocument()
+  })
+
   it('renders the search bar placeholder', () => {
     renderShell()
 

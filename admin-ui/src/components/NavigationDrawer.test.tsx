@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { describe, expect, it } from 'vitest'
@@ -25,9 +25,22 @@ describe('NavigationDrawer', () => {
   beforeEach(async () => {
     const { useUi } = await import('@/stores/ui')
     useUi.setState({ drawerOpen: true })
+    const { useAuth } = await import('@/stores/auth')
+    useAuth.setState({
+      apiKey: null,
+      isAuthenticated: false,
+      isSuperAdmin: false,
+      clientId: null,
+      keyId: null,
+      keyName: null,
+      permissions: [],
+    })
   })
 
-  it('renders all nav links when drawer is open', () => {
+  it('renders all nav links when drawer is open and super admin', async () => {
+    const { useAuth } = await import('@/stores/auth')
+    useAuth.setState({ isSuperAdmin: true, isAuthenticated: true })
+
     renderDrawer()
 
     expect(screen.getByText('Dashboard')).toBeInTheDocument()
@@ -38,6 +51,13 @@ describe('NavigationDrawer', () => {
     expect(screen.getByText('Import')).toBeInTheDocument()
     expect(screen.getByText('Export')).toBeInTheDocument()
     expect(screen.getByText('API Keys')).toBeInTheDocument()
+  })
+
+  it('hides Import and Export when not super admin', () => {
+    renderDrawer()
+
+    expect(screen.queryByText('Import')).not.toBeInTheDocument()
+    expect(screen.queryByText('Export')).not.toBeInTheDocument()
   })
 
   it('shows Login link when not authenticated', () => {
@@ -65,11 +85,6 @@ describe('NavigationDrawer', () => {
     expect(blueprintLink?.className).toContain('bg-accent')
   })
 
-  it('shows dark mode toggle in bottom section', () => {
-    renderDrawer()
-    expect(screen.getByText('Dark mode')).toBeInTheDocument()
-  })
-
   it('closes drawer on backdrop click (mobile)', async () => {
     const { useUi } = await import('@/stores/ui')
     useUi.setState({ drawerOpen: true, panelOpen: false, panelDocked: false })
@@ -83,7 +98,10 @@ describe('NavigationDrawer', () => {
     expect(useUi.getState().drawerOpen).toBe(false)
   })
 
-  it('has correct nav links with href attributes', () => {
+  it('has correct nav links with href attributes for super admin', async () => {
+    const { useAuth } = await import('@/stores/auth')
+    useAuth.setState({ isSuperAdmin: true, isAuthenticated: true })
+
     renderDrawer()
 
     const links = {
@@ -105,16 +123,6 @@ describe('NavigationDrawer', () => {
     expect(links.import_?.getAttribute('href')).toBe('/import')
     expect(links.export_?.getAttribute('href')).toBe('/export')
     expect(links.apikeys?.getAttribute('href')).toBe('/clients')
-  })
-
-  it('does not render client switcher when no clients available', async () => {
-    renderDrawer()
-
-    await waitFor(() => {
-      expect(screen.queryByText('Loading clients...')).not.toBeInTheDocument()
-    })
-
-    expect(screen.queryByText('All clients')).not.toBeInTheDocument()
   })
 
   it('renders aside with desktop stacking context', () => {

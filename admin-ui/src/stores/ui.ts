@@ -11,13 +11,10 @@ function getInitialDocked(): boolean {
 }
 
 interface UiState {
-  drawerOpen: boolean
   panelOpen: boolean
   panelDocked: boolean
   searchOpen: boolean
   selectedClientId: string | null
-  toggleDrawer: () => void
-  closeDrawer: () => void
   togglePanel: () => void
   closePanel: () => void
   setPanelDocked: (docked: boolean) => void
@@ -27,13 +24,10 @@ interface UiState {
 }
 
 export const useUi = create<UiState>((set) => ({
-  drawerOpen: false,
   panelOpen: false,
   panelDocked: getInitialDocked(),
   searchOpen: false,
   selectedClientId: null,
-  toggleDrawer: () => set((state) => ({ drawerOpen: !state.drawerOpen })),
-  closeDrawer: () => set({ drawerOpen: false }),
   togglePanel: () => set((state) => ({ panelOpen: !state.panelOpen })),
   closePanel: () => set({ panelOpen: false }),
   setPanelDocked: (docked: boolean) => {

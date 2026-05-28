@@ -10,7 +10,6 @@ describe('useUi store', () => {
   beforeEach(() => {
     act(() => {
       useUi.setState({
-        drawerOpen: false,
         panelOpen: false,
         panelDocked: false,
         searchOpen: false,
@@ -19,38 +18,14 @@ describe('useUi store', () => {
     })
   })
 
-  it('starts with drawer and panel closed', () => {
+  it('starts with panel closed', () => {
     const state = getState()
-    expect(state.drawerOpen).toBe(false)
     expect(state.panelOpen).toBe(false)
     expect(state.panelDocked).toBe(false)
   })
 
   it('starts with no selected client', () => {
     expect(getState().selectedClientId).toBeNull()
-  })
-
-  it('toggleDrawer opens the drawer when closed', () => {
-    act(() => {
-      getState().toggleDrawer()
-    })
-    expect(getState().drawerOpen).toBe(true)
-  })
-
-  it('toggleDrawer closes the drawer when open', () => {
-    act(() => {
-      useUi.setState({ drawerOpen: true })
-      getState().toggleDrawer()
-    })
-    expect(getState().drawerOpen).toBe(false)
-  })
-
-  it('closeDrawer sets drawer to false', () => {
-    act(() => {
-      useUi.setState({ drawerOpen: true })
-      getState().closeDrawer()
-    })
-    expect(getState().drawerOpen).toBe(false)
   })
 
   it('togglePanel opens the panel when closed', () => {
@@ -100,15 +75,6 @@ describe('useUi store', () => {
     expect(getState().selectedClientId).toBeNull()
   })
 
-  it('toggle does not affect panel when toggling drawer', () => {
-    act(() => {
-      useUi.setState({ panelOpen: true })
-      getState().toggleDrawer()
-    })
-    expect(getState().drawerOpen).toBe(true)
-    expect(getState().panelOpen).toBe(true)
-  })
-
   it('starts with search closed', () => {
     expect(getState().searchOpen).toBe(false)
   })
@@ -128,13 +94,12 @@ describe('useUi store', () => {
     expect(getState().searchOpen).toBe(false)
   })
 
-  it('opening search does not affect drawer or panel state', () => {
+  it('opening search does not affect panel state', () => {
     act(() => {
-      useUi.setState({ drawerOpen: true, panelOpen: true })
+      useUi.setState({ panelOpen: true })
       getState().openSearch()
     })
     expect(getState().searchOpen).toBe(true)
-    expect(getState().drawerOpen).toBe(true)
     expect(getState().panelOpen).toBe(true)
   })
 })

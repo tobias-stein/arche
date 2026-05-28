@@ -1,18 +1,13 @@
 import { Outlet } from 'react-router-dom'
-import { Building2, Check, ChevronDown, Menu, Moon, PanelRightClose, PanelRightOpen, Search, Sun } from 'lucide-react'
+import { Building2, Moon, PanelRightClose, PanelRightOpen, Search, Sun } from 'lucide-react'
 import { useTheme } from '@/stores/theme'
 import { useUi } from '@/stores/ui'
 import { useAuth } from '@/stores/auth'
-import { useClient, useClientsList } from '@/api/generated/hooks'
-import { NavigationDrawer } from './NavigationDrawer'
+import { useClient } from '@/api/generated/hooks'
+import { AppSidebar } from './AppSidebar'
 import { ActivityPanel } from './ActivityPanel'
 import { GlobalSearch } from './GlobalSearch'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
 
 function ThemeToggle() {
   const { mode, toggle } = useTheme()
@@ -27,45 +22,8 @@ function ThemeToggle() {
   )
 }
 
-function HeaderClientSelector() {
-  const { isAuthenticated, isSuperAdmin } = useAuth()
-  const { data, isLoading } = useClientsList()
-  const { selectedClientId, setSelectedClientId } = useUi()
-
-  if (!isAuthenticated || !isSuperAdmin) return null
-  if (isLoading || !data || data.data.length === 0) return null
-
-  const selected = data.data.find((c) => c.id === selectedClientId)
-  const label = selected ? selected.name : 'All clients'
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger className="flex items-center gap-2 text-sm font-medium rounded-md hover:bg-accent hover:text-accent-foreground transition-colors px-2 py-1">
-        <Building2 className="h-4 w-4 shrink-0" />
-        <span className="truncate max-w-[120px]">{label}</span>
-        <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-56">
-        <DropdownMenuItem onClick={() => setSelectedClientId(null)}>
-          <span>All clients</span>
-          {!selectedClientId && <Check className="h-4 w-4 ml-auto" />}
-        </DropdownMenuItem>
-        {data.data.map((client) => (
-          <DropdownMenuItem
-            key={client.id}
-            onClick={() => setSelectedClientId(client.id)}
-          >
-            <span className="truncate">{client.name}</span>
-            {selectedClientId === client.id && <Check className="h-4 w-4 ml-auto" />}
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
-}
-
 function Header() {
-  const { drawerOpen, panelOpen, toggleDrawer, togglePanel, openSearch } = useUi()
+  const { panelOpen, togglePanel, openSearch } = useUi()
   const { isAuthenticated, isSuperAdmin, clientId } = useAuth()
   const { data: clientData } = useClient(clientId ?? '')
 
@@ -73,19 +31,12 @@ function Header() {
   const title = isClientScoped ? (clientData?.name ?? '') : 'Arche Admin'
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 h-16 border-b bg-background flex items-center gap-2 md:gap-4 px-4">
-      <button
-        onClick={toggleDrawer}
-        className="inline-flex items-center justify-center h-9 w-9 rounded-md hover:bg-accent hover:text-accent-foreground shrink-0"
-        aria-label={drawerOpen ? 'Close navigation' : 'Open navigation'}
-      >
-        <Menu className="h-5 w-5" />
-      </button>
+    <header className="sticky top-0 z-50 h-16 border-b bg-background flex items-center gap-2 md:gap-4 px-4">
+      <SidebarTrigger className="h-9 w-9" />
       <span className="text-lg font-bold flex items-center gap-2 truncate">
         {isClientScoped && clientData && <Building2 className="h-4 w-4 shrink-0" />}
         {title}
       </span>
-      <HeaderClientSelector />
       <div className="flex-1 max-w-md mx-auto hidden sm:block">
         <button
           onClick={openSearch}
@@ -117,18 +68,18 @@ export function AppShell() {
   const { panelOpen } = useUi()
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      <div className="flex pt-16">
-        <NavigationDrawer />
-        <main className="flex-1 min-w-0 transition-[margin] duration-300">
-          <div className="p-4">
+    <SidebarProvider defaultOpen={true}>
+      <div className="flex min-h-screen w-full bg-background">
+        <AppSidebar />
+        <div className="flex flex-1 flex-col min-w-0">
+          <Header />
+          <main className="flex-1 p-4">
             <Outlet />
-          </div>
-        </main>
+          </main>
+        </div>
         {panelOpen && <ActivityPanel />}
       </div>
       <GlobalSearch />
-    </div>
+    </SidebarProvider>
   )
 }

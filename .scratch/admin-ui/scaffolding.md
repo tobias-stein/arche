@@ -1,6 +1,6 @@
 ---
 title: Admin UI scaffolding
-status: ready-for-human
+status: completed
 
 ## Result
 

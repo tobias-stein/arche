@@ -1,6 +1,6 @@
 ---
 title: Auth — login page + Zustand store
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

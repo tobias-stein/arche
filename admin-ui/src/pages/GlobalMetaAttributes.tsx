@@ -133,7 +133,7 @@ function EditGlobalMetaAttributeDialog({
         request: {
           name: name.trim(),
           description: description.trim() || null,
-          valueType: gma.valueType,
+          value_type: gma.valueType,
           ...gma.payload,
         } as Parameters<typeof updateMutation.mutateAsync>[0]['request'],
       })

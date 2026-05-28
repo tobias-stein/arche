@@ -424,13 +424,13 @@ describe('Blueprints list page', () => {
       makeBlueprint({
         id: '1',
         name: 'Sword',
-        attributes: { damage: { valueType: 'single', value: 10 } },
+        attributes: { damage: { value_type: 'single', value: 10 } },
         attributeOrder: ['damage'],
       }),
       makeBlueprint({
         id: '2',
         name: 'Shield',
-        attributes: { damage: { valueType: 'single', value: 20 } },
+        attributes: { damage: { value_type: 'single', value: 20 } },
         attributeOrder: ['damage'],
       }),
     ]
@@ -454,13 +454,13 @@ describe('Blueprints list page', () => {
       makeBlueprint({
         id: '1',
         name: 'Sword',
-        attributes: { damage: { valueType: 'single', value: 10 } },
+        attributes: { damage: { value_type: 'single', value: 10 } },
         attributeOrder: ['damage'],
       }),
       makeBlueprint({
         id: '2',
         name: 'Shield',
-        attributes: { damage: { valueType: 'single', value: 20 } },
+        attributes: { damage: { value_type: 'single', value: 20 } },
         attributeOrder: ['damage'],
       }),
     ]
@@ -484,13 +484,13 @@ describe('Blueprints list page', () => {
       makeBlueprint({
         id: '1',
         name: 'Sword',
-        attributes: { damage: { valueType: 'single', value: 10 } },
+        attributes: { damage: { value_type: 'single', value: 10 } },
         attributeOrder: ['damage'],
       }),
       makeBlueprint({
         id: '2',
         name: 'Shield',
-        attributes: { damage: { valueType: 'single', value: 10 } },
+        attributes: { damage: { value_type: 'single', value: 10 } },
         attributeOrder: ['damage'],
       }),
     ]
@@ -514,13 +514,13 @@ describe('Blueprints list page', () => {
       makeBlueprint({
         id: '1',
         name: 'Sword',
-        attributes: { damage: { valueType: 'single', value: 10 } },
+        attributes: { damage: { value_type: 'single', value: 10 } },
         attributeOrder: ['damage'],
       }),
       makeBlueprint({
         id: '2',
         name: 'Shield',
-        attributes: { defense: { valueType: 'range', min: 1, max: 10 } },
+        attributes: { defense: { value_type: 'range', min: 1, max: 10 } },
         attributeOrder: ['defense'],
       }),
     ]
@@ -545,13 +545,13 @@ describe('Blueprints list page', () => {
       makeBlueprint({
         id: '1',
         name: 'Sword',
-        attributes: { damage: { valueType: 'single', value: 10 } },
+        attributes: { damage: { value_type: 'single', value: 10 } },
         attributeOrder: ['damage'],
       }),
       makeBlueprint({
         id: '2',
         name: 'Shield',
-        attributes: { damage: { valueType: 'single', value: 20 } },
+        attributes: { damage: { value_type: 'single', value: 20 } },
         attributeOrder: ['damage'],
       }),
     ]
@@ -574,13 +574,13 @@ describe('Blueprints list page', () => {
       makeBlueprint({
         id: '1',
         name: 'Sword',
-        attributes: { damage: { valueType: 'single', value: 10 } },
+        attributes: { damage: { value_type: 'single', value: 10 } },
         attributeOrder: ['damage'],
       }),
       makeBlueprint({
         id: '2',
         name: 'Shield',
-        attributes: { damage: { valueType: 'range', min: 1, max: 10 } },
+        attributes: { damage: { value_type: 'range', min: 1, max: 10 } },
         attributeOrder: ['damage'],
       }),
     ]
@@ -608,13 +608,13 @@ describe('Blueprints list page', () => {
       makeBlueprint({
         id: '1',
         name: 'Sword',
-        attributes: { damage: { valueType: 'single', value: 10 } },
+        attributes: { damage: { value_type: 'single', value: 10 } },
         attributeOrder: ['damage'],
       }),
       makeBlueprint({
         id: '2',
         name: 'Shield',
-        attributes: { damage: { valueType: 'single', value: 10 } },
+        attributes: { damage: { value_type: 'single', value: 10 } },
         attributeOrder: ['damage'],
       }),
     ]
@@ -641,7 +641,7 @@ describe('Blueprints list page', () => {
       expect(mutateAsync).toHaveBeenCalledWith({
         blueprintIds: ['bp-1', 'bp-2'],
         attributes: expect.objectContaining({
-          damage: expect.objectContaining({ valueType: 'single', value: 50 }),
+          damage: expect.objectContaining({ value_type: 'single', value: 50 }),
         }),
       })
     })
@@ -655,7 +655,7 @@ describe('Blueprints list page', () => {
       makeBlueprint({
         id: '1',
         name: 'Sword',
-        attributes: { damage: { valueType: 'single', value: 10 } },
+        attributes: { damage: { value_type: 'single', value: 10 } },
         attributeOrder: ['damage'],
       }),
     ]
@@ -690,7 +690,7 @@ describe('Blueprints list page', () => {
       makeBlueprint({
         id: '1',
         name: 'Sword',
-        attributes: { damage: { valueType: 'single', value: 10 } },
+        attributes: { damage: { value_type: 'single', value: 10 } },
         attributeOrder: ['damage'],
       }),
     ]
@@ -724,7 +724,7 @@ describe('Blueprints list page', () => {
       makeBlueprint({
         id: '1',
         name: 'Sword',
-        attributes: { damage: { valueType: 'single', value: 10 } },
+        attributes: { damage: { value_type: 'single', value: 10 } },
         attributeOrder: ['damage'],
       }),
     ]
@@ -765,13 +765,13 @@ describe('Blueprints list page', () => {
       makeBlueprint({
         id: '1',
         name: 'Sword',
-        attributes: { magic: { valueType: 'boolean', value: true } },
+        attributes: { magic: { value_type: 'boolean', value: true } },
         attributeOrder: ['magic'],
       }),
       makeBlueprint({
         id: '2',
         name: 'Shield',
-        attributes: { magic: { valueType: 'boolean', value: false } },
+        attributes: { magic: { value_type: 'boolean', value: false } },
         attributeOrder: ['magic'],
       }),
     ]
@@ -795,13 +795,13 @@ describe('Blueprints list page', () => {
       makeBlueprint({
         id: '1',
         name: 'Sword',
-        attributes: { element: { valueType: 'enum', values: ['fire', 'ice'] } },
+        attributes: { element: { value_type: 'enum', values: ['fire', 'ice'] } },
         attributeOrder: ['element'],
       }),
       makeBlueprint({
         id: '2',
         name: 'Shield',
-        attributes: { element: { valueType: 'enum', values: ['fire', 'ice'] } },
+        attributes: { element: { value_type: 'enum', values: ['fire', 'ice'] } },
         attributeOrder: ['element'],
       }),
     ]
@@ -827,13 +827,13 @@ describe('Blueprints list page', () => {
       makeBlueprint({
         id: '1',
         name: 'Sword',
-        attributes: { level: { valueType: 'range', min: 1, max: 50 } },
+        attributes: { level: { value_type: 'range', min: 1, max: 50 } },
         attributeOrder: ['level'],
       }),
       makeBlueprint({
         id: '2',
         name: 'Shield',
-        attributes: { level: { valueType: 'range', min: 1, max: 50 } },
+        attributes: { level: { value_type: 'range', min: 1, max: 50 } },
         attributeOrder: ['level'],
       }),
     ]
@@ -860,13 +860,13 @@ describe('Blueprints list page', () => {
       makeBlueprint({
         id: '1',
         name: 'Sword',
-        attributes: { style: { $ref_id: 'gma-1' }, damage: { valueType: 'single', value: 10 } },
+        attributes: { style: { $ref_id: 'gma-1' }, damage: { value_type: 'single', value: 10 } },
         attributeOrder: ['style', 'damage'],
       }),
       makeBlueprint({
         id: '2',
         name: 'Shield',
-        attributes: { style: { $ref_id: 'gma-1' }, damage: { valueType: 'single', value: 20 } },
+        attributes: { style: { $ref_id: 'gma-1' }, damage: { value_type: 'single', value: 20 } },
         attributeOrder: ['style', 'damage'],
       }),
     ]

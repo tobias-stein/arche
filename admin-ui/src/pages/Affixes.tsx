@@ -61,7 +61,7 @@ function getValueTypeDisplay(attribute: AffixAttribute): string {
   if ('$ref_id' in attribute) {
     return 'global'
   }
-  return attribute.valueType
+  return attribute.value_type
 }
 
 function isRefAttribute(attr: AffixAttribute): boolean {

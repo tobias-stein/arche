@@ -107,30 +107,30 @@ function InlineAttributeForm({
   const [name, setName] = useState(inline ? String(inline.name ?? '') : '')
   const [desc, setDesc] = useState(inline ? String(inline.description ?? '') : '')
   const [valueType, setValueType] = useState<ValueType>(
-    inline ? (inline.valueType as ValueType) : 'single',
+    inline ? (inline.value_type as ValueType) : 'single',
   )
   const [singleValue, setSingleValue] = useState(
-    inline && inline.valueType === 'single' ? String(inline.value ?? '') : '',
+    inline && inline.value_type === 'single' ? String(inline.value ?? '') : '',
   )
   const [enumValues, setEnumValues] = useState(
-    inline && inline.valueType === 'enum'
+    inline && inline.value_type === 'enum'
       ? ((inline.values as string[] | undefined) ?? []).join(', ')
       : '',
   )
   const [rangeMin, setRangeMin] = useState(
-    inline && inline.valueType === 'range' ? String(inline.min ?? '') : '',
+    inline && inline.value_type === 'range' ? String(inline.min ?? '') : '',
   )
   const [rangeMax, setRangeMax] = useState(
-    inline && inline.valueType === 'range' ? String(inline.max ?? '') : '',
+    inline && inline.value_type === 'range' ? String(inline.max ?? '') : '',
   )
   const [strMinLen, setStrMinLen] = useState(
-    inline && inline.valueType === 'string' ? String(inline.minLength ?? '') : '',
+    inline && inline.value_type === 'string' ? String(inline.minLength ?? '') : '',
   )
   const [strMaxLen, setStrMaxLen] = useState(
-    inline && inline.valueType === 'string' ? String(inline.maxLength ?? '') : '',
+    inline && inline.value_type === 'string' ? String(inline.maxLength ?? '') : '',
   )
   const [boolVal, setBoolVal] = useState(
-    inline && inline.valueType === 'boolean' ? inline.value === true : false,
+    inline && inline.value_type === 'boolean' ? inline.value === true : false,
   )
 
   const initDist = getDistribution(attribute)
@@ -154,7 +154,7 @@ function InlineAttributeForm({
   const buildAttribute = (): AffixAttribute | null => {
     if (!name.trim()) return null
 
-    const base: Record<string, unknown> = { name: name.trim(), valueType }
+    const base: Record<string, unknown> = { name: name.trim(), value_type: valueType }
     if (desc.trim()) base.description = desc.trim()
 
     switch (valueType) {

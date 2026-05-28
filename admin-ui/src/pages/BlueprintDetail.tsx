@@ -58,13 +58,13 @@ function isRefAttribute(attr: BlueprintAttribute): attr is RefAttribute {
 
 function getValueTypeDisplay(attr: BlueprintAttribute): string {
   if (isRefAttribute(attr)) return 'global'
-  return attr.valueType
+  return attr.value_type
 }
 
 function getAttributePreview(attr: BlueprintAttribute): string {
   if ('$ref_id' in attr) return '\u2014'
   const inline = attr as InlineAttributeDef
-  switch (inline.valueType) {
+  switch (inline.value_type) {
     case 'single':
       return String(inline.value)
     case 'enum':

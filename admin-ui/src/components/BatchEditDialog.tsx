@@ -18,7 +18,7 @@ import { useToast } from '@/hooks/use-toast'
 
 interface MergedAttr {
   name: string
-  valueType: ValueType
+  value_type: ValueType
   allSame: boolean
   commonValue: InlineAttributeDef | null
 }
@@ -50,7 +50,7 @@ function computeMergedAttrs(blueprints: Blueprint[]): MergedAttr[] {
     const firstAttr = blueprints[0].attributes[key]
     if (!firstAttr || '$ref_id' in firstAttr) continue
     const firstInline = firstAttr as InlineAttributeDef
-    const firstType = firstInline.valueType
+    const firstType = firstInline.value_type
 
     let existsInAll = true
     let allSame = true
@@ -62,7 +62,7 @@ function computeMergedAttrs(blueprints: Blueprint[]): MergedAttr[] {
         break
       }
       const inline = attr as InlineAttributeDef
-      if (inline.valueType !== firstType) {
+      if (inline.value_type !== firstType) {
         existsInAll = false
         break
       }
@@ -75,7 +75,7 @@ function computeMergedAttrs(blueprints: Blueprint[]): MergedAttr[] {
 
     result.push({
       name: key,
-      valueType: firstType,
+      value_type: firstType,
       allSame,
       commonValue: allSame ? { ...firstInline } : null,
     })
@@ -87,15 +87,15 @@ function computeMergedAttrs(blueprints: Blueprint[]): MergedAttr[] {
 function blankAttr(valueType: ValueType): InlineAttributeDef {
   switch (valueType) {
     case 'single':
-      return { valueType: 'single', value: 0 }
+      return { value_type: 'single', value: 0 }
     case 'enum':
-      return { valueType: 'enum', values: [] }
+      return { value_type: 'enum', values: [] }
     case 'range':
-      return { valueType: 'range', min: 0, max: 0 }
+      return { value_type: 'range', min: 0, max: 0 }
     case 'string':
-      return { valueType: 'string' }
+      return { value_type: 'string' }
     case 'boolean':
-      return { valueType: 'boolean', value: false }
+      return { value_type: 'boolean', value: false }
   }
 }
 
@@ -131,7 +131,7 @@ export function BatchEditDialog({
       if (!current) {
         const mt = mergedAttrs.find((a) => a.name === attrName)
         if (!mt) return prev
-        return { ...prev, [attrName]: updater(blankAttr(mt.valueType)) }
+        return { ...prev, [attrName]: updater(blankAttr(mt.value_type)) }
       }
       return { ...prev, [attrName]: updater(current) }
     })
@@ -172,7 +172,7 @@ export function BatchEditDialog({
 
   function setBoolValue(attrName: string, val: boolean) {
     setAttrValue(attrName, (prev) => {
-      if ('value' in prev && prev.valueType === 'boolean') {
+      if ('value' in prev && prev.value_type === 'boolean') {
         return { ...prev, value: val } as InlineAttributeDef
       }
       return prev
@@ -190,7 +190,7 @@ export function BatchEditDialog({
 
   function getBoolChecked(attrName: string): boolean {
     const val = formValues[attrName]
-    if (!val || !('value' in val) || val.valueType !== 'boolean') return false
+    if (!val || !('value' in val) || val.value_type !== 'boolean') return false
     return val.value as boolean
   }
 
@@ -257,7 +257,7 @@ export function BatchEditDialog({
                   <legend className="text-sm font-medium px-1 flex items-center gap-2">
                     {attr.name}
                     <Badge variant="outline" className="text-xs">
-                      {attr.valueType}
+                      {attr.value_type}
                     </Badge>
                     {!attr.allSame && (
                       <span className="text-xs text-muted-foreground">
@@ -266,7 +266,7 @@ export function BatchEditDialog({
                     )}
                   </legend>
 
-                  {attr.valueType === 'single' && (
+                  {attr.value_type === 'single' && (
                     <div className="space-y-1">
                       <Label className="text-xs">Value</Label>
                       <Input
@@ -280,7 +280,7 @@ export function BatchEditDialog({
                     </div>
                   )}
 
-                  {attr.valueType === 'enum' && (
+                  {attr.value_type === 'enum' && (
                     <div className="space-y-1">
                       <Label className="text-xs">Values (comma-separated)</Label>
                       <Input
@@ -296,7 +296,7 @@ export function BatchEditDialog({
                     </div>
                   )}
 
-                  {attr.valueType === 'range' && (
+                  {attr.value_type === 'range' && (
                     <div className="grid grid-cols-2 gap-2">
                       <div className="space-y-1">
                         <Label className="text-xs">Min</Label>
@@ -323,7 +323,7 @@ export function BatchEditDialog({
                     </div>
                   )}
 
-                  {attr.valueType === 'string' && (
+                  {attr.value_type === 'string' && (
                     <div className="grid grid-cols-2 gap-2">
                       <div className="space-y-1">
                         <Label className="text-xs">Min Length</Label>
@@ -350,7 +350,7 @@ export function BatchEditDialog({
                     </div>
                   )}
 
-                  {attr.valueType === 'boolean' && (
+                  {attr.value_type === 'boolean' && (
                     <label className="flex items-center gap-2 text-sm cursor-pointer">
                       <input
                         type="checkbox"

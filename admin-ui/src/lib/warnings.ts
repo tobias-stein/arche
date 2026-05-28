@@ -119,7 +119,7 @@ function checkAttributePayload(
   warnings: Warning[],
 ) {
   const label = resourceLabel(resourceType)
-  switch (attr.valueType) {
+  switch (attr.value_type) {
     case 'range': {
       if (attr.min > attr.max) {
         warnings.push({
@@ -200,7 +200,7 @@ function isRefAttribute(attr: unknown): attr is RefAttribute {
 }
 
 function isInlineAttribute(attr: unknown): attr is InlineAttributeDef {
-  return typeof attr === 'object' && attr !== null && 'valueType' in attr
+  return typeof attr === 'object' && attr !== null && 'value_type' in attr
 }
 
 function resourceLabel(resourceType: 'blueprint' | 'affix'): string {

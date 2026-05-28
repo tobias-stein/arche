@@ -75,7 +75,7 @@ const OPERATORS: Record<string, string[]> = {
 function getValueTypeFromAttribute(attr: unknown): string {
   if (!attr || typeof attr !== 'object') return 'unknown'
   const a = attr as Record<string, unknown>
-  if ('valueType' in a && typeof a.valueType === 'string') return a.valueType
+  if ('value_type' in a && typeof a.value_type === 'string') return a.value_type
   if ('$ref_id' in a) return 'ref'
   return 'unknown'
 }

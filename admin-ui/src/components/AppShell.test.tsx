@@ -29,7 +29,6 @@ describe('AppShell', () => {
   beforeEach(async () => {
     const { useUi } = await import('@/stores/ui')
     useUi.setState({
-      drawerOpen: true,
       panelOpen: false,
       panelDocked: false,
       searchOpen: false,
@@ -84,10 +83,10 @@ describe('AppShell', () => {
     expect(useUi.getState().searchOpen).toBe(true)
   })
 
-  it('renders the drawer toggle button', () => {
+  it('renders the sidebar toggle button', () => {
     renderShell()
 
-    expect(screen.getByLabelText('Close navigation')).toBeInTheDocument()
+    expect(screen.getByText('Toggle Sidebar')).toBeInTheDocument()
   })
 
   it('renders the activity panel toggle button', () => {
@@ -102,10 +101,14 @@ describe('AppShell', () => {
     expect(screen.getByLabelText('Switch to dark mode')).toBeInTheDocument()
   })
 
-  it('renders the navigation drawer', () => {
+  it('renders sidebar nav links', () => {
     renderShell()
 
     expect(screen.getByText('Dashboard')).toBeInTheDocument()
+    expect(screen.getByText('Blueprints')).toBeInTheDocument()
+    expect(screen.getByText('Affixes')).toBeInTheDocument()
+    expect(screen.getByText('Global Meta Attributes')).toBeInTheDocument()
+    expect(screen.getByText('Audit Log')).toBeInTheDocument()
   })
 
   it('does not render activity panel when closed', () => {
@@ -122,21 +125,6 @@ describe('AppShell', () => {
 
     expect(screen.getByText('Activity')).toBeInTheDocument()
     expect(screen.getByText('No recent activity.')).toBeInTheDocument()
-  })
-
-  it('toggles drawer when hamburger is clicked', async () => {
-    const { useUi } = await import('@/stores/ui')
-    useUi.setState({ drawerOpen: true })
-
-    renderShell()
-
-    const toggleButton = screen.getByLabelText('Close navigation')
-    toggleButton.click()
-
-    expect(useUi.getState().drawerOpen).toBe(false)
-
-    toggleButton.click()
-    expect(useUi.getState().drawerOpen).toBe(true)
   })
 
   it('toggles panel when panel button is clicked', async () => {

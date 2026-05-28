@@ -162,13 +162,16 @@ export default function Dashboard() {
   const { selectedClientId } = useUi()
 
   const { data: blueprintsData, isLoading: bpLoading, isError: bpError } = useBlueprintsList({
-    perPage: 500,
+    page: 1,
+    perPage: 200,
   })
   const { data: affixesData, isLoading: affLoading } = useAffixesList({
-    perPage: 500,
+    page: 1,
+    perPage: 200,
   })
   const { data: gmaData } = useGlobalMetaAttributesList({
-    perPage: 500,
+    page: 1,
+    perPage: 200,
   })
   const generateMutation = useGenerate()
   const [dismissedWarnings, setDismissedWarnings] = useState<Set<string>>(

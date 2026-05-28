@@ -11,7 +11,7 @@ describe('createBlueprintSchema', () => {
     weight: 5,
     description: null,
     attributes: {
-      damage: { valueType: 'single', value: 10 },
+      damage: { value_type: 'single', value: 10 },
     },
     attributeOrder: ['damage'],
     affixes: {

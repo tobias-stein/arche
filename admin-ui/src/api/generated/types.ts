@@ -26,11 +26,11 @@ export type DistributionConfig =
 // --- Attributes ---
 
 export type AttributePayload =
-  | { valueType: 'single'; value: number; distribution?: DistributionConfig }
-  | { valueType: 'enum'; values: string[] }
-  | { valueType: 'range'; min: number; max: number; distribution?: DistributionConfig }
-  | { valueType: 'string'; minLength?: number; maxLength?: number }
-  | { valueType: 'boolean'; value: boolean };
+  | { value_type: 'single'; value: number; distribution?: DistributionConfig }
+  | { value_type: 'enum'; values: string[] }
+  | { value_type: 'range'; min: number; max: number; distribution?: DistributionConfig }
+  | { value_type: 'string'; minLength?: number; maxLength?: number }
+  | { value_type: 'boolean'; value: boolean };
 
 export type InlineAttributeDef = AttributePayload & {
   description?: string;

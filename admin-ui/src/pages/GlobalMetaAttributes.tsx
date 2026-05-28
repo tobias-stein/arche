@@ -197,7 +197,12 @@ function EditGlobalMetaAttributeDialog({
     try {
       await updateMutation.mutateAsync({
         id: gma.id,
-        request,
+        request: {
+          name: name.trim(),
+          description: description.trim() || null,
+          value_type: gma.valueType,
+          ...gma.payload,
+        } as Parameters<typeof updateMutation.mutateAsync>[0]['request'],
       })
       toast({ title: 'Global meta attribute updated' })
       onOpenChange(false)

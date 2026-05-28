@@ -19,7 +19,7 @@ const mockAffix: Affix = {
   description: 'Adds fire damage',
   attribute: {
     name: 'damage',
-    valueType: 'single',
+    value_type: 'single',
     value: 10,
   },
   createdAt: '2024-01-01T00:00:00Z',

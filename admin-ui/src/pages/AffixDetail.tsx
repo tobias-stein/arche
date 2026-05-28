@@ -60,7 +60,7 @@ function AttributePreview({ attribute }: { attribute: AffixAttribute }) {
     <div className="space-y-2">
       <div className="flex items-center gap-2 flex-wrap">
         <Badge>Inline</Badge>
-        <Badge variant="outline">{attribute.valueType}</Badge>
+        <Badge variant="outline">{attribute.value_type}</Badge>
         {'name' in attribute && (
           <span className="text-sm font-medium">{attribute.name}</span>
         )}

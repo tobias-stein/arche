@@ -87,7 +87,7 @@ const errorClass = 'text-[0.8rem] font-medium text-destructive'
 
 function getValueTypeDisplay(attr: BlueprintAttribute): string {
   if ('$ref_id' in attr) return 'global'
-  return attr.valueType
+  return attr.value_type
 }
 
 function isRefAttribute(attr: BlueprintAttribute): attr is RefAttribute {
@@ -96,7 +96,7 @@ function isRefAttribute(attr: BlueprintAttribute): attr is RefAttribute {
 
 function getAttributePreview(attr: BlueprintAttribute): string {
   if ('$ref_id' in attr) return '\u2014'
-  switch (attr.valueType) {
+  switch (attr.value_type) {
     case 'single':
       return String(attr.value)
     case 'enum':
@@ -248,7 +248,7 @@ function InlineAttributeForm({
           return
         }
         payload = {
-          valueType: 'single',
+          value_type: 'single',
           value: v,
           distribution: buildDistribution(distType, distStdDev, distRate),
         }
@@ -263,7 +263,7 @@ function InlineAttributeForm({
           setError('Enum must have at least one value')
           return
         }
-        payload = { valueType: 'enum', values }
+        payload = { value_type: 'enum', values }
         break
       }
       case 'range': {
@@ -274,7 +274,7 @@ function InlineAttributeForm({
           return
         }
         payload = {
-          valueType: 'range',
+          value_type: 'range',
           min,
           max,
           distribution: buildDistribution(distType, distStdDev, distRate),
@@ -282,12 +282,12 @@ function InlineAttributeForm({
         break
       }
       case 'string':
-        payload = { valueType: 'string' }
+        payload = { value_type: 'string' }
         if (stringMinLen) payload.minLength = Number(stringMinLen)
         if (stringMaxLen) payload.maxLength = Number(stringMaxLen)
         break
       case 'boolean':
-        payload = { valueType: 'boolean', value: boolValue === 'true' }
+        payload = { value_type: 'boolean', value: boolValue === 'true' }
         break
     }
 

@@ -41,25 +41,25 @@ function makeBlueprint(overrides: Record<string, unknown> = {}) {
     description: null,
     attributes: {
       damage: {
-        valueType: 'single',
+        value_type: 'single',
         value: 0,
         distribution: { type: 'uniform' },
       },
       element: {
-        valueType: 'enum',
+        value_type: 'enum',
         values: ['fire', 'ice', 'lightning'],
       },
       name: {
-        valueType: 'string',
+        value_type: 'string',
         minLength: 3,
         maxLength: 16,
       },
       legendary: {
-        valueType: 'boolean',
+        value_type: 'boolean',
         value: false,
       },
       price_range: {
-        valueType: 'range',
+        value_type: 'range',
         min: 1,
         max: 100,
       },
@@ -83,7 +83,7 @@ function makeAffix(overrides: Record<string, unknown> = {}) {
     location: 'prefix',
     description: null,
     attribute: {
-      valueType: 'single',
+      value_type: 'single',
       value: 0,
     },
     createdAt: '2025-01-01T00:00:00Z',
@@ -966,7 +966,7 @@ describe('Dashboard Warnings', () => {
             name: 'BadRange',
             attributes: {
               damage: {
-                valueType: 'range',
+                value_type: 'range',
                 min: 100,
                 max: 10,
               },
@@ -998,7 +998,7 @@ describe('Dashboard Warnings', () => {
             name: 'BadEnum',
             attributes: {
               element: {
-                valueType: 'enum',
+                value_type: 'enum',
                 values: [],
               },
             },
@@ -1029,7 +1029,7 @@ describe('Dashboard Warnings', () => {
             name: 'BadDist',
             attributes: {
               damage: {
-                valueType: 'single',
+                value_type: 'single',
                 value: 0,
                 distribution: { type: 'normal', stdDev: 0 },
               },
@@ -1061,7 +1061,7 @@ describe('Dashboard Warnings', () => {
             name: 'BadRate',
             attributes: {
               damage: {
-                valueType: 'single',
+                value_type: 'single',
                 value: 0,
                 distribution: { type: 'exponential', rate: 0 },
               },

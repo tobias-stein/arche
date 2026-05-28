@@ -14,7 +14,7 @@ export const refAttributeSchema = z.object({
 })
 
 export const inlineAttributeDefSchema = z.object({
-  valueType: z.enum(['single', 'enum', 'range', 'string', 'boolean']),
+  value_type: z.enum(['single', 'enum', 'range', 'string', 'boolean']),
   value: z.number().optional(),
   values: z.array(z.string()).optional(),
   min: z.number().optional(),

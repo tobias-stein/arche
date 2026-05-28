@@ -1,6 +1,6 @@
 ---
 title: Fix dashboard stat counts always showing zero
-status: ready-for-agent
+status: completed
 ---
 
 ## What to build

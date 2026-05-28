@@ -1,6 +1,6 @@
 ---
 title: Fix dialog overlay staying dark after sub-dialog closes
-status: ready-for-agent
+status: completed
 ---
 
 ## What to build

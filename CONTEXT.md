@@ -33,7 +33,7 @@
 - **Cache invalidation — single mode:** Poll `updated_at` max across all tables every 3-5 seconds. Endpoint supports `X-Cache-Refresh: true` header to force a fresh DB load for that single request.
 - **Batch import transaction:** Entire import runs in a single DB transaction, fires one cache invalidation at the end. Avoids N reloads for N imported resources.
 - **Admin UI:** React + shadcn/ui. Responsive (mobile, tablet, desktop). Dark/light mode toggle. Global search (Cmd+K, grouped results by type). Per-client scoped to selected client.
-- **Navigation Drawer** — Toggleable left-side drawer. Houses global actions: client switcher, API key management, login/logout, settings.
+- **Navigation Drawer** — shadcn/ui sidebar (`collapsible="icon"`) on the left. Houses: client switcher in header, nav links (including API Keys), and API key identity + logout in footer.
 - **Activity Panel** — Toggleable right-side panel (default: floating overlay that hides on outside click; optional: docked/pinned to the viewport). Shows activity logs, change history, or audit log entries.
 - **Warnings** — Misconfiguration states surfaced on the dashboard: blueprint min prefix/suffix > 0 with empty pool, zero-weight blueprint, zero-weight affix assignment, dangling `$ref_id`, invalid attribute payload (range min > max, empty enum), invalid distribution config.
 - **UI pattern — Resource views:** Each entity (blueprints, affixes, global meta attributes, clients) has a list page (table), a detail page (read-only, shareable URL with tabs), and create/edit modals (overlays opened from any page).

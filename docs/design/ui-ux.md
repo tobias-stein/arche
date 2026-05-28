@@ -14,13 +14,11 @@
 ## Layout & Navigation
 
 ### A. Navigation Drawer (left side)
-- Toggleable slide-out drawer (hamburger or icon button to open/close)
-- Houses global actions:
-  - **Client switcher** — dropdown listing all clients (super admin only); current client shown as a badge
-  - **API key management** — navigate to current client's keys view
-  - **Login / Logout**
-  - **Settings** (dark/light mode toggle, etc.)
-- Responsive: overlays content on mobile, pushes content on desktop (optional)
+- shadcn/ui sidebar (`collapsible="icon"`) — collapses to icons on desktop, slides as overlay on mobile
+- **Header:** Client switcher dropdown (super admin only) or read-only client name (scoped keys)
+- **Main content:** Nav links: Dashboard, Blueprints, Affixes, Global Meta Attributes, Audit Log, Import, Export, API Keys (in that order, Import/Export hidden for non-super-admin)
+- **Footer:** Current API key identity shown (key name or "Super Admin"), clicking opens dropdown with Logout option
+- Dark/light mode toggle is in the header only (not in sidebar)
 
 ### B. Activity Panel (right side)
 - Toggleable slide-out panel

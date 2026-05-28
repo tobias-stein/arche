@@ -1,6 +1,6 @@
 ---
 title: Audit log — mutation recording
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

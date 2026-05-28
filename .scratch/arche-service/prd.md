@@ -1,6 +1,6 @@
 ---
 title: Arche API Service
-status: ready-for-agent
+status: completed
 ---
 
 ## Problem Statement

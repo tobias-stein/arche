@@ -1,6 +1,6 @@
 ---
 title: Arche Admin UI
-status: ready-for-agent
+status: completed
 ---
 
 ## Problem Statement

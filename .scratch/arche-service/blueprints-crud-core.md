@@ -1,6 +1,6 @@
 ---
 title: Blueprints CRUD — core
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

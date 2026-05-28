@@ -1,6 +1,6 @@
 ---
 title: Dashboard — stat cards + warnings
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

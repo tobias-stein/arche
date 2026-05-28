@@ -1,6 +1,6 @@
 ---
 title: Batch delete — blueprints & affixes
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

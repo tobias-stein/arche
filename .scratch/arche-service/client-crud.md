@@ -1,6 +1,6 @@
 ---
 title: Client CRUD
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

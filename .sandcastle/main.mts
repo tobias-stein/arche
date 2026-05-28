@@ -3,7 +3,7 @@ import * as sandcastle from "@ai-hero/sandcastle";
 import { docker } from "@ai-hero/sandcastle/sandboxes/docker";
 import { execSync } from "node:child_process";
 
-const MAX_ITERATIONS = 1;
+const MAX_ITERATIONS = 3;
 const MAX_PARALLEL = 2;
 const IDLE_TIMEOUT = 30 * 60; // 30 minutes
 

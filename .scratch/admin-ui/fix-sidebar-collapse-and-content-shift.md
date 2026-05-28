@@ -1,6 +1,6 @@
 ---
 title: "Fix sidebar collapse to icon width and shift main content"
-status: ready-for-agent
+status: completed
 ---
 
 ## What to build

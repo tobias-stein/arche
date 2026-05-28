@@ -1,6 +1,6 @@
 ---
 title: "Fix z-index stacking for sidebar, header, and tooltips"
-status: ready-for-agent
+status: completed
 ---
 
 ## What to build

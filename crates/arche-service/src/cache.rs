@@ -319,23 +319,23 @@ struct CachedKeyEntry {
 
 #[derive(Debug)]
 pub struct ApiKeyCache {
-    keys: RwLock<HashMap<String, CachedKeyEntry>>,
+    entries: RwLock<HashMap<String, CachedKeyEntry>>,
 }
 
 impl ApiKeyCache {
     pub fn new() -> Self {
         Self {
-            keys: RwLock::new(HashMap::new()),
+            entries: RwLock::new(HashMap::new()),
         }
     }
 
     pub async fn get(&self, raw_key: &str) -> Option<AuthenticatedKey> {
-        let keys = self.keys.read().await;
-        if let Some(entry) = keys.get(raw_key) {
+        let entries = self.entries.read().await;
+        if let Some(entry) = entries.get(raw_key) {
             if let Some(expires_at) = entry.expires_at {
                 if Utc::now() > expires_at {
-                    drop(keys);
-                    self.keys.write().await.remove(raw_key);
+                    drop(entries);
+                    self.entries.write().await.remove(raw_key);
                     return None;
                 }
             }
@@ -351,18 +351,10 @@ impl ApiKeyCache {
         key: AuthenticatedKey,
         expires_at: Option<DateTime<Utc>>,
     ) {
-        self.keys
+        self.entries
             .write()
             .await
             .insert(raw_key, CachedKeyEntry { key, expires_at });
-    }
-
-    pub async fn remove_by_id(&self, id: Uuid) {
-        self.keys.write().await.retain(|_, entry| entry.key.id != id);
-    }
-
-    pub async fn clear(&self) {
-        self.keys.write().await.clear();
     }
 
     async fn load_all_key_ids(pool: &PgPool) -> Result<HashMap<Uuid, Option<DateTime<Utc>>>, sqlx::Error> {
@@ -388,18 +380,11 @@ impl ApiKeyCache {
             }
         };
 
-        let mut keys = self.keys.write().await;
-        keys.retain(|_, entry| {
-            if let Some(expires_at) = valid_ids.get(&entry.key.id) {
-                if let Some(exp) = expires_at {
-                    if Utc::now() > *exp {
-                        return false;
-                    }
-                }
-                true
-            } else {
-                false
-            }
+        let mut entries = self.entries.write().await;
+        entries.retain(|_, entry| match valid_ids.get(&entry.key.id) {
+            None => false,
+            Some(Some(exp)) => Utc::now() <= *exp,
+            Some(None) => true,
         });
     }
 }

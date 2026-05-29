@@ -332,16 +332,19 @@ def _run_api_connectivity(api_key, target_url):
     print(f"Elapsed: {elapsed_ms:.2f} ms")
 
 
+def _seed_bench_data(api_key, target_url):
+    """Seed test data and return (client_id, key_id, scoped_key)."""
+    client_id = create_client(api_key, target_url)
+    key_id, scoped_key = create_api_key(client_id, api_key, target_url)
+    for i in range(10):
+        create_blueprint(client_id, scoped_key, f"Blueprint-{i:04d}", target_url)
+    return client_id, key_id, scoped_key
+
+
 def _run_seed(api_key, target_url):
     """Seed test data: create client, API key, and 10 blueprints."""
     try:
-        client_id = create_client(api_key, target_url)
-        key_id, scoped_key = create_api_key(client_id, api_key, target_url)
-
-        for i in range(10):
-            name = f"Blueprint-{i:04d}"
-            create_blueprint(client_id, scoped_key, name, target_url)
-
+        client_id, key_id, scoped_key = _seed_bench_data(api_key, target_url)
         print(f"Client ID: {client_id}")
         print(f"API Key: {scoped_key}")
     except HTTPError as e:
@@ -357,12 +360,7 @@ def _run_bench(api_key, target_url, concurrency=1, duration=10, no_cleanup=False
     the given duration, prints a summary, and cleans up.
     """
     try:
-        client_id = create_client(api_key, target_url)
-        key_id, scoped_key = create_api_key(client_id, api_key, target_url)
-
-        for i in range(10):
-            name = f"Blueprint-{i:04d}"
-            create_blueprint(client_id, scoped_key, name, target_url)
+        client_id, key_id, scoped_key = _seed_bench_data(api_key, target_url)
     except HTTPError as e:
         _handle_request_error(e, target_url)
     except URLError as e:

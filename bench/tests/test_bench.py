@@ -1,5 +1,6 @@
 """Tests for bench/run.py fixed-concurrency benchmark."""
 
+import json
 import os
 import sys
 import unittest
@@ -33,28 +34,33 @@ def _make_side_effect_fn(seed_and_cleanup_responses, bench_response):
     return side_effect
 
 
+def _default_bench_responses(scoped_key="arche_k_x"):
+    client = _make_response(200, b'{"id": "c-1", "name": "bench-scratch"}')
+    key = _make_response(
+        200,
+        json.dumps({
+            "id": "k-1", "key": scoped_key, "name": "benchmark-key",
+            "permissions": ["generate"],
+        }).encode(),
+    )
+    bp = _make_response(200, b'{"id": "bp-x", "name": "x"}')
+    gen = _make_response(200, b'{"ok": true}')
+    del_key = _make_response(200, b'{"ok": true}')
+    del_client = _make_response(200, b'{"ok": true}')
+    return client, key, bp, gen, del_key, del_client
+
+
 class TestRunBench(unittest.TestCase):
     maxDiff = None
 
     def test_seeds_data_and_runs_bench_then_cleans_up(self):
         """Verify _run_bench seeds, fires generate requests, and cleans up."""
-        client_resp = _make_response(
-            200, b'{"id": "client-uuid", "name": "bench-scratch"}'
+        client_resp, key_resp, bp_resp, gen_resp, del_key_resp, del_client_resp = (
+            _default_bench_responses("arche_k_secret")
         )
-        key_resp = _make_response(
-            200,
-            b'{"id": "key-1", "key": "arche_k_secret", "name": "benchmark-key", "permissions": ["generate"]}',
-        )
-        bp_resp = _make_response(200, b'{"id": "bp-x", "name": "x"}')
-        gen_resp = _make_response(200, b'{"ok": true}')
-        delete_key_resp = _make_response(200, b'{"ok": true}')
-        delete_client_resp = _make_response(200, b'{"ok": true}')
 
-        seed_responses = (
-            [client_resp, key_resp]
-            + [bp_resp] * 10
-        )
-        cleanup_responses = [delete_key_resp, delete_client_resp]
+        seed_responses = [client_resp, key_resp] + [bp_resp] * 10
+        cleanup_responses = [del_key_resp, del_client_resp]
 
         side_effect = _make_side_effect_fn(
             seed_responses + cleanup_responses, gen_resp
@@ -122,15 +128,7 @@ class TestRunBench(unittest.TestCase):
 
     def test_no_cleanup_flag_skips_deletion(self):
         """Verify --no-cleanup skips DELETE calls."""
-        client_resp = _make_response(
-            200, b'{"id": "client-uuid", "name": "bench-scratch"}'
-        )
-        key_resp = _make_response(
-            200,
-            b'{"id": "key-1", "key": "arche_k_secret", "name": "benchmark-key", "permissions": ["generate"]}',
-        )
-        bp_resp = _make_response(200, b'{"id": "bp-x", "name": "x"}')
-        gen_resp = _make_response(200, b'{"ok": true}')
+        client_resp, key_resp, bp_resp, gen_resp, _, _ = _default_bench_responses()
 
         seed_responses = [client_resp, key_resp] + [bp_resp] * 10
         side_effect = _make_side_effect_fn(seed_responses, gen_resp)
@@ -151,20 +149,12 @@ class TestRunBench(unittest.TestCase):
 
     def test_concurrency_5_spawns_multiple_workers(self):
         """Verify concurrency=5 uses multiple concurrent workers."""
-        client_resp = _make_response(
-            200, b'{"id": "c-1", "name": "bench-scratch"}'
+        client_resp, key_resp, bp_resp, gen_resp, del_key_resp, del_client_resp = (
+            _default_bench_responses()
         )
-        key_resp = _make_response(
-            200,
-            b'{"id": "k-1", "key": "arche_k_x", "name": "benchmark-key", "permissions": ["generate"]}',
-        )
-        bp_resp = _make_response(200, b'{"id": "bp-x", "name": "x"}')
-        gen_resp = _make_response(200, b'{"ok": true}')
-        delete_key_resp = _make_response(200, b'{"ok": true}')
-        delete_client_resp = _make_response(200, b'{"ok": true}')
 
         seed_responses = [client_resp, key_resp] + [bp_resp] * 10
-        cleanup_responses = [delete_key_resp, delete_client_resp]
+        cleanup_responses = [del_key_resp, del_client_resp]
 
         side_effect = _make_side_effect_fn(
             seed_responses + cleanup_responses, gen_resp
@@ -191,20 +181,12 @@ class TestRunBench(unittest.TestCase):
 
     def test_generates_per_second_is_printed(self):
         """Verify generates/s is printed in the output."""
-        client_resp = _make_response(
-            200, b'{"id": "c-1", "name": "bench-scratch"}'
+        client_resp, key_resp, bp_resp, gen_resp, del_key_resp, del_client_resp = (
+            _default_bench_responses()
         )
-        key_resp = _make_response(
-            200,
-            b'{"id": "k-1", "key": "arche_k_x", "name": "benchmark-key", "permissions": ["generate"]}',
-        )
-        bp_resp = _make_response(200, b'{"id": "bp-x", "name": "x"}')
-        gen_resp = _make_response(200, b'{"ok": true}')
-        delete_key_resp = _make_response(200, b'{"ok": true}')
-        delete_client_resp = _make_response(200, b'{"ok": true}')
 
         seed_responses = [client_resp, key_resp] + [bp_resp] * 10
-        cleanup_responses = [delete_key_resp, delete_client_resp]
+        cleanup_responses = [del_key_resp, del_client_resp]
 
         side_effect = _make_side_effect_fn(
             seed_responses + cleanup_responses, gen_resp
@@ -227,20 +209,12 @@ class TestRunBench(unittest.TestCase):
 
     def test_bench_fires_generate_requests_with_scoped_key(self):
         """Verify generate requests use the scoped API key, not the super key."""
-        client_resp = _make_response(
-            200, b'{"id": "c-1", "name": "bench-scratch"}'
+        client_resp, key_resp, bp_resp, gen_resp, del_key_resp, del_client_resp = (
+            _default_bench_responses("arche_k_scoped")
         )
-        key_resp = _make_response(
-            200,
-            b'{"id": "k-1", "key": "arche_k_scoped", "name": "benchmark-key", "permissions": ["generate"]}',
-        )
-        bp_resp = _make_response(200, b'{"id": "bp-x", "name": "x"}')
-        gen_resp = _make_response(200, b'{"ok": true}')
-        delete_key_resp = _make_response(200, b'{"ok": true}')
-        delete_client_resp = _make_response(200, b'{"ok": true}')
 
         seed_responses = [client_resp, key_resp] + [bp_resp] * 10
-        cleanup_responses = [delete_key_resp, delete_client_resp]
+        cleanup_responses = [del_key_resp, del_client_resp]
 
         side_effect = _make_side_effect_fn(
             seed_responses + cleanup_responses, gen_resp
@@ -271,20 +245,12 @@ class TestRunBench(unittest.TestCase):
 
     def test_cleanup_uses_super_key(self):
         """Verify cleanup DELETE calls use the super admin key."""
-        client_resp = _make_response(
-            200, b'{"id": "c-1", "name": "bench-scratch"}'
+        client_resp, key_resp, bp_resp, gen_resp, del_key_resp, del_client_resp = (
+            _default_bench_responses()
         )
-        key_resp = _make_response(
-            200,
-            b'{"id": "k-1", "key": "arche_k_x", "name": "benchmark-key", "permissions": ["generate"]}',
-        )
-        bp_resp = _make_response(200, b'{"id": "bp-x", "name": "x"}')
-        gen_resp = _make_response(200, b'{"ok": true}')
-        delete_key_resp = _make_response(200, b'{"ok": true}')
-        delete_client_resp = _make_response(200, b'{"ok": true}')
 
         seed_responses = [client_resp, key_resp] + [bp_resp] * 10
-        cleanup_responses = [delete_key_resp, delete_client_resp]
+        cleanup_responses = [del_key_resp, del_client_resp]
 
         side_effect = _make_side_effect_fn(
             seed_responses + cleanup_responses, gen_resp

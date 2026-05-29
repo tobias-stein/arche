@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import { Building2, Moon, PanelRightClose, PanelRightOpen, Search, Sun } from 'lucide-react'
 import { useTheme } from '@/stores/theme'
@@ -7,7 +8,9 @@ import { useClient } from '@/api/generated/hooks'
 import { AppSidebar } from './AppSidebar'
 import { ActivityPanel } from './ActivityPanel'
 import { GlobalSearch } from './GlobalSearch'
-import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
+import { SidebarProvider, SidebarTrigger, useSidebar } from '@/components/ui/sidebar'
+import { Sheet, SheetContent } from '@/components/ui/sheet'
+import { useIsMobile } from '@/hooks/use-mobile'
 
 function ThemeToggle() {
   const { mode, toggle } = useTheme()
@@ -64,21 +67,48 @@ function Header() {
   )
 }
 
-export function AppShell() {
+function ShellInner() {
+  const { open, openMobile, setOpenMobile } = useSidebar()
+  const isMobile = useIsMobile()
   const { panelOpen } = useUi()
 
   return (
-    <SidebarProvider defaultOpen={true}>
-      <div className="flex min-h-screen w-full bg-background">
-        <AppSidebar />
-        <div className="flex flex-1 flex-col min-w-0">
-          <Header />
-          <main className="flex-1 p-4">
-            <Outlet />
-          </main>
+    <div className="flex min-h-screen w-full bg-background">
+      {isMobile ? (
+        <Sheet open={openMobile} onOpenChange={setOpenMobile}>
+          <SheetContent side="left" className="w-[16rem] p-0 [&>button]:hidden">
+            <div className="flex h-full w-full flex-col bg-sidebar text-sidebar-foreground">
+              <AppSidebar />
+            </div>
+          </SheetContent>
+        </Sheet>
+      ) : (
+        <div
+          className="bg-sidebar text-sidebar-foreground border-r border-sidebar-border shrink-0 overflow-hidden transition-all duration-200 ease-linear"
+          style={{ width: open ? 'var(--sidebar-width)' : '0px' }}
+        >
+          <div style={{ width: 'var(--sidebar-width)' }} className="h-full">
+            <AppSidebar />
+          </div>
         </div>
-        {panelOpen && <ActivityPanel />}
+      )}
+      <div className="flex flex-1 flex-col min-w-0">
+        <Header />
+        <main className="flex-1 p-4">
+          <Outlet />
+        </main>
       </div>
+      {panelOpen && <ActivityPanel />}
+    </div>
+  )
+}
+
+export function AppShell() {
+  const [sidebarOpen, setSidebarOpen] = useState(true)
+
+  return (
+    <SidebarProvider open={sidebarOpen} onOpenChange={setSidebarOpen}>
+      <ShellInner />
       <GlobalSearch />
     </SidebarProvider>
   )

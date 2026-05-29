@@ -71,20 +71,20 @@ export function AppSidebar() {
   const displayName = isSuperAdmin ? 'Super Admin' : (keyName ?? 'API Key')
 
   return (
-    <Sidebar collapsible="icon">
+    <Sidebar collapsible="none">
       <SidebarHeader>
         {isAuthenticated && isSuperAdmin ? (
           <DropdownMenu>
             <DropdownMenuTrigger className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors [&[data-state=open]>svg:last-child]:rotate-180">
               <Building2 className="h-4 w-4 shrink-0" />
-              <span className="truncate flex-1 text-left group-data-[collapsible=icon]:hidden">
+              <span className="truncate flex-1 text-left">
                 {clientsLoading
                   ? 'Loading...'
                   : selectedClientId
                     ? clientsData?.data.find((c) => c.id === selectedClientId)?.name
                     : 'All clients'}
               </span>
-              <ChevronDown className="h-3 w-3 opacity-50 shrink-0 transition-transform group-data-[collapsible=icon]:hidden" />
+              <ChevronDown className="h-3 w-3 opacity-50 shrink-0 transition-transform" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-56">
               <DropdownMenuItem onClick={() => setSelectedClientId(null)}>
@@ -105,13 +105,13 @@ export function AppSidebar() {
         ) : isAuthenticated && selectedClientId && clientData ? (
           <div className="flex items-center gap-2 px-2 py-1.5">
             <Building2 className="h-4 w-4 shrink-0" />
-            <span className="truncate text-sm font-medium group-data-[collapsible=icon]:hidden">{clientData.name}</span>
-            <Badge variant="secondary" className="ml-auto text-xs group-data-[collapsible=icon]:hidden">scoped</Badge>
+            <span className="truncate text-sm font-medium">{clientData.name}</span>
+            <Badge variant="secondary" className="ml-auto text-xs">scoped</Badge>
           </div>
         ) : isAuthenticated && selectedClientId ? (
           <div className="flex items-center gap-2 px-2 py-1.5">
             <Building2 className="h-4 w-4 shrink-0" />
-            <span className="truncate text-sm font-medium group-data-[collapsible=icon]:hidden">Loading...</span>
+            <span className="truncate text-sm font-medium">Loading...</span>
           </div>
         ) : null}
       </SidebarHeader>

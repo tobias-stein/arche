@@ -61,10 +61,12 @@ pub fn assemble_affix_attributes(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::cache::Cache;
     use arche_types::*;
     use chrono::{TimeZone, Utc};
     use rand::rngs::StdRng;
     use rand::SeedableRng;
+    use std::collections::HashMap;
     use std::sync::Arc;
     use uuid::Uuid;
 
@@ -90,11 +92,13 @@ mod tests {
         })
     }
 
-    fn make_client_cache() -> ClientCache {
+    fn make_client_cache(affixes: &[Arc<Affix>]) -> ClientCache {
         ClientCache {
             blueprints: vec![],
             affixes: vec![],
             global_meta_attributes: vec![],
+            blueprint_resolved_attributes: HashMap::new(),
+            affix_resolved_attributes: Cache::resolve_affix_attributes(affixes, &[]),
         }
     }
 
@@ -193,7 +197,7 @@ mod tests {
             serde_json::json!({"name": "iceResist", "value_type": "single", "value": 5.0}),
         );
 
-        let cache = make_client_cache();
+        let cache = make_client_cache(&[Arc::clone(&affix1), Arc::clone(&affix2)]);
         let mut rng = StdRng::seed_from_u64(42);
         let entries = assemble_affix_attributes(
             &[(Arc::clone(&affix1), 0), (Arc::clone(&affix2), 1)],
@@ -217,7 +221,7 @@ mod tests {
             serde_json::json!({"name": "fireDamage", "value_type": "single", "value": 10.0}),
         );
 
-        let cache = make_client_cache();
+        let cache = make_client_cache(&[Arc::clone(&affix)]);
         let mut rng = StdRng::seed_from_u64(42);
         let entries = assemble_affix_attributes(
             &[(Arc::clone(&affix), 0)],
@@ -232,7 +236,7 @@ mod tests {
 
     #[test]
     fn test_assemble_affix_attributes_empty_list() {
-        let cache = make_client_cache();
+        let cache = make_client_cache(&[]);
         let mut rng = StdRng::seed_from_u64(42);
         let entries = assemble_affix_attributes(&[], &cache, &mut rng);
 
@@ -257,7 +261,7 @@ mod tests {
             serde_json::json!({"name": "bAttr", "value_type": "single", "value": 3.0}),
         );
 
-        let cache = make_client_cache();
+        let cache = make_client_cache(&[Arc::clone(&affix1), Arc::clone(&affix2), Arc::clone(&affix3)]);
         let mut rng = StdRng::seed_from_u64(42);
         let entries = assemble_affix_attributes(
             &[
@@ -284,7 +288,7 @@ mod tests {
             serde_json::json!({"name": "fireDamage", "value_type": "range", "min": 5.0, "max": 15.0}),
         );
 
-        let cache = make_client_cache();
+        let cache = make_client_cache(&[Arc::clone(&affix)]);
         let mut rng1 = StdRng::seed_from_u64(123);
         let entries1 = assemble_affix_attributes(
             &[(Arc::clone(&affix), 0)],

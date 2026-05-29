@@ -1,6 +1,6 @@
 ---
 title: Pre-resolve blueprint attributes at cache-load time
-status: ready-for-agent
+status: completed
 ---
 
 ## What to build

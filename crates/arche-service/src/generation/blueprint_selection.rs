@@ -1,9 +1,10 @@
-use arche_types::attribute::{AttributePayload, BlueprintAttribute};
+use arche_types::attribute::AttributePayload;
 use arche_types::generate::{ConstraintValue, GenerateRequest};
-use arche_types::{Blueprint, GlobalMetaAttribute};
+use arche_types::Blueprint;
 use crate::cache::ClientCache;
 use rand::distributions::{Distribution, WeightedIndex};
 use rand::Rng;
+use std::collections::HashMap;
 use std::sync::Arc;
 
 #[derive(Debug, thiserror::Error)]
@@ -25,8 +26,12 @@ pub fn select_blueprint(
 
     if let Some(ref constraints) = request.constraints {
         candidates.retain(|bp| {
+            let resolved_attrs = match client_cache.blueprint_resolved_attributes.get(&bp.id) {
+                Some(attrs) => attrs,
+                None => return false,
+            };
             constraints.iter().all(|(key, constraint)| {
-                blueprint_satisfies_constraint(bp, key, constraint, &client_cache.global_meta_attributes)
+                blueprint_satisfies_constraint(key, constraint, resolved_attrs)
             })
         });
     }
@@ -46,36 +51,16 @@ pub fn select_blueprint(
 }
 
 fn blueprint_satisfies_constraint(
-    bp: &Blueprint,
     key: &str,
     constraint: &ConstraintValue,
-    gmas: &[Arc<GlobalMetaAttribute>],
+    resolved_attrs: &HashMap<String, AttributePayload>,
 ) -> bool {
-    let attr_value = match bp.attributes.get(key) {
-        Some(v) => v,
-        None => return false,
-    };
-
-    let payload = match resolve_payload(attr_value, gmas) {
+    let payload = match resolved_attrs.get(key) {
         Some(p) => p,
         None => return false,
     };
 
-    payload_matches_constraint(&payload, constraint)
-}
-
-fn resolve_payload(
-    attr_value: &serde_json::Value,
-    gmas: &[Arc<GlobalMetaAttribute>],
-) -> Option<AttributePayload> {
-    let bp_attr: BlueprintAttribute = serde_json::from_value(attr_value.clone()).ok()?;
-    match bp_attr {
-        BlueprintAttribute::Inline(inline) => Some(inline.payload),
-        BlueprintAttribute::Ref(arche_types::attribute::BlueprintRefAttribute { ref_id }) => {
-            let gma = gmas.iter().find(|gma| gma.id == ref_id)?;
-            serde_json::from_value(gma.payload.clone()).ok()
-        }
-    }
+    payload_matches_constraint(payload, constraint)
 }
 
 fn payload_matches_constraint(payload: &AttributePayload, constraint: &ConstraintValue) -> bool {
@@ -120,8 +105,10 @@ fn payload_matches_constraint(payload: &AttributePayload, constraint: &Constrain
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::cache::Cache;
     use arche_types::attribute::*;
     use arche_types::generate::*;
+    use arche_types::GlobalMetaAttribute;
     use chrono::{TimeZone, Utc};
     use rand::rngs::StdRng;
     use rand::SeedableRng;
@@ -177,10 +164,14 @@ mod tests {
     ) -> (ClientCache, Vec<Arc<Blueprint>>) {
         let bp_arcs: Vec<Arc<Blueprint>> = blueprints.into_iter().map(Arc::new).collect();
         let gma_arcs: Vec<Arc<GlobalMetaAttribute>> = gmas.into_iter().map(Arc::new).collect();
+        let blueprint_resolved_attributes =
+            Cache::resolve_blueprint_attributes(&bp_arcs, &gma_arcs);
         let cc = ClientCache {
             blueprints: bp_arcs.clone(),
             affixes: vec![],
             global_meta_attributes: gma_arcs,
+            blueprint_resolved_attributes,
+            affix_resolved_attributes: HashMap::new(),
         };
         (cc, bp_arcs)
     }
@@ -245,6 +236,7 @@ mod tests {
             seed: Some(42),
             constraints: None,
             affixes: None,
+            client_id: None,
         };
 
         let result = select_blueprint(&cc, &req, &mut rng).unwrap();
@@ -271,6 +263,7 @@ mod tests {
             seed: Some(42),
             constraints: None,
             affixes: None,
+            client_id: None,
         };
 
         let err = select_blueprint(&cc, &req, &mut rng).unwrap_err();
@@ -313,6 +306,7 @@ mod tests {
             seed: None,
             constraints: Some(constraints),
             affixes: None,
+            client_id: None,
         };
 
         let result = select_blueprint(&cc, &req, &mut rng).unwrap();
@@ -350,6 +344,7 @@ mod tests {
             seed: None,
             constraints: Some(constraints),
             affixes: None,
+            client_id: None,
         };
 
         let err = select_blueprint(&cc, &req, &mut rng).unwrap_err();
@@ -390,6 +385,7 @@ mod tests {
             seed: None,
             constraints: Some(constraints),
             affixes: None,
+            client_id: None,
         };
 
         let result = select_blueprint(&cc, &req, &mut rng).unwrap();
@@ -427,6 +423,7 @@ mod tests {
             seed: None,
             constraints: Some(constraints),
             affixes: None,
+            client_id: None,
         };
 
         let err = select_blueprint(&cc, &req, &mut rng).unwrap_err();
@@ -467,6 +464,7 @@ mod tests {
             seed: None,
             constraints: Some(constraints),
             affixes: None,
+            client_id: None,
         };
 
         let result = select_blueprint(&cc, &req, &mut rng).unwrap();
@@ -504,6 +502,7 @@ mod tests {
             seed: None,
             constraints: Some(constraints),
             affixes: None,
+            client_id: None,
         };
 
         let err = select_blueprint(&cc, &req, &mut rng).unwrap_err();
@@ -544,6 +543,7 @@ mod tests {
             seed: None,
             constraints: Some(constraints),
             affixes: None,
+            client_id: None,
         };
 
         let result = select_blueprint(&cc, &req, &mut rng).unwrap();
@@ -581,6 +581,7 @@ mod tests {
             seed: None,
             constraints: Some(constraints),
             affixes: None,
+            client_id: None,
         };
 
         let err = select_blueprint(&cc, &req, &mut rng).unwrap_err();
@@ -621,6 +622,7 @@ mod tests {
             seed: None,
             constraints: Some(constraints),
             affixes: None,
+            client_id: None,
         };
 
         let result = select_blueprint(&cc, &req, &mut rng).unwrap();
@@ -652,6 +654,7 @@ mod tests {
             seed: None,
             constraints: Some(constraints),
             affixes: None,
+            client_id: None,
         };
 
         let result = select_blueprint(&cc, &req, &mut rng).unwrap();
@@ -690,6 +693,7 @@ mod tests {
             seed: None,
             constraints: Some(constraints),
             affixes: None,
+            client_id: None,
         };
 
         let result = select_blueprint(&cc, &req, &mut rng).unwrap();
@@ -743,6 +747,7 @@ mod tests {
             seed: None,
             constraints: Some(constraints),
             affixes: None,
+            client_id: None,
         };
 
         let result = select_blueprint(&cc, &req, &mut rng).unwrap();
@@ -793,6 +798,7 @@ mod tests {
             seed: None,
             constraints: Some(constraints),
             affixes: None,
+            client_id: None,
         };
 
         let err = select_blueprint(&cc, &req, &mut rng).unwrap_err();
@@ -832,6 +838,7 @@ mod tests {
             seed: None,
             constraints: Some(constraints),
             affixes: None,
+            client_id: None,
         };
 
         let err = select_blueprint(&cc, &req, &mut rng).unwrap_err();
@@ -880,6 +887,7 @@ mod tests {
             seed: None,
             constraints: Some(constraints),
             affixes: None,
+            client_id: None,
         };
 
         let result = select_blueprint(&cc, &req, &mut rng).unwrap();
@@ -924,6 +932,7 @@ mod tests {
             seed: Some(12345),
             constraints: None,
             affixes: None,
+            client_id: None,
         };
         let result1 = select_blueprint(&cc, &req, &mut rng1).unwrap();
 
@@ -967,6 +976,7 @@ mod tests {
                 seed: Some(seed),
                 constraints: None,
                 affixes: None,
+                client_id: None,
             };
             let result = select_blueprint(&cc, &req, &mut rng).unwrap();
             if result.id == high_weight_id {
@@ -995,6 +1005,7 @@ mod tests {
             seed: None,
             constraints: None,
             affixes: None,
+            client_id: None,
         };
 
         let result = select_blueprint(&cc, &req, &mut rng).unwrap();
@@ -1011,6 +1022,7 @@ mod tests {
             seed: None,
             constraints: None,
             affixes: None,
+            client_id: None,
         };
 
         let err = select_blueprint(&cc, &req, &mut rng).unwrap_err();

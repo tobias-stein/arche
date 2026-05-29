@@ -39,21 +39,25 @@ cleanup() {
   exit 0
 }
 
+print_api_key_box() {
+  echo ""
+  echo "╔══════════════════════════════════════════════════════════════╗"
+  echo "║               === SUPER ADMIN API KEY ===                  ║"
+  echo "║                                                            ║"
+  printf "║  %-58s║\n" "$1"
+  echo "║                                                            ║"
+  echo "║  Store this key securely. It will not be shown again.      ║"
+  echo "╚══════════════════════════════════════════════════════════════╝"
+  echo ""
+}
+
 DID_START_STACK=false
 
 # ── Target URL mode ──────────────────────────────────
 if [ -n "$TARGET_URL" ]; then
   echo "[bench] Target URL mode: $TARGET_URL"
   API_KEY="arche_k_placeholder_for_target_url_mode"
-  echo ""
-  echo "╔══════════════════════════════════════════════════════════════╗"
-  echo "║               === SUPER ADMIN API KEY ===                  ║"
-  echo "║                                                            ║"
-  printf "║  %-58s║\n" "$API_KEY"
-  echo "║                                                            ║"
-  echo "║  Store this key securely. It will not be shown again.      ║"
-  echo "╚══════════════════════════════════════════════════════════════╝"
-  echo ""
+  print_api_key_box "$API_KEY"
   export ARCHE_API_KEY="$API_KEY"
   echo "[bench] ARCHE_API_KEY exported. Press Ctrl+C to exit."
   trap cleanup SIGINT SIGTERM EXIT
@@ -124,15 +128,7 @@ if [ -z "$API_KEY" ]; then
   exit 1
 fi
 
-echo ""
-echo "╔══════════════════════════════════════════════════════════════╗"
-echo "║               === SUPER ADMIN API KEY ===                  ║"
-echo "║                                                            ║"
-printf "║  %-58s║\n" "$API_KEY"
-echo "║                                                            ║"
-echo "║  Store this key securely. It will not be shown again.      ║"
-echo "╚══════════════════════════════════════════════════════════════╝"
-echo ""
+print_api_key_box "$API_KEY"
 
 export ARCHE_API_KEY="$API_KEY"
 echo "[bench] ARCHE_API_KEY exported."

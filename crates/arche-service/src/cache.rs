@@ -1,3 +1,6 @@
+use arche_types::attribute::{
+    AffixAttribute, AttributePayload, BlueprintAttribute, BlueprintRefAttribute,
+};
 use arche_types::*;
 use chrono::{DateTime, Utc};
 use sqlx::{PgPool, Row};
@@ -23,6 +26,8 @@ pub struct ClientCache {
     pub blueprints: Vec<Arc<Blueprint>>,
     pub affixes: Vec<Arc<Affix>>,
     pub global_meta_attributes: Vec<Arc<GlobalMetaAttribute>>,
+    pub blueprint_resolved_attributes: HashMap<Uuid, HashMap<String, AttributePayload>>,
+    pub affix_resolved_attributes: HashMap<Uuid, Option<(String, AttributePayload)>>,
 }
 
 impl Cache {
@@ -242,6 +247,70 @@ impl Cache {
         Ok(map)
     }
 
+    pub(crate) fn resolve_blueprint_attributes(
+        blueprints: &[Arc<Blueprint>],
+        gmas: &[Arc<GlobalMetaAttribute>],
+    ) -> HashMap<Uuid, HashMap<String, AttributePayload>> {
+        let mut result = HashMap::new();
+        for bp in blueprints {
+            let mut resolved = HashMap::new();
+            let attrs = match bp.attributes.as_object() {
+                Some(obj) => obj,
+                None => {
+                    result.insert(bp.id, resolved);
+                    continue;
+                }
+            };
+            for (key, attr_value) in attrs {
+                let bp_attr: BlueprintAttribute = match serde_json::from_value(attr_value.clone()) {
+                    Ok(a) => a,
+                    Err(_) => continue,
+                };
+                match bp_attr {
+                    BlueprintAttribute::Ref(BlueprintRefAttribute { ref_id }) => {
+                        if let Some(gma) = gmas.iter().find(|g| g.id == ref_id) {
+                            if let Ok(payload) = serde_json::from_value(gma.payload.clone()) {
+                                resolved.insert(key.clone(), payload);
+                            }
+                        }
+                    }
+                    BlueprintAttribute::Inline(inline_def) => {
+                        resolved.insert(key.clone(), inline_def.payload);
+                    }
+                }
+            }
+            result.insert(bp.id, resolved);
+        }
+        result
+    }
+
+    pub(crate) fn resolve_affix_attributes(
+        affixes: &[Arc<Affix>],
+        gmas: &[Arc<GlobalMetaAttribute>],
+    ) -> HashMap<Uuid, Option<(String, AttributePayload)>> {
+        let mut result = HashMap::new();
+        for affix in affixes {
+            let resolved = Self::resolve_single_affix_attribute(affix, gmas);
+            result.insert(affix.id, resolved);
+        }
+        result
+    }
+
+    pub(crate) fn resolve_single_affix_attribute(
+        affix: &Affix,
+        gmas: &[Arc<GlobalMetaAttribute>],
+    ) -> Option<(String, AttributePayload)> {
+        let affix_attr: AffixAttribute = serde_json::from_value(affix.attribute.clone()).ok()?;
+        match affix_attr {
+            AffixAttribute::Inline(inline_def) => Some((inline_def.name, inline_def.payload)),
+            AffixAttribute::Ref { ref_id } => {
+                let gma = gmas.iter().find(|g| g.id == ref_id)?;
+                let payload: AttributePayload = serde_json::from_value(gma.payload.clone()).ok()?;
+                Some((gma.name.clone(), payload))
+            }
+        }
+    }
+
     fn build_client_caches(
         clients: &HashMap<Uuid, Client>,
         blueprints: &HashMap<Uuid, Blueprint>,
@@ -257,6 +326,8 @@ impl Cache {
                         blueprints: Vec::new(),
                         affixes: Vec::new(),
                         global_meta_attributes: Vec::new(),
+                        blueprint_resolved_attributes: HashMap::new(),
+                        affix_resolved_attributes: HashMap::new(),
                     },
                 )
             })
@@ -278,6 +349,13 @@ impl Cache {
             if let Some(cc) = by_client.get_mut(&gma.client_id) {
                 cc.global_meta_attributes.push(Arc::new(gma.clone()));
             }
+        }
+
+        for (_, cc) in by_client.iter_mut() {
+            cc.blueprint_resolved_attributes =
+                Self::resolve_blueprint_attributes(&cc.blueprints, &cc.global_meta_attributes);
+            cc.affix_resolved_attributes =
+                Self::resolve_affix_attributes(&cc.affixes, &cc.global_meta_attributes);
         }
 
         by_client.into_iter().map(|(k, v)| (k, Arc::new(v))).collect()
@@ -556,10 +634,25 @@ impl Cache {
 
         match data.client {
             Some(client) => {
+                let blueprints: Vec<Arc<Blueprint>> =
+                    data.blueprints.values().map(|bp| Arc::new(bp.clone())).collect();
+                let affixes: Vec<Arc<Affix>> =
+                    data.affixes.values().map(|a| Arc::new(a.clone())).collect();
+                let gmas: Vec<Arc<GlobalMetaAttribute>> = data
+                    .global_meta_attributes
+                    .values()
+                    .map(|gma| Arc::new(gma.clone()))
+                    .collect();
+                let blueprint_resolved_attributes =
+                    Self::resolve_blueprint_attributes(&blueprints, &gmas);
+                let affix_resolved_attributes =
+                    Self::resolve_affix_attributes(&affixes, &gmas);
                 let cc = ClientCache {
-                    blueprints: data.blueprints.values().map(|bp| Arc::new(bp.clone())).collect(),
-                    affixes: data.affixes.values().map(|a| Arc::new(a.clone())).collect(),
-                    global_meta_attributes: data.global_meta_attributes.values().map(|gma| Arc::new(gma.clone())).collect(),
+                    blueprints,
+                    affixes,
+                    global_meta_attributes: gmas,
+                    blueprint_resolved_attributes,
+                    affix_resolved_attributes,
                 };
                 self.blueprints.extend(data.blueprints);
                 self.affixes.extend(data.affixes);

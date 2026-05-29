@@ -2,7 +2,7 @@ use arche_types::generate::{
     BatchGenerateRequest, BatchGenerateResponse, BatchGenerateResultItem, ConstraintValue,
     GenerateRequest, GenerateResponse,
 };
-use arche_types::{AffixLocation, BlueprintAffix};
+use arche_types::{Affix, AffixLocation, Blueprint, BlueprintAffix, GlobalMetaAttribute};
 use axum::extract::State;
 use axum::http::HeaderMap;
 use axum::Json;
@@ -240,14 +240,25 @@ async fn load_client_cache(
 
         let bp_affixes_lookup = data.blueprint_affixes;
 
+        let blueprints: Vec<Arc<Blueprint>> =
+            data.blueprints.values().map(|bp| Arc::new(bp.clone())).collect();
+        let affixes: Vec<Arc<Affix>> =
+            data.affixes.values().map(|a| Arc::new(a.clone())).collect();
+        let gmas: Vec<Arc<GlobalMetaAttribute>> = data
+            .global_meta_attributes
+            .values()
+            .map(|gma| Arc::new(gma.clone()))
+            .collect();
+        let blueprint_resolved_attributes =
+            Cache::resolve_blueprint_attributes(&blueprints, &gmas);
+        let affix_resolved_attributes =
+            Cache::resolve_affix_attributes(&affixes, &gmas);
         let client_cache = Arc::new(ClientCache {
-            blueprints: data.blueprints.values().map(|bp| Arc::new(bp.clone())).collect(),
-            affixes: data.affixes.values().map(|a| Arc::new(a.clone())).collect(),
-            global_meta_attributes: data
-                .global_meta_attributes
-                .values()
-                .map(|gma| Arc::new(gma.clone()))
-                .collect(),
+            blueprints,
+            affixes,
+            global_meta_attributes: gmas,
+            blueprint_resolved_attributes,
+            affix_resolved_attributes,
         });
 
         Ok((client_cache, bp_affixes_lookup))
@@ -348,11 +359,17 @@ mod tests {
         let client_id = Uuid::new_v4();
         let bp_id = Uuid::new_v4();
         let bp = make_blueprint(bp_id, client_id, "Longsword");
+        let bp_arcs = vec![Arc::new(bp)];
+        let gmas = vec![];
+        let blueprint_resolved_attributes =
+            Cache::resolve_blueprint_attributes(&bp_arcs, &gmas);
         let bp_affixes = HashMap::new();
         let cache = ClientCache {
-            blueprints: vec![Arc::new(bp)],
+            blueprints: bp_arcs,
             affixes: vec![],
-            global_meta_attributes: vec![],
+            global_meta_attributes: gmas,
+            blueprint_resolved_attributes,
+            affix_resolved_attributes: HashMap::new(),
         };
         (cache, bp_affixes)
     }

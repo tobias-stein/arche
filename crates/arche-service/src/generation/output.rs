@@ -65,6 +65,7 @@ mod tests {
     use chrono::{TimeZone, Utc};
     use rand::rngs::StdRng;
     use rand::SeedableRng;
+    use std::collections::HashMap;
     use std::sync::Arc;
     use uuid::Uuid;
 
@@ -95,6 +96,8 @@ mod tests {
             blueprints: vec![],
             affixes: vec![],
             global_meta_attributes: vec![],
+            blueprint_resolved_attributes: HashMap::new(),
+            affix_resolved_attributes: HashMap::new(),
         }
     }
 

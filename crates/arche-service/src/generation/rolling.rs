@@ -1,4 +1,4 @@
-use arche_types::attribute::*;
+use arche_types::attribute::{AttributePayload, DistributionConfig};
 use arche_types::*;
 use crate::cache::ClientCache;
 use rand::rngs::StdRng;
@@ -27,38 +27,11 @@ fn resolve_attributes(
     blueprint: &Blueprint,
     client_cache: &ClientCache,
 ) -> HashMap<String, AttributePayload> {
-    let mut resolved: HashMap<String, AttributePayload> = HashMap::new();
-
-    let attrs = match blueprint.attributes.as_object() {
-        Some(obj) => obj,
-        None => return resolved,
-    };
-
-    for (key, attr_value) in attrs {
-        let bp_attr: BlueprintAttribute = match serde_json::from_value(attr_value.clone()) {
-            Ok(a) => a,
-            Err(_) => continue,
-        };
-
-        match bp_attr {
-            BlueprintAttribute::Ref(arche_types::attribute::BlueprintRefAttribute { ref_id }) => {
-                if let Some(gma) = client_cache
-                    .global_meta_attributes
-                    .iter()
-                    .find(|g| g.id == ref_id)
-                {
-                    if let Ok(payload) = serde_json::from_value(gma.payload.clone()) {
-                        resolved.insert(key.clone(), payload);
-                    }
-                }
-            }
-            BlueprintAttribute::Inline(inline_def) => {
-                resolved.insert(key.clone(), inline_def.payload);
-            }
-        }
-    }
-
-    resolved
+    client_cache
+        .blueprint_resolved_attributes
+        .get(&blueprint.id)
+        .cloned()
+        .unwrap_or_default()
 }
 
 fn roll_attribute<R: Rng + ?Sized>(payload: &AttributePayload, rng: &mut R) -> serde_json::Value {
@@ -111,20 +84,10 @@ pub fn resolve_and_roll_affix_attribute(
     client_cache: &ClientCache,
     rng: &mut impl Rng,
 ) -> Option<(String, serde_json::Value)> {
-    let affix_attr: AffixAttribute = serde_json::from_value(affix.attribute.clone()).ok()?;
-
-    let (attr_name, payload) = match affix_attr {
-        AffixAttribute::Inline(inline_def) => (inline_def.name, inline_def.payload),
-        AffixAttribute::Ref { ref_id } => {
-            let gma = client_cache
-                .global_meta_attributes
-                .iter()
-                .find(|g| g.id == ref_id)?;
-            let payload: AttributePayload = serde_json::from_value(gma.payload.clone()).ok()?;
-            (gma.name.clone(), payload)
-        }
-    };
-
+    let (attr_name, payload) = client_cache
+        .affix_resolved_attributes
+        .get(&affix.id)?
+        .clone()?;
     let rolled = roll_attribute(&payload, rng);
     Some((attr_name, rolled))
 }
@@ -160,6 +123,8 @@ mod tests {
             blueprints: vec![],
             affixes: vec![],
             global_meta_attributes: globals,
+            blueprint_resolved_attributes: HashMap::new(),
+            affix_resolved_attributes: HashMap::new(),
         }
     }
 

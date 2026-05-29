@@ -1,9 +1,10 @@
-use arche_types::attribute::{AttributePayload, BlueprintAttribute};
+use arche_types::attribute::AttributePayload;
 use arche_types::generate::{ConstraintValue, GenerateRequest};
-use arche_types::{Blueprint, GlobalMetaAttribute};
+use arche_types::Blueprint;
 use crate::cache::ClientCache;
 use rand::distributions::{Distribution, WeightedIndex};
 use rand::Rng;
+use std::collections::HashMap;
 use std::sync::Arc;
 
 #[derive(Debug, thiserror::Error)]
@@ -25,8 +26,12 @@ pub fn select_blueprint(
 
     if let Some(ref constraints) = request.constraints {
         candidates.retain(|bp| {
+            let resolved_attrs = match client_cache.blueprint_resolved_attributes.get(&bp.id) {
+                Some(attrs) => attrs,
+                None => return false,
+            };
             constraints.iter().all(|(key, constraint)| {
-                blueprint_satisfies_constraint(bp, key, constraint, &client_cache.global_meta_attributes)
+                blueprint_satisfies_constraint(key, constraint, resolved_attrs)
             })
         });
     }
@@ -46,36 +51,16 @@ pub fn select_blueprint(
 }
 
 fn blueprint_satisfies_constraint(
-    bp: &Blueprint,
     key: &str,
     constraint: &ConstraintValue,
-    gmas: &[Arc<GlobalMetaAttribute>],
+    resolved_attrs: &HashMap<String, AttributePayload>,
 ) -> bool {
-    let attr_value = match bp.attributes.get(key) {
-        Some(v) => v,
-        None => return false,
-    };
-
-    let payload = match resolve_payload(attr_value, gmas) {
+    let payload = match resolved_attrs.get(key) {
         Some(p) => p,
         None => return false,
     };
 
-    payload_matches_constraint(&payload, constraint)
-}
-
-fn resolve_payload(
-    attr_value: &serde_json::Value,
-    gmas: &[Arc<GlobalMetaAttribute>],
-) -> Option<AttributePayload> {
-    let bp_attr: BlueprintAttribute = serde_json::from_value(attr_value.clone()).ok()?;
-    match bp_attr {
-        BlueprintAttribute::Inline(inline) => Some(inline.payload),
-        BlueprintAttribute::Ref(arche_types::attribute::BlueprintRefAttribute { ref_id }) => {
-            let gma = gmas.iter().find(|gma| gma.id == ref_id)?;
-            serde_json::from_value(gma.payload.clone()).ok()
-        }
-    }
+    payload_matches_constraint(payload, constraint)
 }
 
 fn payload_matches_constraint(payload: &AttributePayload, constraint: &ConstraintValue) -> bool {
@@ -122,6 +107,7 @@ mod tests {
     use super::*;
     use arche_types::attribute::*;
     use arche_types::generate::*;
+    use arche_types::GlobalMetaAttribute;
     use chrono::{TimeZone, Utc};
     use rand::rngs::StdRng;
     use rand::SeedableRng;
@@ -181,6 +167,8 @@ mod tests {
             blueprints: bp_arcs.clone(),
             affixes: vec![],
             global_meta_attributes: gma_arcs,
+            blueprint_resolved_attributes: HashMap::new(),
+            affix_resolved_attributes: HashMap::new(),
         };
         (cc, bp_arcs)
     }

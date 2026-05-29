@@ -4,15 +4,18 @@ Benchmark suite for Arche generate endpoint.
 Supports:
   - API connectivity check: send a single generate request
   - Config loading: read YAML dimension sweep config
+  - Data seeding: create client, API key, and blueprints
 
 Usage:
     python bench/run.py --api-key <key>
     python bench/run.py --api-key <key> --target-url http://other-host:8080
+    python bench/run.py --api-key <key> --seed
     python bench/run.py --config bench/scenarios.yaml --print-scenarios
 """
 
 import argparse
 import itertools
+import json
 import re
 import sys
 import time
@@ -40,6 +43,95 @@ def send_generate_request(api_key, target_url="http://localhost:8080"):
         status = resp.status
         body_str = resp.read().decode("utf-8")
     return status, body_str, elapsed_ms
+
+
+def _request_json(method, path, body, api_key, target_url="http://localhost:8080"):
+    """Send a JSON request and return the parsed response dict.
+
+    Raises HTTPError or URLError on failure.
+    """
+    url = f"{target_url.rstrip('/')}{path}"
+    data = json.dumps(body).encode("utf-8") if body is not None else None
+    headers = {
+        "Content-Type": "application/json",
+        "X-API-Key": api_key,
+    }
+    req = urllib.request.Request(url, data=data, headers=headers, method=method)
+    with urllib.request.urlopen(req) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
+def _handle_request_error(e, target_url):
+    """Handle HTTPError or URLError: print details and exit with code 1."""
+    if isinstance(e, HTTPError):
+        print(f"Error: HTTP {e.code} {e.reason}", file=sys.stderr)
+        try:
+            error_body = e.read().decode("utf-8", errors="replace")
+            print(f"Response body: {error_body}", file=sys.stderr)
+        except Exception:
+            pass
+    else:
+        print(f"Error: Could not reach server at {target_url}", file=sys.stderr)
+        print(f"Reason: {e.reason}", file=sys.stderr)
+    sys.exit(1)
+
+
+def create_client(api_key, target_url="http://localhost:8080"):
+    """Create a client named 'bench-scratch' and return its id."""
+    body = {"name": "bench-scratch"}
+    resp = _request_json("POST", "/api/clients", body, api_key, target_url)
+    return resp["id"]
+
+
+def create_api_key(client_id, api_key, target_url="http://localhost:8080"):
+    """Create a client-scoped API key with generate permission.
+
+    Returns the raw API key string.
+    """
+    body = {"name": "benchmark-key", "permissions": ["generate"]}
+    resp = _request_json(
+        "POST", f"/api/clients/{client_id}/keys", body, api_key, target_url
+    )
+    return resp["key"]
+
+
+def _build_blueprint_body(name):
+    """Build the request body for creating a blueprint with 3 range attributes."""
+    attributes = {}
+    attribute_order = []
+    for i in range(3):
+        attr_name = f"attr_{i}"
+        attributes[attr_name] = {
+            "description": f"Attribute {attr_name}",
+            "valueType": "range",
+            "min": 0.0,
+            "max": 100.0,
+            "distribution": {"type": "uniform"},
+        }
+        attribute_order.append(attr_name)
+    return {
+        "name": name,
+        "archetype": "item",
+        "weight": 1.0,
+        "attributes": attributes,
+        "attributeOrder": attribute_order,
+        "affixes": {
+            "minPrefixes": 0,
+            "maxPrefixes": 0,
+            "minSuffixes": 0,
+            "maxSuffixes": 0,
+            "prefixes": [],
+            "suffixes": [],
+        },
+    }
+
+
+def create_blueprint(client_id, api_key, name, target_url="http://localhost:8080"):
+    """Create a blueprint with 3 range attributes and return its id."""
+    body = _build_blueprint_body(name)
+    path = f"/api/blueprints?client_id={client_id}"
+    resp = _request_json("POST", path, body, api_key, target_url)
+    return resp["id"]
 
 
 _KEY_MAP = {
@@ -141,7 +233,7 @@ def _format_scenario(s):
     return ", ".join(f"{k}={v}" for k, v in s.items())
 
 
-def main():
+def _parse_args(argv=None):
     parser = argparse.ArgumentParser(
         description="Benchmark suite for Arche generate endpoint"
     )
@@ -164,10 +256,22 @@ def main():
         action="store_true",
         help="Print all scenario combinations and exit",
     )
-    args = parser.parse_args()
+    parser.add_argument(
+        "--seed",
+        action="store_true",
+        help="Seed test data (client, API key, blueprints)",
+    )
+    return parser.parse_args(argv)
+
+
+def main():
+    args = _parse_args()
 
     if args.api_key:
-        _run_api_connectivity(args.api_key, args.target_url)
+        if args.seed:
+            _run_seed(args.api_key, args.target_url)
+        else:
+            _run_api_connectivity(args.api_key, args.target_url)
         return
 
     try:
@@ -187,21 +291,31 @@ def _run_api_connectivity(api_key, target_url):
     try:
         status, body, elapsed_ms = send_generate_request(api_key, target_url)
     except HTTPError as e:
-        print(f"Error: HTTP {e.code} {e.reason}", file=sys.stderr)
-        try:
-            error_body = e.read().decode("utf-8", errors="replace")
-            print(f"Response body: {error_body}", file=sys.stderr)
-        except Exception:
-            pass
-        sys.exit(1)
+        _handle_request_error(e, target_url)
     except URLError as e:
-        print(f"Error: Could not reach server at {target_url}", file=sys.stderr)
-        print(f"Reason: {e.reason}", file=sys.stderr)
-        sys.exit(1)
+        _handle_request_error(e, target_url)
 
     print(f"Status: {status}")
     print(f"Body: {body}")
     print(f"Elapsed: {elapsed_ms:.2f} ms")
+
+
+def _run_seed(api_key, target_url):
+    """Seed test data: create client, API key, and 10 blueprints."""
+    try:
+        client_id = create_client(api_key, target_url)
+        scoped_key = create_api_key(client_id, api_key, target_url)
+
+        for i in range(10):
+            name = f"Blueprint-{i:04d}"
+            create_blueprint(client_id, scoped_key, name, target_url)
+
+        print(f"Client ID: {client_id}")
+        print(f"API Key: {scoped_key}")
+    except HTTPError as e:
+        _handle_request_error(e, target_url)
+    except URLError as e:
+        _handle_request_error(e, target_url)
 
 
 if __name__ == "__main__":

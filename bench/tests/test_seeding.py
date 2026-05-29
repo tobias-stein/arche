@@ -85,9 +85,10 @@ class TestCreateApiKey(unittest.TestCase):
         mock_response.__enter__.return_value = mock_response
         mock_urlopen.return_value = mock_response
 
-        result = create_api_key("client-abc", "supersecret", "http://localhost:8080")
+        key_id, key_string = create_api_key("client-abc", "supersecret", "http://localhost:8080")
 
-        self.assertEqual(result, "arche_k_test123")
+        self.assertEqual(key_id, "key-1")
+        self.assertEqual(key_string, "arche_k_test123")
 
         called_request = mock_urlopen.call_args[0][0]
         self.assertEqual(

@@ -5,11 +5,13 @@ Supports:
   - API connectivity check: send a single generate request
   - Config loading: read YAML dimension sweep config
   - Data seeding: create client, API key, and blueprints
+  - Fixed-concurrency benchmark: fire generate requests at given concurrency
 
 Usage:
     python bench/run.py --api-key <key>
     python bench/run.py --api-key <key> --target-url http://other-host:8080
     python bench/run.py --api-key <key> --seed
+    python bench/run.py --api-key <key> --bench --concurrency 5 --duration 30
     python bench/run.py --config bench/scenarios.yaml --print-scenarios
 """
 
@@ -18,6 +20,7 @@ import itertools
 import json
 import re
 import sys
+import threading
 import time
 import urllib.request
 from urllib.error import HTTPError, URLError
@@ -86,13 +89,13 @@ def create_client(api_key, target_url="http://localhost:8080"):
 def create_api_key(client_id, api_key, target_url="http://localhost:8080"):
     """Create a client-scoped API key with generate permission.
 
-    Returns the raw API key string.
+    Returns (key_id, key_string).
     """
     body = {"name": "benchmark-key", "permissions": ["generate"]}
     resp = _request_json(
         "POST", f"/api/clients/{client_id}/keys", body, api_key, target_url
     )
-    return resp["key"]
+    return resp["id"], resp["key"]
 
 
 def _build_blueprint_body(name):
@@ -261,6 +264,28 @@ def _parse_args(argv=None):
         action="store_true",
         help="Seed test data (client, API key, blueprints)",
     )
+    parser.add_argument(
+        "--bench",
+        action="store_true",
+        help="Run fixed-concurrency benchmark",
+    )
+    parser.add_argument(
+        "--concurrency",
+        type=int,
+        default=1,
+        help="Number of concurrent generate requests (default: 1)",
+    )
+    parser.add_argument(
+        "--duration",
+        type=int,
+        default=10,
+        help="Benchmark duration in seconds (default: 10)",
+    )
+    parser.add_argument(
+        "--no-cleanup",
+        action="store_true",
+        help="Skip cleanup of test client and API key after benchmark",
+    )
     return parser.parse_args(argv)
 
 
@@ -268,7 +293,14 @@ def main():
     args = _parse_args()
 
     if args.api_key:
-        if args.seed:
+        if args.bench:
+            _run_bench(
+                args.api_key, args.target_url,
+                concurrency=args.concurrency,
+                duration=args.duration,
+                no_cleanup=args.no_cleanup,
+            )
+        elif args.seed:
             _run_seed(args.api_key, args.target_url)
         else:
             _run_api_connectivity(args.api_key, args.target_url)
@@ -304,7 +336,7 @@ def _run_seed(api_key, target_url):
     """Seed test data: create client, API key, and 10 blueprints."""
     try:
         client_id = create_client(api_key, target_url)
-        scoped_key = create_api_key(client_id, api_key, target_url)
+        key_id, scoped_key = create_api_key(client_id, api_key, target_url)
 
         for i in range(10):
             name = f"Blueprint-{i:04d}"
@@ -312,6 +344,75 @@ def _run_seed(api_key, target_url):
 
         print(f"Client ID: {client_id}")
         print(f"API Key: {scoped_key}")
+    except HTTPError as e:
+        _handle_request_error(e, target_url)
+    except URLError as e:
+        _handle_request_error(e, target_url)
+
+
+def _run_bench(api_key, target_url, concurrency=1, duration=10, no_cleanup=False):
+    """Run a fixed-concurrency benchmark against the generate endpoint.
+
+    Seeds test data, runs generate requests at the given concurrency for
+    the given duration, prints a summary, and cleans up.
+    """
+    try:
+        client_id = create_client(api_key, target_url)
+        key_id, scoped_key = create_api_key(client_id, api_key, target_url)
+
+        for i in range(10):
+            name = f"Blueprint-{i:04d}"
+            create_blueprint(client_id, scoped_key, name, target_url)
+    except HTTPError as e:
+        _handle_request_error(e, target_url)
+    except URLError as e:
+        _handle_request_error(e, target_url)
+
+    completed = [0]
+    lock = threading.Lock()
+    stop_event = threading.Event()
+
+    def _worker():
+        while not stop_event.is_set():
+            try:
+                send_generate_request(scoped_key, target_url)
+                with lock:
+                    completed[0] += 1
+            except (HTTPError, URLError):
+                pass
+
+    threads = []
+    for _ in range(concurrency):
+        t = threading.Thread(target=_worker, daemon=True)
+        t.start()
+        threads.append(t)
+
+    start = time.monotonic()
+    stop_event.wait(timeout=duration)
+    elapsed = time.monotonic() - start
+
+    stop_event.set()
+    for t in threads:
+        t.join(timeout=2.0)
+
+    total = completed[0]
+    rate = total / elapsed if elapsed > 0 else 0.0
+    print(f"total requests: {total}")
+    print(f"elapsed: {elapsed:.2f} s")
+    print(f"generates/s: {rate:.2f}")
+
+    if no_cleanup:
+        return
+
+    try:
+        _request_json(
+            "DELETE", f"/api/clients/{client_id}/keys/{key_id}",
+            None, api_key, target_url,
+        )
+        _request_json(
+            "DELETE", f"/api/clients/{client_id}",
+            None, api_key, target_url,
+        )
     except HTTPError as e:
         _handle_request_error(e, target_url)
     except URLError as e:

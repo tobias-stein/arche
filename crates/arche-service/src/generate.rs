@@ -46,7 +46,7 @@ pub async fn generate_handler(
 
     let seed = req.seed.unwrap_or_else(|| rand::random());
 
-    let client_cache: ClientCache;
+    let client_cache: Arc<ClientCache>;
     let bp_affixes_lookup: HashMap<Uuid, Vec<BlueprintAffix>>;
 
     if is_cache_refresh {
@@ -59,7 +59,7 @@ pub async fn generate_handler(
 
         bp_affixes_lookup = data.blueprint_affixes;
 
-        client_cache = ClientCache {
+        client_cache = Arc::new(ClientCache {
             blueprints: data
                 .blueprints
                 .values()
@@ -75,7 +75,7 @@ pub async fn generate_handler(
                 .values()
                 .map(|gma| Arc::new(gma.clone()))
                 .collect(),
-        };
+        });
     } else {
         let cache = state.cache.read().await;
 
@@ -83,11 +83,8 @@ pub async fn generate_handler(
             .get_client_data(client_id)
             .ok_or_else(|| ProblemResponse::not_found("Client not found in cache"))?;
 
-        client_cache = ClientCache {
-            blueprints: cc.blueprints.clone(),
-            affixes: cc.affixes.clone(),
-            global_meta_attributes: cc.global_meta_attributes.clone(),
-        };
+        // Cheap Arc clone — single ref-count bump instead of three Vec allocations
+        client_cache = cc.clone();
 
         bp_affixes_lookup = cache.blueprint_affixes.clone();
     }

@@ -13,7 +13,7 @@ pub struct Cache {
     pub affixes: HashMap<Uuid, Affix>,
     pub global_meta_attributes: HashMap<Uuid, GlobalMetaAttribute>,
     pub blueprint_affixes: HashMap<Uuid, Vec<BlueprintAffix>>,
-    pub by_client: HashMap<Uuid, ClientCache>,
+    pub by_client: HashMap<Uuid, Arc<ClientCache>>,
 }
 
 #[derive(Debug)]
@@ -40,7 +40,7 @@ impl Cache {
         ))
     }
 
-    pub fn get_client_data(&self, client_id: Uuid) -> Option<&ClientCache> {
+    pub fn get_client_data(&self, client_id: Uuid) -> Option<&Arc<ClientCache>> {
         self.by_client.get(&client_id)
     }
 
@@ -245,7 +245,7 @@ impl Cache {
         blueprints: &HashMap<Uuid, Blueprint>,
         affixes: &HashMap<Uuid, Affix>,
         global_meta_attributes: &HashMap<Uuid, GlobalMetaAttribute>,
-    ) -> HashMap<Uuid, ClientCache> {
+    ) -> HashMap<Uuid, Arc<ClientCache>> {
         let mut by_client: HashMap<Uuid, ClientCache> = clients
             .keys()
             .map(|&id| {
@@ -278,7 +278,7 @@ impl Cache {
             }
         }
 
-        by_client
+        by_client.into_iter().map(|(k, v)| (k, Arc::new(v))).collect()
     }
 }
 
@@ -469,7 +469,7 @@ impl Cache {
                 self.global_meta_attributes.extend(data.global_meta_attributes);
                 self.blueprint_affixes.extend(data.blueprint_affixes);
                 self.clients.insert(client_id, client);
-                self.by_client.insert(client_id, cc);
+                self.by_client.insert(client_id, Arc::new(cc));
             }
             None => {
                 self.clients.remove(&client_id);

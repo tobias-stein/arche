@@ -1,6 +1,6 @@
 ---
 title: "Benchmark: Ramp-up engine"
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

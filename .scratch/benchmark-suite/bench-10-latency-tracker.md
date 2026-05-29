@@ -1,6 +1,6 @@
 ---
 title: "Benchmark: Latency tracker + peak sample"
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

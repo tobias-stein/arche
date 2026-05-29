@@ -1,0 +1,4 @@
+dimensions:
+  blueprints: [10, 100, 1000]
+  affixes: [0, 2, 4]
+  attributes: [3, 10, 25]

@@ -6,12 +6,14 @@ Supports:
   - Config loading: read YAML dimension sweep config
   - Data seeding: create client, API key, and blueprints with synthetic data
   - Fixed-concurrency benchmark: fire generate requests at given concurrency
+  - Ramp-up benchmark: dynamic concurrency increasing by 1 every 1.5s
 
 Usage:
     python bench/run.py --api-key <key>
     python bench/run.py --api-key <key> --target-url http://other-host:8080
     python bench/run.py --api-key <key> --seed
     python bench/run.py --api-key <key> --bench --concurrency 5 --duration 30
+    python bench/run.py --api-key <key> --bench --ramp-up --duration 30
     python bench/run.py --config bench/scenarios.yaml --print-scenarios
 """
 
@@ -25,6 +27,7 @@ import time
 import urllib.request
 from urllib.error import HTTPError, URLError
 
+from ramp_up import run_ramp_up
 from synthetic import generate_blueprint_body, generate_global_meta_attributes
 
 
@@ -249,13 +252,18 @@ def _parse_args(argv=None):
     parser.add_argument(
         "--bench",
         action="store_true",
-        help="Run fixed-concurrency benchmark",
+        help="Run fixed-concurrency or ramp-up benchmark",
     )
     parser.add_argument(
         "--concurrency",
         type=int,
         default=1,
         help="Number of concurrent generate requests (default: 1)",
+    )
+    parser.add_argument(
+        "--ramp-up",
+        action="store_true",
+        help="Enable ramp-up mode (replaces --concurrency)",
     )
     parser.add_argument(
         "--duration",
@@ -281,6 +289,7 @@ def main():
                 concurrency=args.concurrency,
                 duration=args.duration,
                 no_cleanup=args.no_cleanup,
+                ramp_up=args.ramp_up,
             )
         elif args.seed:
             _run_seed(args.api_key, args.target_url)
@@ -354,11 +363,12 @@ def _run_seed(api_key, target_url, scenario=None):
         _handle_request_error(e, target_url)
 
 
-def _run_bench(api_key, target_url, concurrency=1, duration=10, no_cleanup=False):
-    """Run a fixed-concurrency benchmark against the generate endpoint.
+def _run_bench(api_key, target_url, concurrency=1, duration=10,
+               no_cleanup=False, ramp_up=False):
+    """Run a fixed-concurrency or ramp-up benchmark.
 
-    Seeds test data, runs generate requests at the given concurrency for
-    the given duration, prints a summary, and cleans up.
+    Seeds test data, runs generate requests (fixed concurrency or dynamic
+    ramp-up), prints a summary, and cleans up.
     """
     try:
         client_id, key_id, scoped_key = _seed_bench_data(api_key, target_url)
@@ -380,25 +390,69 @@ def _run_bench(api_key, target_url, concurrency=1, duration=10, no_cleanup=False
             except (HTTPError, URLError):
                 pass
 
-    threads = []
-    for _ in range(concurrency):
-        t = threading.Thread(target=_worker, daemon=True)
-        t.start()
-        threads.append(t)
+    if ramp_up:
+        start = time.monotonic()
 
-    start = time.monotonic()
-    stop_event.wait(timeout=duration)
-    elapsed = time.monotonic() - start
+        def _ramp_worker(c):
+            ts = []
+            inner_lock = threading.Lock()
+            inner_stop = threading.Event()
+            inner_start = time.monotonic()
 
-    stop_event.set()
-    for t in threads:
-        t.join(timeout=2.0)
+            def _inner_worker():
+                while not inner_stop.is_set():
+                    try:
+                        send_generate_request(scoped_key, target_url)
+                        with lock:
+                            completed[0] += 1
+                        with inner_lock:
+                            ts.append(time.monotonic() - inner_start + (inner_start - start))
+                    except (HTTPError, URLError):
+                        pass
 
-    total = completed[0]
-    rate = total / elapsed if elapsed > 0 else 0.0
-    print(f"total requests: {total}")
-    print(f"elapsed: {elapsed:.2f} s")
-    print(f"generates/s: {rate:.2f}")
+            threads = [
+                threading.Thread(target=_inner_worker, daemon=True)
+                for _ in range(c)
+            ]
+            for t in threads:
+                t.start()
+            inner_stop.wait(timeout=1.5)
+            inner_stop.set()
+            for t in threads:
+                t.join(timeout=2.0)
+
+            return ts
+
+        final_conc, peak = run_ramp_up(
+            _ramp_worker, duration=duration, ramp_interval=1.5,
+        )
+        elapsed = time.monotonic() - start
+        total = completed[0]
+
+        print(f"total requests: {total}")
+        print(f"elapsed: {elapsed:.2f} s")
+        print(f"final concurrency: {final_conc}")
+        print(f"peak throughput: {peak:.2f} req/s")
+    else:
+        threads = []
+        for _ in range(concurrency):
+            t = threading.Thread(target=_worker, daemon=True)
+            t.start()
+            threads.append(t)
+
+        start = time.monotonic()
+        stop_event.wait(timeout=duration)
+        elapsed = time.monotonic() - start
+
+        stop_event.set()
+        for t in threads:
+            t.join(timeout=2.0)
+
+        total = completed[0]
+        rate = total / elapsed if elapsed > 0 else 0.0
+        print(f"total requests: {total}")
+        print(f"elapsed: {elapsed:.2f} s")
+        print(f"generates/s: {rate:.2f}")
 
     if no_cleanup:
         return

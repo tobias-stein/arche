@@ -312,6 +312,21 @@ class TestParseArgsBench(unittest.TestCase):
         ])
         self.assertEqual(args.target_url, "http://other:8080")
 
+    def test_ramp_up_flag(self):
+        args = _parse_args(["--api-key", "super-key", "--bench", "--ramp-up"])
+        self.assertTrue(args.ramp_up)
+
+    def test_ramp_up_default_false(self):
+        args = _parse_args(["--api-key", "super-key", "--bench"])
+        self.assertFalse(args.ramp_up)
+
+    def test_ramp_up_with_duration(self):
+        args = _parse_args([
+            "--api-key", "super-key", "--bench", "--ramp-up", "--duration", "20",
+        ])
+        self.assertTrue(args.ramp_up)
+        self.assertEqual(args.duration, 20)
+
 
 if __name__ == "__main__":
     unittest.main()

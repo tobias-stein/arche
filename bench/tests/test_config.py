@@ -7,8 +7,7 @@ import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from run import load_config, _parse_yaml_dimensions, _cross_product
-from run import _KEY_MAP
+from run import load_config, _cross_product
 
 
 def _write_yaml(content):

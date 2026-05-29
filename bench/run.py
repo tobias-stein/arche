@@ -33,7 +33,6 @@ def _parse_yaml_dimensions(path):
 
     dimensions = {}
     in_dimensions = False
-    dim_key = None
 
     for i, line in enumerate(lines, 1):
         stripped = line.strip()

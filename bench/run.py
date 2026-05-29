@@ -16,8 +16,10 @@ Usage:
 """
 
 import argparse
+import csv
 import itertools
 import json
+import os
 import re
 import sys
 import threading
@@ -81,9 +83,9 @@ def _handle_request_error(e, target_url):
     sys.exit(1)
 
 
-def create_client(api_key, target_url="http://localhost:8080"):
-    """Create a client named 'bench-scratch' and return its id."""
-    body = {"name": "bench-scratch"}
+def create_client(api_key, target_url="http://localhost:8080", name="bench-scratch"):
+    """Create a client with the given name and return its id."""
+    body = {"name": name}
     resp = _request_json("POST", "/api/clients", body, api_key, target_url)
     return resp["id"]
 
@@ -268,6 +270,11 @@ def _parse_args(argv=None):
         action="store_true",
         help="Skip cleanup of test client and API key after benchmark",
     )
+    parser.add_argument(
+        "--sweep",
+        action="store_true",
+        help="Run multi-scenario sweep from YAML config",
+    )
     return parser.parse_args(argv)
 
 
@@ -275,7 +282,13 @@ def main():
     args = _parse_args()
 
     if args.api_key:
-        if args.bench:
+        if args.sweep:
+            _run_sweep(
+                args.api_key, args.target_url, args.config,
+                concurrency=args.concurrency,
+                duration=args.duration,
+            )
+        elif args.bench:
             _run_bench(
                 args.api_key, args.target_url,
                 concurrency=args.concurrency,
@@ -354,19 +367,11 @@ def _run_seed(api_key, target_url, scenario=None):
         _handle_request_error(e, target_url)
 
 
-def _run_bench(api_key, target_url, concurrency=1, duration=10, no_cleanup=False):
-    """Run a fixed-concurrency benchmark against the generate endpoint.
+def _run_bench_loop(api_key, target_url, concurrency=1, duration=10):
+    """Run the generate-request loop at fixed concurrency.
 
-    Seeds test data, runs generate requests at the given concurrency for
-    the given duration, prints a summary, and cleans up.
+    Returns (total_requests, elapsed_s, throughput).
     """
-    try:
-        client_id, key_id, scoped_key = _seed_bench_data(api_key, target_url)
-    except HTTPError as e:
-        _handle_request_error(e, target_url)
-    except URLError as e:
-        _handle_request_error(e, target_url)
-
     completed = [0]
     lock = threading.Lock()
     stop_event = threading.Event()
@@ -374,7 +379,7 @@ def _run_bench(api_key, target_url, concurrency=1, duration=10, no_cleanup=False
     def _worker():
         while not stop_event.is_set():
             try:
-                send_generate_request(scoped_key, target_url)
+                send_generate_request(api_key, target_url)
                 with lock:
                     completed[0] += 1
             except (HTTPError, URLError):
@@ -396,6 +401,23 @@ def _run_bench(api_key, target_url, concurrency=1, duration=10, no_cleanup=False
 
     total = completed[0]
     rate = total / elapsed if elapsed > 0 else 0.0
+    return total, elapsed, rate
+
+
+def _run_bench(api_key, target_url, concurrency=1, duration=10, no_cleanup=False):
+    """Run a fixed-concurrency benchmark against the generate endpoint.
+
+    Seeds test data, runs generate requests at the given concurrency for
+    the given duration, prints a summary, and cleans up.
+    """
+    try:
+        client_id, key_id, scoped_key = _seed_bench_data(api_key, target_url)
+    except HTTPError as e:
+        _handle_request_error(e, target_url)
+    except URLError as e:
+        _handle_request_error(e, target_url)
+
+    total, elapsed, rate = _run_bench_loop(scoped_key, target_url, concurrency, duration)
     print(f"total requests: {total}")
     print(f"elapsed: {elapsed:.2f} s")
     print(f"generates/s: {rate:.2f}")
@@ -416,6 +438,88 @@ def _run_bench(api_key, target_url, concurrency=1, duration=10, no_cleanup=False
         _handle_request_error(e, target_url)
     except URLError as e:
         _handle_request_error(e, target_url)
+
+
+def _run_sweep(api_key, target_url, config_path, concurrency=1, duration=10):
+    """Run a multi-scenario sweep from YAML config.
+
+    For each scenario: create a named client, seed data with the synthetic
+    generator, run the fixed-concurrency bench loop, record results, then
+    clean up all clients at the end.
+    """
+    try:
+        scenarios = load_config(config_path)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    results = []
+    client_cleanups = []
+
+    for i, scenario in enumerate(scenarios):
+        bp = scenario["blueprint_count"]
+        af = scenario.get("affix_count", 0)
+        at = scenario["attribute_count"]
+        client_name = f"bench-bp{bp}-aff{af}-attr{at}"
+
+        try:
+            client_id = create_client(api_key, target_url, name=client_name)
+            key_id, scoped_key = create_api_key(client_id, api_key, target_url)
+
+            for j in range(bp):
+                create_blueprint(
+                    client_id, scoped_key, f"Blueprint-{j:04d}", target_url,
+                    attribute_count=at, scenario=scenario, blueprint_idx=j,
+                )
+
+            total, elapsed, rate = _run_bench_loop(
+                scoped_key, target_url, concurrency, duration,
+            )
+
+            results.append({
+                "blueprint_count": bp,
+                "affix_count": af,
+                "attribute_count": at,
+                "concurrency": concurrency,
+                "duration_s": f"{elapsed:.2f}",
+                "total_requests": total,
+                "throughput": f"{rate:.2f}",
+            })
+
+            client_cleanups.append((client_id, key_id))
+            print(f"[{i + 1}/{len(scenarios)}] bp={bp} aff={af} attr={at} ... {rate:.0f} gen/s")
+
+        except HTTPError as e:
+            _handle_request_error(e, target_url)
+        except URLError as e:
+            _handle_request_error(e, target_url)
+
+    csv_path = "bench/results.csv"
+    os.makedirs(os.path.dirname(csv_path), exist_ok=True)
+    with open(csv_path, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=[
+            "blueprint_count", "affix_count", "attribute_count",
+            "concurrency", "duration_s", "total_requests", "throughput",
+        ])
+        writer.writeheader()
+        writer.writerows(results)
+
+    print(f"\nResults written to {csv_path}")
+
+    for client_id, key_id in client_cleanups:
+        try:
+            _request_json(
+                "DELETE", f"/api/clients/{client_id}/keys/{key_id}",
+                None, api_key, target_url,
+            )
+            _request_json(
+                "DELETE", f"/api/clients/{client_id}",
+                None, api_key, target_url,
+            )
+        except (HTTPError, URLError):
+            pass
+
+    print(f"Cleaned up {len(client_cleanups)} test client(s)")
 
 
 if __name__ == "__main__":

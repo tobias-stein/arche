@@ -146,53 +146,33 @@ class TestCreateApiKey(unittest.TestCase):
             create_api_key("client-abc", "bad-key")
 
 
-def _expected_attr(name):
-    return {
-        "description": f"Attribute {name}",
-        "valueType": "range",
-        "min": 0.0,
-        "max": 100.0,
-        "distribution": {"type": "uniform"},
-    }
-
-
-def _make_blueprint_body(name):
-    return {
-        "name": name,
-        "archetype": "item",
-        "weight": 1.0,
-        "attributes": {
-            "attr_0": _expected_attr("attr_0"),
-            "attr_1": _expected_attr("attr_1"),
-            "attr_2": _expected_attr("attr_2"),
-        },
-        "attributeOrder": ["attr_0", "attr_1", "attr_2"],
-        "affixes": {
-            "minPrefixes": 0,
-            "maxPrefixes": 0,
-            "minSuffixes": 0,
-            "maxSuffixes": 0,
-            "prefixes": [],
-            "suffixes": [],
-        },
-    }
-
-
 class TestBuildBlueprintBody(unittest.TestCase):
-    def test_builds_expected_body(self):
+    def test_builds_body_with_name(self):
         body = _build_blueprint_body("Blueprint-0000")
-        self.assertEqual(body, _make_blueprint_body("Blueprint-0000"))
+        self.assertEqual(body["name"], "Blueprint-0000")
+        self.assertEqual(body["archetype"], "item")
+        self.assertEqual(body["weight"], 1.0)
 
     def test_builds_body_with_different_name(self):
         body = _build_blueprint_body("MyBlueprint")
         self.assertEqual(body["name"], "MyBlueprint")
 
-    def test_builds_three_attributes(self):
+    def test_builds_three_attributes_by_default(self):
         body = _build_blueprint_body("x")
         self.assertEqual(len(body["attributes"]), 3)
         self.assertEqual(
             body["attributeOrder"], ["attr_0", "attr_1", "attr_2"],
         )
+
+    def test_builds_body_deterministically(self):
+        body1 = _build_blueprint_body("x")
+        body2 = _build_blueprint_body("x")
+        self.assertEqual(body1, body2)
+
+    def test_builds_specified_attribute_count(self):
+        body = _build_blueprint_body("x", attribute_count=5)
+        self.assertEqual(len(body["attributes"]), 5)
+        self.assertEqual(len(body["attributeOrder"]), 5)
 
 
 class TestCreateBlueprint(unittest.TestCase):
@@ -216,9 +196,12 @@ class TestCreateBlueprint(unittest.TestCase):
             "http://localhost:8080/api/blueprints?client_id=client-abc",
         )
         self.assertEqual(called_request.method, "POST")
-        self.assertEqual(
-            json.loads(called_request.data), _make_blueprint_body("Blueprint-0000"),
-        )
+
+        sent_body = json.loads(called_request.data)
+        self.assertEqual(sent_body["name"], "Blueprint-0000")
+        self.assertEqual(sent_body["archetype"], "item")
+        self.assertEqual(len(sent_body["attributes"]), 3)
+        self.assertEqual(sent_body["attributeOrder"], ["attr_0", "attr_1", "attr_2"])
 
     @patch("urllib.request.urlopen")
     def test_creates_blueprint_with_given_name(self, mock_urlopen):

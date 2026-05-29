@@ -4,7 +4,7 @@ Benchmark suite for Arche generate endpoint.
 Supports:
   - API connectivity check: send a single generate request
   - Config loading: read YAML dimension sweep config
-  - Data seeding: create client, API key, and blueprints
+  - Data seeding: create client, API key, and blueprints with synthetic data
 
 Usage:
     python bench/run.py --api-key <key>
@@ -21,6 +21,8 @@ import sys
 import time
 import urllib.request
 from urllib.error import HTTPError, URLError
+
+from synthetic import generate_blueprint_body, generate_global_meta_attributes
 
 
 def send_generate_request(api_key, target_url="http://localhost:8080"):
@@ -95,40 +97,20 @@ def create_api_key(client_id, api_key, target_url="http://localhost:8080"):
     return resp["key"]
 
 
-def _build_blueprint_body(name):
-    """Build the request body for creating a blueprint with 3 range attributes."""
-    attributes = {}
-    attribute_order = []
-    for i in range(3):
-        attr_name = f"attr_{i}"
-        attributes[attr_name] = {
-            "description": f"Attribute {attr_name}",
-            "valueType": "range",
-            "min": 0.0,
-            "max": 100.0,
-            "distribution": {"type": "uniform"},
-        }
-        attribute_order.append(attr_name)
-    return {
-        "name": name,
-        "archetype": "item",
-        "weight": 1.0,
-        "attributes": attributes,
-        "attributeOrder": attribute_order,
-        "affixes": {
-            "minPrefixes": 0,
-            "maxPrefixes": 0,
-            "minSuffixes": 0,
-            "maxSuffixes": 0,
-            "prefixes": [],
-            "suffixes": [],
-        },
-    }
+def _build_blueprint_body(name, attribute_count=3, scenario=None, blueprint_idx=0):
+    """Build the request body for creating a blueprint with synthetic attributes.
+
+    When scenario is None, uses a default scenario for backward compatibility.
+    """
+    if scenario is None:
+        scenario = {"blueprint_count": 10, "affix_count": 0, "attribute_count": attribute_count}
+    return generate_blueprint_body(name, attribute_count, scenario, blueprint_idx)
 
 
-def create_blueprint(client_id, api_key, name, target_url="http://localhost:8080"):
-    """Create a blueprint with 3 range attributes and return its id."""
-    body = _build_blueprint_body(name)
+def create_blueprint(client_id, api_key, name, target_url="http://localhost:8080",
+                      attribute_count=3, scenario=None, blueprint_idx=0):
+    """Create a blueprint with synthetic attributes and return its id."""
+    body = _build_blueprint_body(name, attribute_count, scenario, blueprint_idx)
     path = f"/api/blueprints?client_id={client_id}"
     resp = _request_json("POST", path, body, api_key, target_url)
     return resp["id"]
@@ -300,15 +282,28 @@ def _run_api_connectivity(api_key, target_url):
     print(f"Elapsed: {elapsed_ms:.2f} ms")
 
 
-def _run_seed(api_key, target_url):
-    """Seed test data: create client, API key, and 10 blueprints."""
+def _run_seed(api_key, target_url, scenario=None):
+    """Seed test data: create client, API key, blueprints, and global meta attributes.
+
+    When scenario is None, uses a default scenario (10 blueprints, 3 attributes each).
+    """
+    if scenario is None:
+        scenario = {"blueprint_count": 10, "affix_count": 0, "attribute_count": 3}
     try:
         client_id = create_client(api_key, target_url)
         scoped_key = create_api_key(client_id, api_key, target_url)
 
-        for i in range(10):
+        global_attrs = generate_global_meta_attributes(scenario)
+        print(f"Global meta attributes: {len(global_attrs)} generated")
+
+        for i in range(scenario["blueprint_count"]):
             name = f"Blueprint-{i:04d}"
-            create_blueprint(client_id, scoped_key, name, target_url)
+            create_blueprint(
+                client_id, scoped_key, name, target_url,
+                attribute_count=scenario["attribute_count"],
+                scenario=scenario,
+                blueprint_idx=i,
+            )
 
         print(f"Client ID: {client_id}")
         print(f"API Key: {scoped_key}")

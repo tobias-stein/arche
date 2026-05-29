@@ -1,10 +1,13 @@
 """
-Benchmark config loader.
+Benchmark suite for Arche generate endpoint.
 
-Reads a YAML config file defining dimension sweeps and produces
-cross-product scenario descriptors.
+Supports:
+  - API connectivity check: send a single generate request
+  - Config loading: read YAML dimension sweep config
 
 Usage:
+    python bench/run.py --api-key <key>
+    python bench/run.py --api-key <key> --target-url http://other-host:8080
     python bench/run.py --config bench/scenarios.yaml --print-scenarios
 """
 
@@ -12,6 +15,38 @@ import argparse
 import itertools
 import re
 import sys
+import time
+import urllib.request
+from urllib.error import HTTPError, URLError
+
+
+def send_generate_request(api_key, target_url="http://localhost:8080"):
+    """Send a single POST /api/generate with empty body.
+
+    Returns (status_code, body_string, elapsed_ms).
+    Raises HTTPError or URLError on failure.
+    """
+    url = f"{target_url.rstrip('/')}/api/generate"
+    body = b"{}"
+    headers = {
+        "Content-Type": "application/json",
+        "X-API-Key": api_key,
+    }
+    req = urllib.request.Request(url, data=body, headers=headers, method="POST")
+
+    start = time.perf_counter()
+    try:
+        with urllib.request.urlopen(req) as resp:
+            elapsed_ms = (time.perf_counter() - start) * 1000
+            status = resp.status
+            body_str = resp.read().decode("utf-8")
+        return status, body_str, elapsed_ms
+    except HTTPError:
+        elapsed_ms = (time.perf_counter() - start) * 1000
+        raise
+    except URLError:
+        elapsed_ms = (time.perf_counter() - start) * 1000
+        raise
 
 
 _KEY_MAP = {
@@ -115,7 +150,16 @@ def _format_scenario(s):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Benchmark config loader for Arche throughput suite"
+        description="Benchmark suite for Arche generate endpoint"
+    )
+    parser.add_argument(
+        "--api-key",
+        help="API key for authentication",
+    )
+    parser.add_argument(
+        "--target-url",
+        default="http://localhost:8080",
+        help="Target Arche server URL (default: http://localhost:8080)",
     )
     parser.add_argument(
         "--config",
@@ -129,6 +173,10 @@ def main():
     )
     args = parser.parse_args()
 
+    if args.api_key:
+        _run_api_connectivity(args.api_key, args.target_url)
+        return
+
     try:
         scenarios = load_config(args.config)
     except ValueError as e:
@@ -139,6 +187,29 @@ def main():
         for s in scenarios:
             print(f"  {_format_scenario(s)}")
         print(f"\nTotal: {len(scenarios)} scenario(s)")
+
+
+def _run_api_connectivity(api_key, target_url):
+    """Send a single generate request and print the response."""
+    try:
+        status, body, elapsed_ms = send_generate_request(api_key, target_url)
+    except HTTPError as e:
+        print(f"Error: HTTP {e.code} {e.reason}", file=sys.stderr)
+        try:
+            error_body = e.read().decode("utf-8", errors="replace")
+            print(f"Response body: {error_body}", file=sys.stderr)
+        except Exception:
+            pass
+        sys.exit(1)
+    except URLError as e:
+        reason = e.reason
+        print(f"Error: Could not reach server at {target_url}", file=sys.stderr)
+        print(f"Reason: {reason}", file=sys.stderr)
+        sys.exit(1)
+
+    print(f"Status: {status}")
+    print(f"Body: {body}")
+    print(f"Elapsed: {elapsed_ms:.2f} ms")
 
 
 if __name__ == "__main__":

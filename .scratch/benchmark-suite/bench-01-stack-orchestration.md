@@ -1,6 +1,6 @@
 ---
 title: "Benchmark: Stack orchestration"
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

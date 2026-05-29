@@ -1,6 +1,6 @@
 ---
 title: "Benchmark: YAML config + cross-product"
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

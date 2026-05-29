@@ -29,8 +29,11 @@ import time
 import urllib.request
 from urllib.error import HTTPError, URLError
 
+from latency_tracker import LatencyTracker
 from ramp_up import run_ramp_up
 from synthetic import generate_blueprint_body, generate_global_meta_attributes
+
+SAMPLE_DURATION = 5
 
 
 def send_generate_request(api_key, target_url="http://localhost:8080"):
@@ -376,6 +379,39 @@ def _run_seed(api_key, target_url, scenario=None):
         _handle_request_error(e, target_url)
 
 
+def _collect_stable_sample(api_key, target_url, concurrency, sample_duration=None):
+    """Run generate requests at fixed concurrency and record latencies.
+
+    Returns a LatencyTracker with per-request durations in milliseconds.
+    """
+    if sample_duration is None:
+        sample_duration = SAMPLE_DURATION
+    tracker = LatencyTracker()
+    stop_event = threading.Event()
+
+    def _worker():
+        while not stop_event.is_set():
+            try:
+                _, _, elapsed_ms = send_generate_request(api_key, target_url)
+                tracker.record(elapsed_ms)
+            except (HTTPError, URLError):
+                pass
+
+    threads = [
+        threading.Thread(target=_worker, daemon=True)
+        for _ in range(concurrency)
+    ]
+    for t in threads:
+        t.start()
+
+    stop_event.wait(timeout=sample_duration)
+    stop_event.set()
+    for t in threads:
+        t.join(timeout=2.0)
+
+    return tracker
+
+
 def _run_bench_loop(api_key, target_url, concurrency=1, duration=10):
     """Run the generate-request loop at fixed concurrency.
 
@@ -473,7 +509,7 @@ def _run_bench(api_key, target_url, concurrency=1, duration=10,
 
             return ts
 
-        final_conc, peak, _ = run_ramp_up(
+        final_conc, peak, stop_reason = run_ramp_up(
             _ramp_worker, duration=duration, ramp_interval=ramp_interval,
         )
         elapsed = time.monotonic() - start
@@ -483,6 +519,17 @@ def _run_bench(api_key, target_url, concurrency=1, duration=10,
         print(f"elapsed: {elapsed:.2f} s")
         print(f"final concurrency: {final_conc}")
         print(f"peak throughput: {peak:.2f} req/s")
+
+        stable_tracker = _collect_stable_sample(
+            scoped_key, target_url, concurrency=final_conc,
+        )
+        if stable_tracker.count < 50:
+            print(f"warning: stable sample too small ({stable_tracker.count} requests), skipping percentiles")
+        else:
+            print(f"stable sample: {stable_tracker.count} requests")
+            print(f"p50: {stable_tracker.p50():.2f} ms")
+            print(f"p95: {stable_tracker.p95():.2f} ms")
+            print(f"p99: {stable_tracker.p99():.2f} ms")
     else:
         total, elapsed, rate = _run_bench_loop(
             scoped_key, target_url, concurrency, duration,

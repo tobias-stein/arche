@@ -10,7 +10,7 @@ from unittest.mock import patch, MagicMock
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from run import _parse_args, _run_sweep, _print_summary_table
+from run import _parse_args, _run_sweep, _print_summary_table, SAMPLE_DURATION
 
 
 def _make_mock_response(status, body_bytes):
@@ -121,6 +121,7 @@ class TestRunSweep(unittest.TestCase):
                                 config_path="dummy.yaml",
                                 concurrency=1,
                                 duration=0.1,
+                                sample_duration=0.05,
                             )
 
         calls = [call[0][0] for call in mock_urlopen.call_args_list]
@@ -161,8 +162,25 @@ class TestRunSweep(unittest.TestCase):
                 with patch("builtins.print"):
                     with patch("run.os.makedirs"):
                         with patch("builtins.open") as mock_open:
-                            mock_file = io.StringIO()
-                            mock_open.return_value.__enter__.return_value = mock_file
+                            csv_file = io.StringIO()
+
+                            def _csv_enter(*_args, **_kwargs):
+                                return csv_file
+                            csv_mock = MagicMock()
+                            csv_mock.__enter__.side_effect = _csv_enter
+
+                            html_file = io.StringIO()
+
+                            def _html_enter(*_args, **_kwargs):
+                                return html_file
+                            html_mock = MagicMock()
+                            html_mock.__enter__.side_effect = _html_enter
+
+                            def _open_side_effect(path, mode, **kwargs):
+                                if "report.html" in path:
+                                    return html_mock
+                                return csv_mock
+                            mock_open.side_effect = _open_side_effect
 
                             _run_sweep(
                                 api_key="super-key",
@@ -170,10 +188,11 @@ class TestRunSweep(unittest.TestCase):
                                 config_path="dummy.yaml",
                                 concurrency=1,
                                 duration=0.1,
+                                sample_duration=0.05,
                             )
 
-                            mock_file.seek(0)
-                            content = mock_file.read()
+                            csv_file.seek(0)
+                            content = csv_file.read()
 
         self.assertIn("blueprint_count", content)
         self.assertIn("affix_count", content)
@@ -182,12 +201,11 @@ class TestRunSweep(unittest.TestCase):
         self.assertIn("duration_s", content)
         self.assertIn("total_requests", content)
         self.assertIn("throughput", content)
-        self.assertIn("10", content)
-        self.assertIn("0", content)
-        self.assertIn("3", content)
-        self.assertIn("1", content)
+        self.assertIn("p50_ms", content)
+        self.assertIn("p95_ms", content)
+        self.assertIn("p99_ms", content)
 
-        mock_file.seek(0)
+        csv_file.seek(0)
         reader = csv.DictReader(io.StringIO(content))
         rows = list(reader)
         self.assertEqual(len(rows), 1)
@@ -210,6 +228,7 @@ class TestRunSweep(unittest.TestCase):
                                 config_path="dummy.yaml",
                                 concurrency=1,
                                 duration=0.1,
+                                sample_duration=0.05,
                             )
 
         printed = []
@@ -222,6 +241,7 @@ class TestRunSweep(unittest.TestCase):
         self.assertIn("[2/2]", combined)
         self.assertIn("bp=10", combined)
         self.assertIn("bp=100", combined)
+        self.assertIn("Report written to", combined)
 
     def test_sweep_cleans_up_all_clients(self):
         """Verify all test clients are cleaned up."""
@@ -242,6 +262,7 @@ class TestRunSweep(unittest.TestCase):
                                 config_path="dummy.yaml",
                                 concurrency=1,
                                 duration=0.1,
+                                sample_duration=0.05,
                             )
 
         calls = [call[0][0] for call in mock_urlopen.call_args_list]
@@ -274,6 +295,7 @@ class TestRunSweep(unittest.TestCase):
                                 config_path="dummy.yaml",
                                 concurrency=1,
                                 duration=0.1,
+                                sample_duration=0.05,
                             )
 
         calls = [call[0][0] for call in mock_urlopen.call_args_list]
@@ -304,6 +326,7 @@ class TestRunSweep(unittest.TestCase):
                                 config_path="dummy.yaml",
                                 concurrency=1,
                                 duration=0.1,
+                                sample_duration=0.05,
                             )
 
         calls = [call[0][0] for call in mock_urlopen.call_args_list]

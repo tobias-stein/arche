@@ -123,14 +123,18 @@ def _make_attribute(rng, description):
     return maker(rng, description)
 
 
+def _num_global_attributes(scenario):
+    """Number of global meta attributes for a given scenario."""
+    return max(1, scenario.get("attribute_count", 3) // 5)
+
+
 def generate_global_meta_attributes(scenario):
     """Generate a list of global meta attribute dicts for a scenario.
 
     Returns a list of attribute dicts, each with an 'id' field that can
     be referenced by blueprint attributes via $ref_id.
     """
-    count = scenario.get("attribute_count", 3)
-    num_global = max(1, count // 5)
+    num_global = _num_global_attributes(scenario)
     rng = _make_rng(scenario, 0, 0)
     attributes = []
     for i in range(num_global):
@@ -150,7 +154,7 @@ def generate_blueprint_body(name, attribute_count, scenario, blueprint_idx):
     """
     rng = _make_rng(scenario, blueprint_idx, 0)
 
-    num_global = max(1, scenario.get("attribute_count", 3) // 5)
+    num_global = _num_global_attributes(scenario)
 
     attributes = {}
     attribute_order = []

@@ -432,7 +432,6 @@ mod tests {
         let r2 = run_single_generation(&cache, &bp_affixes, &req, 200, &mut None).unwrap();
         assert_eq!(r1.seed, 100);
         assert_eq!(r2.seed, 200);
-        // Different seeds should produce different results (high probability)
         assert!(r1.name != r2.name || r1.blueprint_attributes != r2.blueprint_attributes);
     }
 
@@ -455,7 +454,6 @@ mod tests {
         assert_eq!(attr_cache.as_ref().unwrap().len(), 1);
         assert!(attr_cache.as_ref().unwrap().contains_key(&bp_id));
 
-        // Second call with same blueprint should use cached attributes
         let r2 = run_single_generation(&cache, &bp_affixes, &req, 42, &mut attr_cache).unwrap();
         assert_eq!(r1.blueprint_attributes, r2.blueprint_attributes);
     }
@@ -464,10 +462,6 @@ mod tests {
     fn test_batch_generate_mixed_success_failure() {
         let (cache, bp_affixes) = make_client_cache_with_bp();
 
-        let mut attr_cache: Option<HashMap<Uuid, Arc<BTreeMap<String, serde_json::Value>>>> =
-            Some(HashMap::new());
-
-        // Request that matches
         let req_ok = GenerateRequest {
             archetype: Some("sword".into()),
             seed: Some(42),
@@ -476,7 +470,6 @@ mod tests {
             client_id: None,
         };
 
-        // Request that doesn't match
         let req_err = GenerateRequest {
             archetype: Some("axe".into()),
             seed: Some(99),
@@ -485,8 +478,8 @@ mod tests {
             client_id: None,
         };
 
-        let r1 = run_single_generation(&cache, &bp_affixes, &req_ok, 42, &mut attr_cache);
-        let r2 = run_single_generation(&cache, &bp_affixes, &req_err, 99, &mut attr_cache);
+        let r1 = run_single_generation(&cache, &bp_affixes, &req_ok, 42, &mut None);
+        let r2 = run_single_generation(&cache, &bp_affixes, &req_err, 99, &mut None);
 
         assert!(r1.is_ok());
         assert!(r2.is_err());

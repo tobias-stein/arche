@@ -5,7 +5,9 @@ use schemars::schema_for;
 use serde_json::Value;
 
 use arche_types::crud::{CreateAffixRequest, CreateBlueprintRequest};
-use arche_types::generate::{GenerateRequest, GenerateResponse};
+use arche_types::generate::{
+    BatchGenerateRequest, BatchGenerateResponse, GenerateRequest, GenerateResponse,
+};
 use arche_types::{Affix, Blueprint};
 
 static BLUEPRINTS_SCHEMA: Lazy<Value> =
@@ -16,6 +18,9 @@ static AFFIXES_SCHEMA: Lazy<Value> =
 
 static GENERATE_SCHEMA: Lazy<Value> =
     Lazy::new(|| serde_json::to_value(schema_for!(GenerateSchemas)).unwrap());
+
+static BATCH_GENERATE_SCHEMA: Lazy<Value> =
+    Lazy::new(|| serde_json::to_value(schema_for!(BatchGenerateSchemas)).unwrap());
 
 #[allow(dead_code)]
 #[derive(schemars::JsonSchema)]
@@ -41,6 +46,14 @@ struct GenerateSchemas {
     response: GenerateResponse,
 }
 
+#[allow(dead_code)]
+#[derive(schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+struct BatchGenerateSchemas {
+    request: BatchGenerateRequest,
+    response: BatchGenerateResponse,
+}
+
 fn schema_response(schema: &Value) -> Response {
     let body = serde_json::to_string(schema).unwrap();
     (
@@ -63,6 +76,10 @@ pub async fn get_generate_schema() -> Response {
     schema_response(&GENERATE_SCHEMA)
 }
 
+pub async fn get_batch_generate_schema() -> Response {
+    schema_response(&BATCH_GENERATE_SCHEMA)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -79,6 +96,7 @@ mod tests {
             .route("/api/schema/blueprints", get(get_blueprints_schema))
             .route("/api/schema/affixes", get(get_affixes_schema))
             .route("/api/schema/generate", get(get_generate_schema))
+            .route("/api/schema/generate/batch", get(get_batch_generate_schema))
     }
 
     async fn fetch_schema(router: Router, uri: &str) -> Value {
@@ -136,6 +154,13 @@ mod tests {
         let body = fetch_schema(build_schema_router(), "/api/schema/generate").await;
         assert_valid_json_schema(&body, "generate");
         assert!(body.as_object().unwrap().contains_key("properties"), "generate schema should have properties");
+    }
+
+    #[tokio::test]
+    async fn test_batch_generate_schema_endpoint() {
+        let body = fetch_schema(build_schema_router(), "/api/schema/generate/batch").await;
+        assert_valid_json_schema(&body, "batch generate");
+        assert!(body.as_object().unwrap().contains_key("properties"), "batch generate schema should have properties");
     }
 
     #[tokio::test]

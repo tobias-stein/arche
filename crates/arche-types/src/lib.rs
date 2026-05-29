@@ -440,6 +440,67 @@ mod tests {
     }
 
     #[test]
+    fn test_batch_generate_request_round_trip() {
+        let req = BatchGenerateRequest {
+            requests: vec![
+                GenerateRequest {
+                    archetype: Some("sword".into()),
+                    seed: Some(42),
+                    constraints: None,
+                    affixes: None,
+                    client_id: None,
+                },
+            ],
+        };
+        let value = serde_json::to_value(&req).unwrap();
+        let deserialized: BatchGenerateRequest = serde_json::from_value(value).unwrap();
+        assert_eq!(deserialized, req);
+    }
+
+    #[test]
+    fn test_batch_generate_response_round_trip() {
+        let resp = BatchGenerateResponse {
+            results: vec![
+                BatchGenerateResultItem {
+                    result: Some(GenerateResponse {
+                        seed: 42,
+                        name: "Fire Longsword".into(),
+                        name_parts: NameParts {
+                            base: "Longsword".into(),
+                            prefixes: vec!["Fire".into()],
+                            suffixes: vec![],
+                        },
+                        blueprint_id: Uuid::new_v4(),
+                        blueprint_attributes: BTreeMap::new(),
+                        affix_attributes: vec![],
+                    }),
+                    error: None,
+                },
+                BatchGenerateResultItem {
+                    result: None,
+                    error: Some("No matching blueprint".into()),
+                },
+            ],
+        };
+        let value = serde_json::to_value(&resp).unwrap();
+        let deserialized: BatchGenerateResponse = serde_json::from_value(value).unwrap();
+        assert_eq!(deserialized, resp);
+    }
+
+    #[test]
+    fn test_batch_generate_response_camel_case() {
+        let resp = BatchGenerateResponse {
+            results: vec![],
+        };
+        let obj = serde_json::to_value(&resp)
+            .unwrap()
+            .as_object()
+            .unwrap()
+            .clone();
+        assert!(obj.contains_key("results"));
+    }
+
+    #[test]
     fn test_generate_response_camel_case() {
         let resp = GenerateResponse {
             seed: 0,
@@ -1113,6 +1174,9 @@ mod tests {
         assert_traits::<NameParts>();
         assert_traits::<AffixAttributeEntry>();
         assert_traits::<GenerateResponse>();
+        assert_traits::<BatchGenerateRequest>();
+        assert_traits::<BatchGenerateResultItem>();
+        assert_traits::<BatchGenerateResponse>();
         assert_traits::<CreateBlueprintRequest>();
         assert_traits::<CreateAffixRequest>();
         assert_traits::<CreateGlobalMetaAttributeRequest>();

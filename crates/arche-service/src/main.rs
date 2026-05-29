@@ -39,7 +39,7 @@ use cache::Cache;
 use config::Config;
 use import::ImportStaging;
 use redis_pubsub::RedisPubSubHandle;
-use schema::{get_affixes_schema, get_blueprints_schema, get_generate_schema};
+use schema::{get_affixes_schema, get_batch_generate_schema, get_blueprints_schema, get_generate_schema};
 
 #[derive(Clone)]
 #[allow(dead_code)]
@@ -86,6 +86,7 @@ fn build_router(state: AppState) -> Router {
         .route("/api/schema/blueprints", get(get_blueprints_schema))
         .route("/api/schema/affixes", get(get_affixes_schema))
         .route("/api/schema/generate", get(get_generate_schema))
+        .route("/api/schema/generate/batch", get(get_batch_generate_schema))
         .route("/api/me", get(me::me_handler))
         .route("/api/blueprints", get(blueprints::list_blueprints).post(blueprints::create_blueprint))
         .route("/api/blueprints/{id}", get(blueprints::get_blueprint).put(blueprints::update_blueprint).delete(blueprints::delete_blueprint))
@@ -100,6 +101,7 @@ fn build_router(state: AppState) -> Router {
         .route("/api/global-meta-attributes/{id}", get(global_meta_attributes::get_global_meta_attribute).put(global_meta_attributes::update_global_meta_attribute).delete(global_meta_attributes::delete_global_meta_attribute))
         .route("/api/audit-log", get(audit_log::list_audit_log))
         .route("/api/generate", post(generate::generate_handler))
+        .route("/api/generate/batch", post(generate::generate_batch_handler))
         .route("/api/clients", get(clients::list_clients).post(clients::create_client))
         .route("/api/clients/{id}", get(clients::get_client).delete(clients::delete_client))
         .route("/api/clients/{client_id}/keys", get(clients::list_api_keys).post(clients::create_api_key))

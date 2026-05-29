@@ -86,3 +86,24 @@ pub struct GenerateResponse {
     pub blueprint_attributes: BTreeMap<String, serde_json::Value>,
     pub affix_attributes: Vec<AffixAttributeEntry>,
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct BatchGenerateRequest {
+    pub requests: Vec<GenerateRequest>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct BatchGenerateResultItem {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub result: Option<GenerateResponse>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct BatchGenerateResponse {
+    pub results: Vec<BatchGenerateResultItem>,
+}

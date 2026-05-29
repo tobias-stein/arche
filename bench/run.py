@@ -248,9 +248,6 @@ def _print_summary_table(results):
         p99_s = f"{r['p99']:.1f}" if r.get('p99') is not None else "\u2014"
         rows.append((label, peak, conc, p50_s, p95_s, p99_s))
 
-    if not rows:
-        return
-
     col_widths = [
         max(len(headers[0]), max(len(r[0]) for r in rows)),
         max(len(headers[1]), max(len(f"{r[1]:.0f}") for r in rows)),
@@ -273,7 +270,7 @@ def _print_summary_table(results):
         print(fmt.format(label, int(round(peak)), conc, p50_s, p95_s, p99_s))
 
     best = max(results, key=lambda r: r['throughput'])
-    best_label = f"bp={best['blueprint_count']} aff={best['affix_count']} attr={best['attribute_count']}"
+    best_label = f"bp={best['blueprint_count']} aff={best.get('affix_count', 0)} attr={best['attribute_count']}"
     print()
     print(f"Peak gen/s: {best['throughput']:.0f}  ({best_label})")
     print()

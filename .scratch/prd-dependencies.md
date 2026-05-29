@@ -1,8 +1,3 @@
----
-title: PRD Dependency Map
-status: completed
----
-
 ## Dependency Graph
 
 ```
@@ -21,7 +16,14 @@ status: completed
 ┌──────────────────┐
 │  Admin UI        │
 │ (React SPA)      │
-└──────────────────┘
+└────────┬─────────┘
+         │ depends on (API contract)
+         ▼
+┌──────────────────────────────────┐
+│      arche-bench (benchmark)     │
+│ Python script, aiohttp + pyyaml  │
+│ Benchmarks POST /api/generate    │
+└──────────────────────────────────┘
 ```
 
 ## Dependency Details
@@ -63,7 +65,18 @@ The CLI depends on `arche-service` for:
 
 **The service does NOT need to be complete for CLI development to start** — the CLI can be developed against a mock server or the generated JSON Schema, but end-to-end testing requires a running service.
 
-### 4. Arche Admin UI → depends on `arche-service`
+### 4. `arche-bench` (benchmark suite) → depends on `arche-service`
+
+The benchmark suite depends on the service for:
+
+- `POST /api/generate` — the endpoint under test
+- `POST /api/clients` — to create per-scenario clients for data isolation
+- `POST /api/blueprints`, `POST /api/affixes`, `POST /api/blueprints/:id/affixes` — to seed test data
+- The service must be running (the benchmark script starts Docker Compose or connects to `--target-url`)
+
+The benchmark suite does **not** depend on `arche-types`, `arche-cli`, or the Admin UI.
+
+### 5. Arche Admin UI → depends on `arche-service`
 
 The Admin UI depends on the service for:
 - All REST API endpoints (CRUD, generate, import/export, audit log, schema)
@@ -88,6 +101,7 @@ The Admin UI depends on the service for:
 | **Phase 3a** | Admin UI core: app shell, auth, blueprint CRUD, affix CRUD | Phase 2b (schema endpoints for client generation) |
 | **Phase 3b** | Admin UI extended: global meta attributes, clients/keys, audit log, import/export wizard, global search, dashboard | Phase 3a |
 | **Phase 3c** | `arche-cli`: all commands | Phase 1, Phase 2b |
+| **Phase 4** | `arche-bench` benchmark suite | Phase 2b (needs generate endpoint) |
 
 ### Parallelism opportunities:
 - `arche-types` (Phase 1) is a prerequisite for everything — build first.

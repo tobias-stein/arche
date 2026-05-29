@@ -1,6 +1,6 @@
 ---
 title: "Benchmark: Plateau detection"
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

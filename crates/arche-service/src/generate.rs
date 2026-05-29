@@ -229,7 +229,7 @@ async fn load_client_cache(
     state: &AppState,
     client_id: Uuid,
     is_cache_refresh: bool,
-) -> Result<(ClientCache, HashMap<Uuid, Vec<BlueprintAffix>>), ProblemResponse> {
+) -> Result<(Arc<ClientCache>, HashMap<Uuid, Vec<BlueprintAffix>>), ProblemResponse> {
     if is_cache_refresh {
         let data = Cache::fetch_client_data(&state.pool, client_id)
             .await
@@ -240,7 +240,7 @@ async fn load_client_cache(
 
         let bp_affixes_lookup = data.blueprint_affixes;
 
-        let client_cache = ClientCache {
+        let client_cache = Arc::new(ClientCache {
             blueprints: data.blueprints.values().map(|bp| Arc::new(bp.clone())).collect(),
             affixes: data.affixes.values().map(|a| Arc::new(a.clone())).collect(),
             global_meta_attributes: data
@@ -248,7 +248,7 @@ async fn load_client_cache(
                 .values()
                 .map(|gma| Arc::new(gma.clone()))
                 .collect(),
-        };
+        });
 
         Ok((client_cache, bp_affixes_lookup))
     } else {
@@ -258,15 +258,9 @@ async fn load_client_cache(
             .get_client_data(client_id)
             .ok_or_else(|| ProblemResponse::not_found("Client not found in cache"))?;
 
-        let client_cache = ClientCache {
-            blueprints: cc.blueprints.clone(),
-            affixes: cc.affixes.clone(),
-            global_meta_attributes: cc.global_meta_attributes.clone(),
-        };
-
         let bp_affixes_lookup = cache.blueprint_affixes.clone();
 
-        Ok((client_cache, bp_affixes_lookup))
+        Ok((cc.clone(), bp_affixes_lookup))
     }
 }
 

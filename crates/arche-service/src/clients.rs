@@ -724,6 +724,7 @@ mod tests {
                     HashMap::new(), HashMap::new(), HashMap::new(),
                     HashMap::new(), HashMap::new(),
                 ))),
+                api_key_cache: Arc::new(crate::cache::ApiKeyCache::new()),
                 pool,
                 redis: None,
                 import_staging: Arc::new(crate::import::ImportStaging::new()),
@@ -1399,7 +1400,7 @@ mod tests {
             let raw_key = create_resp.key.clone();
 
             // Verify the key authenticates
-            let auth_result = crate::auth::verify_api_key(&raw_key, &pool).await;
+            let auth_result = crate::auth::verify_api_key(&raw_key, &pool, None).await;
             assert!(auth_result.is_ok(), "key should authenticate before deletion");
 
             // Delete the key
@@ -1415,7 +1416,7 @@ mod tests {
             assert_eq!(resp["deleted"], true);
 
             // Verify the key no longer authenticates
-            let auth_result = crate::auth::verify_api_key(&raw_key, &pool).await;
+            let auth_result = crate::auth::verify_api_key(&raw_key, &pool, None).await;
             assert!(auth_result.is_err(), "key should NOT authenticate after deletion");
 
             // Cleanup
@@ -1697,7 +1698,7 @@ mod tests {
             .unwrap();
 
             // Verify the key authenticates and has the correct client_id
-            let auth_key = crate::auth::verify_api_key(&create_resp.key, &pool)
+            let auth_key = crate::auth::verify_api_key(&create_resp.key, &pool, None)
                 .await
                 .unwrap();
             assert_eq!(auth_key.client_id, Some(client_a));

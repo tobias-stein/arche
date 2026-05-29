@@ -189,7 +189,7 @@ pub(crate) async fn permission_middleware(
         }
     };
 
-    let key = match verify_api_key(api_key, &state.pool).await {
+    let key = match verify_api_key(api_key, &state.pool, Some(state.api_key_cache.as_ref())).await {
         Ok(k) => k,
         Err(e) => return e.into_response(),
     };

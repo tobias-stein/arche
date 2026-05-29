@@ -793,6 +793,7 @@ mod tests {
                         HashMap::new(),
                     ),
                 )),
+                api_key_cache: std::sync::Arc::new(crate::cache::ApiKeyCache::new()),
                 pool: std::sync::Arc::new(pool),
                 redis: None,
                 import_staging: std::sync::Arc::new(

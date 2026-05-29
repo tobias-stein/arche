@@ -748,6 +748,7 @@ mod tests {
                     std::collections::HashMap::new(),
                     std::collections::HashMap::new(),
                 ))),
+                api_key_cache: Arc::new(crate::cache::ApiKeyCache::new()),
                 pool,
                 redis: None,
                 import_staging: Arc::new(crate::import::ImportStaging::new()),

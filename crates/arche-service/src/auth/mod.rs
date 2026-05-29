@@ -8,6 +8,7 @@ use chrono::Utc;
 use sqlx::{PgPool, Row};
 use uuid::Uuid;
 
+use crate::cache::ApiKeyCache;
 use crate::error::ProblemResponse;
 
 pub mod permission;
@@ -38,14 +39,21 @@ where
             .and_then(|v| v.to_str().ok())
             .ok_or_else(|| ProblemResponse::unauthorized("Missing X-API-Key header"))?;
 
-        verify_api_key(api_key, &pool).await
+        verify_api_key(api_key, &pool, None).await
     }
 }
 
 pub(super) async fn verify_api_key(
     raw_key: &str,
     pool: &PgPool,
+    api_key_cache: Option<&ApiKeyCache>,
 ) -> Result<AuthenticatedKey, ProblemResponse> {
+    if let Some(cache) = api_key_cache {
+        if let Some(key) = cache.get(raw_key).await {
+            return Ok(key);
+        }
+    }
+
     let rows = sqlx::query(
         "SELECT id, client_id, name, key_hash, permissions, is_super, expires_at FROM api_keys",
     )
@@ -77,13 +85,19 @@ pub(super) async fn verify_api_key(
                 .filter_map(|p| parse_permission(p.as_str()))
                 .collect();
 
-            return Ok(AuthenticatedKey {
+            let key = AuthenticatedKey {
                 id,
                 name,
                 client_id,
                 permissions,
                 is_super,
-            });
+            };
+
+            if let Some(cache) = api_key_cache {
+                cache.insert(raw_key.to_string(), key.clone(), expires_at).await;
+            }
+
+            return Ok(key);
         }
     }
 

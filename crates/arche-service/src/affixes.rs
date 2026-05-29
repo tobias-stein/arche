@@ -933,6 +933,7 @@ mod tests {
                     HashMap::new(), HashMap::new(), HashMap::new(),
                     HashMap::new(), HashMap::new(),
                 ))),
+                api_key_cache: Arc::new(crate::cache::ApiKeyCache::new()),
                 pool,
                 redis: None,
                 import_staging: Arc::new(crate::import::ImportStaging::new()),

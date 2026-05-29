@@ -6,6 +6,8 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
+use crate::auth::AuthenticatedKey;
+
 #[derive(Debug)]
 pub struct Cache {
     pub clients: HashMap<Uuid, Client>,
@@ -307,6 +309,116 @@ pub struct FetchedClientData {
     pub affixes: HashMap<Uuid, Affix>,
     pub global_meta_attributes: HashMap<Uuid, GlobalMetaAttribute>,
     pub blueprint_affixes: HashMap<Uuid, Vec<BlueprintAffix>>,
+}
+
+#[derive(Debug, Clone)]
+struct CachedKeyEntry {
+    key: AuthenticatedKey,
+    expires_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug)]
+pub struct ApiKeyCache {
+    keys: RwLock<HashMap<String, CachedKeyEntry>>,
+}
+
+impl ApiKeyCache {
+    pub fn new() -> Self {
+        Self {
+            keys: RwLock::new(HashMap::new()),
+        }
+    }
+
+    pub async fn get(&self, raw_key: &str) -> Option<AuthenticatedKey> {
+        let keys = self.keys.read().await;
+        if let Some(entry) = keys.get(raw_key) {
+            if let Some(expires_at) = entry.expires_at {
+                if Utc::now() > expires_at {
+                    drop(keys);
+                    self.keys.write().await.remove(raw_key);
+                    return None;
+                }
+            }
+            Some(entry.key.clone())
+        } else {
+            None
+        }
+    }
+
+    pub async fn insert(
+        &self,
+        raw_key: String,
+        key: AuthenticatedKey,
+        expires_at: Option<DateTime<Utc>>,
+    ) {
+        self.keys
+            .write()
+            .await
+            .insert(raw_key, CachedKeyEntry { key, expires_at });
+    }
+
+    pub async fn remove_by_id(&self, id: Uuid) {
+        self.keys.write().await.retain(|_, entry| entry.key.id != id);
+    }
+
+    pub async fn clear(&self) {
+        self.keys.write().await.clear();
+    }
+
+    async fn load_all_key_ids(pool: &PgPool) -> Result<HashMap<Uuid, Option<DateTime<Utc>>>, sqlx::Error> {
+        let rows = sqlx::query("SELECT id, expires_at FROM api_keys")
+            .fetch_all(pool)
+            .await?;
+        Ok(rows
+            .iter()
+            .map(|r| {
+                let id: Uuid = r.get("id");
+                let expires_at: Option<DateTime<Utc>> = r.get("expires_at");
+                (id, expires_at)
+            })
+            .collect())
+    }
+
+    pub async fn sync_from_db(&self, pool: &PgPool) {
+        let valid_ids = match Self::load_all_key_ids(pool).await {
+            Ok(ids) => ids,
+            Err(e) => {
+                tracing::warn!(error = %e, "api_key_cache poll: failed to load key ids");
+                return;
+            }
+        };
+
+        let mut keys = self.keys.write().await;
+        keys.retain(|_, entry| {
+            if let Some(expires_at) = valid_ids.get(&entry.key.id) {
+                if let Some(exp) = expires_at {
+                    if Utc::now() > *exp {
+                        return false;
+                    }
+                }
+                true
+            } else {
+                false
+            }
+        });
+    }
+}
+
+pub fn start_api_key_cache_poller(
+    pool: PgPool,
+    api_key_cache: Arc<ApiKeyCache>,
+    interval_ms: u64,
+) -> tokio::task::JoinHandle<()> {
+    tokio::spawn(async move {
+        let interval = tokio::time::Duration::from_millis(interval_ms);
+        let mut tick = tokio::time::interval(interval);
+        tick.tick().await;
+
+        loop {
+            tick.tick().await;
+            api_key_cache.sync_from_db(&pool).await;
+        }
+    })
 }
 
 pub fn start_cache_poller(

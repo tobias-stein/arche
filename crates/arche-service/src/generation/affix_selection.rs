@@ -1,6 +1,5 @@
 use arche_types::generate::AffixConstraints;
 use arche_types::{Affix, AffixLocation, Blueprint, BlueprintAffix};
-use rand::distributions::{Distribution, WeightedIndex};
 use rand::Rng;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -188,22 +187,36 @@ fn weighted_select_without_replacement(
         return Vec::new();
     }
 
-    let mut indices: Vec<usize> = (0..pool.len()).collect();
-    let mut result = Vec::with_capacity(n);
+    let k = n.min(pool.len());
 
-    for _ in 0..n {
-        if indices.is_empty() {
-            break;
-        }
-        let weights: Vec<f64> = indices.iter().map(|&i| pool[i].weight).collect();
-        let dist = WeightedIndex::new(&weights).expect("weights should be > 0");
-        let pick = dist.sample(rng);
-        let idx = indices[pick];
-        if let Some(affix) = affix_by_id.get(&pool[idx].affix_id) {
-            result.push((Arc::clone(*affix), pool[idx].sort_order));
-        }
-        indices.remove(pick);
-    }
+    // Algorithm A-ES (Efraimidis & Spirakis): weighted sampling without replacement.
+    // For each item with weight w, compute key = -ln(u) / w where u ~ Uniform(0,1].
+    // The k items with the smallest keys are selected without replacement.
+    // This is O(n log n) overall, compared to O(n²) for the previous approach.
+    let mut candidates: Vec<(f64, usize)> = pool
+        .iter()
+        .enumerate()
+        .filter_map(|(i, entry)| {
+            if entry.weight <= 0.0 {
+                return None;
+            }
+            let u: f64 = 1.0 - rng.gen::<f64>();
+            let key = -u.ln() / entry.weight;
+            Some((key, i))
+        })
+        .collect();
+
+    candidates.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+
+    let result: Vec<(Arc<Affix>, i32)> = candidates
+        .iter()
+        .take(k)
+        .filter_map(|&(_, i)| {
+            affix_by_id
+                .get(&pool[i].affix_id)
+                .map(|affix| (Arc::clone(*affix), pool[i].sort_order))
+        })
+        .collect();
 
     result
 }

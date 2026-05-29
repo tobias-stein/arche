@@ -1,6 +1,6 @@
 ---
 title: Cache API keys in memory to eliminate DB + bcrypt on every request
-status: ready-for-agent
+status: completed
 ---
 
 ## What to build

@@ -1,6 +1,6 @@
 ---
 title: Optimize weighted selection without replacement algorithm
-status: ready-for-agent
+status: completed
 ---
 
 ## What to build

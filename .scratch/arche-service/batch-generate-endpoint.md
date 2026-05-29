@@ -1,6 +1,6 @@
 ---
 title: Batch generate endpoint — POST /api/generate/batch
-status: ready-for-agent
+status: completed
 ---
 
 ## What to build

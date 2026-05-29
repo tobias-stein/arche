@@ -1,6 +1,6 @@
 ---
 title: Reduce Vec cloning in cache read path
-status: ready-for-agent
+status: completed
 ---
 
 ## What to build

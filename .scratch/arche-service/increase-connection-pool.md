@@ -1,6 +1,6 @@
 ---
 title: Increase DB connection pool size from 5 to ~50
-status: ready-for-agent
+status: completed
 ---
 
 ## What to build

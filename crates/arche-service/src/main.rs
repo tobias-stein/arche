@@ -35,7 +35,7 @@ use tracing::info;
 use tracing::warn;
 
 use bootstrap::bootstrap_super_admin;
-use cache::Cache;
+use cache::{ApiKeyCache, Cache};
 use config::Config;
 use import::ImportStaging;
 use redis_pubsub::RedisPubSubHandle;
@@ -45,6 +45,7 @@ use schema::{get_affixes_schema, get_batch_generate_schema, get_blueprints_schem
 #[allow(dead_code)]
 pub(crate) struct AppState {
     cache: Arc<RwLock<Cache>>,
+    pub(crate) api_key_cache: Arc<ApiKeyCache>,
     pool: Arc<PgPool>,
     redis: Option<RedisPubSubHandle>,
     pub(crate) import_staging: Arc<ImportStaging>,
@@ -179,9 +180,17 @@ async fn main() {
 
     let cache = Arc::new(RwLock::new(cache));
 
+    let api_key_cache = Arc::new(ApiKeyCache::new());
+
     let _poll_handle = cache::start_cache_poller(
         (*pool).clone(),
         cache.clone(),
+        config.cache_poll_interval_ms,
+    );
+
+    let _api_key_poll_handle = cache::start_api_key_cache_poller(
+        (*pool).clone(),
+        api_key_cache.clone(),
         config.cache_poll_interval_ms,
     );
 
@@ -201,7 +210,7 @@ async fn main() {
         None
     };
 
-    let state = AppState { cache, pool, redis: redis_handle, import_staging: Arc::new(ImportStaging::new()) };
+    let state = AppState { cache, api_key_cache, pool, redis: redis_handle, import_staging: Arc::new(ImportStaging::new()) };
     let router = build_router(state);
 
     let addr: SocketAddr = config.bind_addr().parse().expect("invalid bind address");
@@ -271,6 +280,7 @@ mod tests {
                 std::collections::HashMap::new(),
                 std::collections::HashMap::new(),
             ))),
+            api_key_cache: Arc::new(ApiKeyCache::new()),
             pool: Arc::new(PgPool::connect_lazy("postgres://localhost/test").expect("lazy pool")),
             redis: None,
             import_staging: Arc::new(ImportStaging::new()),

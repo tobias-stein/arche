@@ -148,11 +148,14 @@ class TestGenerateBlueprintBody(unittest.TestCase):
             self.assertIn(d, seen_dists)
 
     def test_some_attributes_use_global_ref(self):
+        gma_ids = ["aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                    "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"]
         total = 0
         ref_count = 0
         for bp_idx in range(10):
             body = generate_blueprint_body(f"Blueprint-{bp_idx:04d}", 10,
-                                            _DEFAULT_SCENARIO, bp_idx)
+                                            _DEFAULT_SCENARIO, bp_idx,
+                                            global_meta_ids=gma_ids)
             for attr in body["attributes"].values():
                 total += 1
                 if "$ref_id" in attr:
@@ -175,11 +178,11 @@ class TestGenerateGlobalMetaAttributes(unittest.TestCase):
         attrs = generate_global_meta_attributes(_DEFAULT_SCENARIO)
         self.assertIsInstance(attrs, list)
 
-    def test_each_has_id(self):
+    def test_each_has_name(self):
         attrs = generate_global_meta_attributes(_DEFAULT_SCENARIO)
         for attr in attrs:
-            self.assertIn("id", attr)
-            self.assertTrue(attr["id"].startswith("global-meta-"))
+            self.assertIn("name", attr)
+            self.assertTrue(attr["name"].startswith("bench_global_meta_"))
             self.assertIn("valueType", attr)
             self.assertIn("description", attr)
 
@@ -201,14 +204,15 @@ class TestGenerateGlobalMetaAttributes(unittest.TestCase):
         self.assertLessEqual(len(small), len(large))
         self.assertGreater(len(large), 0)
 
-    def test_ref_ids_match_generated_global_attrs(self):
-        scenario = {"blueprint_count": 10, "affix_count": 0, "attribute_count": 10}
-        global_attrs = generate_global_meta_attributes(scenario)
-        global_ids = {a["id"] for a in global_attrs}
-        body = generate_blueprint_body("test", 10, scenario, 0)
+    def test_ref_ids_match_global_meta_ids(self):
+        gma_ids = ["aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                    "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+                    "cccccccc-cccc-cccc-cccc-cccccccccccc"]
+        body = generate_blueprint_body("test", 10, _DEFAULT_SCENARIO, 0,
+                                        global_meta_ids=gma_ids)
         for attr in body["attributes"].values():
             if "$ref_id" in attr:
-                self.assertIn(attr["$ref_id"], global_ids)
+                self.assertIn(attr["$ref_id"], gma_ids)
 
 
 if __name__ == "__main__":

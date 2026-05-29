@@ -160,6 +160,7 @@ KEY_RESP = _make_response(
     }).encode(),
 )
 BP_RESP = _make_response(200, b'{"id": "bp-x", "name": "x"}')
+GMA_RESP = _make_response(200, b'{"id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "name": "bench_global_meta_0", "valueType": "boolean"}')
 GEN_RESP = _make_response(200, b'{"ok": true}')
 DELETE_RESP = _make_response(200, b'{"ok": true}')
 
@@ -180,6 +181,9 @@ def _smart_side_effect(*args, **kwargs):
             return CLIENT_RESP
         if method == "DELETE":
             return DELETE_RESP
+
+    if "/api/global-meta-attributes" in url and method == "POST":
+        return GMA_RESP
 
     if "/api/blueprints" in url and method == "POST":
         return BP_RESP

@@ -1,0 +1,3 @@
+blueprint_count,affix_count,attribute_count,concurrency,duration_s,total_requests,throughput,p50_ms,p95_ms,p99_ms
+10,2,4,1,10.01,19,1.90,,,
+10,2,4,10,10.01,72,7.20,,,

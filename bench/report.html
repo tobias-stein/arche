@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Benchmark Report</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 20px; background: #f8f9fa; }
+    h1 { color: #333; }
+    .chart-container { background: #fff; border-radius: 8px; padding: 20px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .filters { background: #fff; border-radius: 8px; padding: 16px 20px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .filters h3 { margin-top: 0; font-size: 16px; }
+    .filter-group { display: inline-block; margin-right: 24px; vertical-align: top; }
+    .filter-group label { display: block; font-size: 13px; margin: 2px 0; }
+    .filter-group label input { margin-right: 4px; }
+    canvas { max-height: 400px; }
+</style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Benchmark Report</h1>
+
+    <div class="filters" id="filters">
+        <h3>Scenario Filter</h3>
+        <div id="filter-controls"></div>
+    </div>
+
+    <div class="chart-container">
+        <h2>Throughput vs Concurrency</h2>
+        <ul class="nav nav-tabs" role="tablist">
+            <li class="nav-item"><button class="nav-link active" id="bp-tab-10" data-bs-toggle="tab" data-bs-target="#bp-chart-10" type="button" role="tab" onclick="switchBlueprint()">10 blueprints</button></li>
+
+        </ul>
+        <div class="tab-content">
+            <div class="tab-pane fade show active" id="bp-chart-10" role="tabpanel"><canvas id="throughputChart-10"></canvas></div>
+
+        </div>
+    </div>
+
+    <div class="chart-container">
+        <h2>Peak Throughput by Scenario</h2>
+        <canvas id="peakChart"></canvas>
+    </div>
+
+    <div class="chart-container">
+        <h2>Latency Percentiles</h2>
+        <canvas id="latencyChart"></canvas>
+    </div>
+</div>
+
+<script>
+const BENCH_DATA = [{"blueprint_count": 10, "affix_count": 2, "attribute_count": 4, "concurrency": 1, "duration_s": 10.005092833001981, "total_requests": 19, "throughput": 1.8990328542807873, "p50": null, "p95": null, "p99": null}, {"blueprint_count": 10, "affix_count": 2, "attribute_count": 4, "concurrency": 10, "duration_s": 10.005485541994858, "total_requests": 72, "throughput": 7.196052575140186, "p50": null, "p95": null, "p99": null}];
+
+const COLORS = [
+    'rgba(54, 162, 235, 0.8)', 'rgba(255, 99, 132, 0.8)',
+    'rgba(75, 192, 192, 0.8)', 'rgba(255, 159, 64, 0.8)',
+    'rgba(153, 102, 255, 0.8)', 'rgba(255, 205, 86, 0.8)',
+    'rgba(201, 203, 207, 0.8)', 'rgba(34, 139, 34, 0.8)',
+];
+
+function buildFilterControls() {
+    var bpSet = new Set(BENCH_DATA.map(function(r) { return r.blueprint_count; }));
+    var affSet = new Set(BENCH_DATA.map(function(r) { return r.affix_count; }));
+    var attrSet = new Set(BENCH_DATA.map(function(r) { return r.attribute_count; }));
+
+    var html = '';
+    if (bpSet.size > 0) {
+        html += '<div class="filter-group"><strong>Blueprints</strong>';
+        bpSet.forEach(function(v) {
+            html += '<label><input type="checkbox" class="filter-bp" value="' + v + '" checked onchange="applyFilters()"> ' + v + '</label>';
+        });
+        html += '</div>';
+    }
+    if (affSet.size > 0) {
+        html += '<div class="filter-group"><strong>Affixes</strong>';
+        affSet.forEach(function(v) {
+            html += '<label><input type="checkbox" class="filter-aff" value="' + v + '" checked onchange="applyFilters()"> ' + v + '</label>';
+        });
+        html += '</div>';
+    }
+    if (attrSet.size > 0) {
+        html += '<div class="filter-group"><strong>Attributes</strong>';
+        attrSet.forEach(function(v) {
+            html += '<label><input type="checkbox" class="filter-attr" value="' + v + '" checked onchange="applyFilters()"> ' + v + '</label>';
+        });
+        html += '</div>';
+    }
+    document.getElementById('filter-controls').innerHTML = html;
+}
+
+function getFilteredData() {
+    var checkedBP = Array.from(document.querySelectorAll('.filter-bp:checked')).map(function(cb) { return Number(cb.value); });
+    var checkedAff = Array.from(document.querySelectorAll('.filter-aff:checked')).map(function(cb) { return Number(cb.value); });
+    var checkedAttr = Array.from(document.querySelectorAll('.filter-attr:checked')).map(function(cb) { return Number(cb.value); });
+    return BENCH_DATA.filter(function(r) {
+        return checkedBP.indexOf(r.blueprint_count) !== -1 &&
+               checkedAff.indexOf(r.affix_count) !== -1 &&
+               checkedAttr.indexOf(r.attribute_count) !== -1;
+    });
+}
+
+var peakChart, latencyChart;
+
+function applyFilters() {
+    var filtered = getFilteredData();
+    updatePeakChart(filtered);
+    updateLatencyChart(filtered);
+    updateThroughputCharts(filtered);
+}
+
+function getAttrColor(attrCount) {
+    if (attrCount <= 3) return 'rgba(54, 162, 235, 0.8)';
+    if (attrCount <= 10) return 'rgba(255, 159, 64, 0.8)';
+    return 'rgba(255, 99, 132, 0.8)';
+}
+
+function updatePeakChart(filtered) {
+    var sorted = filtered.slice().sort(function(a, b) { return parseFloat(b.throughput) - parseFloat(a.throughput); });
+    var labels = sorted.map(function(r) { return 'bp' + r.blueprint_count + ' aff' + r.affix_count + ' attr' + r.attribute_count; });
+    var data = sorted.map(function(r) { return parseFloat(r.throughput); });
+    var bgColors = sorted.map(function(r) { return getAttrColor(r.attribute_count); });
+
+    if (peakChart) peakChart.destroy();
+    peakChart = new Chart(document.getElementById('peakChart'), {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'gen/s',
+                data: data,
+                backgroundColor: bgColors,
+            }],
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: { display: true, text: 'Peak Throughput by Scenario' },
+                legend: { display: false },
+            },
+            scales: {
+                x: { title: { display: true, text: 'Scenario' } },
+                y: { title: { display: true, text: 'gen/s' }, beginAtZero: true },
+            },
+        },
+    });
+}
+
+function updateLatencyChart(filtered) {
+    var withLatency = filtered.filter(function(r) { return r.p50 !== null; });
+    var labels = withLatency.map(function(r) { return 'bp' + r.blueprint_count + ' aff' + r.affix_count + ' attr' + r.attribute_count; });
+    var p50 = withLatency.map(function(r) { return r.p50; });
+    var p95 = withLatency.map(function(r) { return r.p95; });
+    var p99 = withLatency.map(function(r) { return r.p99; });
+
+    if (latencyChart) latencyChart.destroy();
+    latencyChart = new Chart(document.getElementById('latencyChart'), {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                { label: 'p50 (ms)', data: p50, backgroundColor: 'rgba(54, 162, 235, 0.7)' },
+                { label: 'p95 (ms)', data: p95, backgroundColor: 'rgba(255, 159, 64, 0.7)' },
+                { label: 'p99 (ms)', data: p99, backgroundColor: 'rgba(255, 99, 132, 0.7)' },
+            ],
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: { display: true, text: 'Latency Percentiles' },
+                legend: { position: 'bottom' },
+            },
+            scales: {
+                x: { title: { display: true, text: 'Scenario' } },
+                y: { title: { display: true, text: 'ms' }, beginAtZero: true },
+            },
+        },
+    });
+}
+
+var throughputCharts = {};
+
+function updateThroughputCharts(filtered) {
+    var bpLevels = [...new Set(BENCH_DATA.map(function(r) { return r.blueprint_count; }))].sort(function(a, b) { return a - b; });
+    bpLevels.forEach(function(bp) {
+        var bpData = filtered.filter(function(r) { return r.blueprint_count === bp; });
+        var seriesMap = {};
+        bpData.forEach(function(r) {
+            var key = 'bp' + r.blueprint_count + ' aff' + r.affix_count + ' attr' + r.attribute_count;
+            if (!seriesMap[key]) seriesMap[key] = [];
+            seriesMap[key].push({ x: r.concurrency, y: parseFloat(r.throughput) });
+        });
+
+        var datasets = [];
+        var colorIdx = 0;
+        for (var key in seriesMap) {
+            datasets.push({
+                label: key,
+                data: seriesMap[key],
+                borderColor: COLORS[colorIdx % COLORS.length],
+                backgroundColor: COLORS[colorIdx % COLORS.length].replace('0.8', '0.2'),
+                fill: false,
+                tension: 0.1,
+                pointRadius: 5,
+            });
+            colorIdx++;
+        }
+
+        if (throughputCharts[bp]) throughputCharts[bp].destroy();
+
+        var canvas = document.getElementById('throughputChart-' + bp);
+        if (canvas) {
+            throughputCharts[bp] = new Chart(canvas, {
+                type: 'line',
+                data: { datasets: datasets },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: { display: true, text: 'Throughput vs Concurrency (bp=' + bp + ')' },
+                        legend: { position: 'bottom' },
+                    },
+                    scales: {
+                        x: { title: { display: true, text: 'Concurrency' }, type: 'linear' },
+                        y: { title: { display: true, text: 'gen/s' }, beginAtZero: true },
+                    },
+                },
+            });
+        }
+    });
+}
+
+function switchBlueprint() {
+    applyFilters();
+}
+
+buildFilterControls();
+var initialFiltered = getFilteredData();
+updatePeakChart(initialFiltered);
+updateLatencyChart(initialFiltered);
+updateThroughputCharts(initialFiltered);
+</script>
+</body>
+</html>

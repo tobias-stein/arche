@@ -32,6 +32,7 @@ KEY_RESP = _make_mock_response(
     }).encode(),
 )
 BP_RESP = _make_mock_response(200, b'{"id": "bp-x", "name": "x"}')
+GMA_RESP = _make_mock_response(200, b'{"id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "name": "bench_global_meta_0", "valueType": "boolean"}')
 GEN_RESP = _make_mock_response(200, b'{"ok": true}')
 DELETE_RESP = _make_mock_response(200, b'{"ok": true}')
 
@@ -52,6 +53,9 @@ def _smart_side_effect(*args, **kwargs):
             return CLIENT_RESP
         if method == "DELETE":
             return DELETE_RESP
+
+    if "/api/global-meta-attributes" in url and method == "POST":
+        return GMA_RESP
 
     if "/api/blueprints" in url and method == "POST":
         return BP_RESP
@@ -136,8 +140,8 @@ class TestRunSweep(unittest.TestCase):
         for c in post_client_calls:
             body = json.loads(c.data)
             client_names.add(body["name"])
-        self.assertIn("bench-bp10-aff0-attr3", client_names)
-        self.assertIn("bench-bp10-aff2-attr3", client_names)
+        self.assertIn("bench_bp10_aff0_attr3_conc1", client_names)
+        self.assertIn("bench_bp10_aff2_attr3_conc1", client_names)
 
         delete_key_calls = [
             c for c in calls

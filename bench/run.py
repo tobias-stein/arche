@@ -108,20 +108,37 @@ def create_api_key(client_id, api_key, target_url="http://localhost:8080"):
     return resp["id"], resp["key"]
 
 
-def _build_blueprint_body(name, attribute_count=3, scenario=None, blueprint_idx=0):
+def create_global_meta_attribute(client_id, api_key, body, target_url="http://localhost:8080"):
+    """Create a global meta attribute for the given client.
+
+    *body* should contain ``name``, ``description``, and the flattened
+    ``AttributePayload`` fields (``valueType`` plus type-specific keys).
+
+    Returns the server response dict (which includes ``id`` as a UUID string).
+    """
+    path = f"/api/global-meta-attributes?client_id={client_id}"
+    resp = _request_json("POST", path, body, api_key, target_url)
+    return resp
+
+
+def _build_blueprint_body(name, attribute_count=3, scenario=None, blueprint_idx=0,
+                          global_meta_ids=None):
     """Build the request body for creating a blueprint with synthetic attributes.
 
     When scenario is None, uses a default scenario for backward compatibility.
     """
     if scenario is None:
         scenario = {"blueprint_count": 10, "affix_count": 0, "attribute_count": attribute_count}
-    return generate_blueprint_body(name, attribute_count, scenario, blueprint_idx)
+    return generate_blueprint_body(name, attribute_count, scenario, blueprint_idx,
+                                   global_meta_ids=global_meta_ids)
 
 
 def create_blueprint(client_id, api_key, name, target_url="http://localhost:8080",
-                      attribute_count=3, scenario=None, blueprint_idx=0):
+                      attribute_count=3, scenario=None, blueprint_idx=0,
+                      global_meta_ids=None):
     """Create a blueprint with synthetic attributes and return its id."""
-    body = _build_blueprint_body(name, attribute_count, scenario, blueprint_idx)
+    body = _build_blueprint_body(name, attribute_count, scenario, blueprint_idx,
+                                 global_meta_ids=global_meta_ids)
     path = f"/api/blueprints?client_id={client_id}"
     resp = _request_json("POST", path, body, api_key, target_url)
     return resp["id"]
@@ -131,6 +148,7 @@ _KEY_MAP = {
     "blueprints": "blueprint_count",
     "affixes": "affix_count",
     "attributes": "attribute_count",
+    "concurrency": "concurrency",
 }
 
 
@@ -240,7 +258,7 @@ def _print_summary_table(results):
 
     rows = []
     for r in results:
-        label = f"bp={r['blueprint_count']}   aff={r.get('affix_count', 0)}  attr={r['attribute_count']}"
+        label = f"bp={r['blueprint_count']}  aff={r.get('affix_count', 0)}  attr={r['attribute_count']}  conc={r['concurrency']}"
         peak = r['throughput']
         conc = r['concurrency']
         p50_s = f"{r['p50']:.1f}" if r.get('p50') is not None else "\u2014"
@@ -270,7 +288,7 @@ def _print_summary_table(results):
         print(fmt.format(label, int(round(peak)), conc, p50_s, p95_s, p99_s))
 
     best = max(results, key=lambda r: r['throughput'])
-    best_label = f"bp={best['blueprint_count']} aff={best.get('affix_count', 0)} attr={best['attribute_count']}"
+    best_label = f"bp={best['blueprint_count']} aff={best.get('affix_count', 0)} attr={best['attribute_count']} conc={best['concurrency']}"
     print()
     print(f"Peak gen/s: {best['throughput']:.0f}  ({best_label})")
     print()
@@ -409,8 +427,11 @@ def _run_seed(api_key, target_url, scenario=None):
         client_id = create_client(api_key, target_url)
         scoped_key = create_api_key(client_id, api_key, target_url)
 
-        global_attrs = generate_global_meta_attributes(scenario)
-        print(f"Global meta attributes: {len(global_attrs)} generated")
+        global_meta_bodies = generate_global_meta_attributes(scenario)
+        global_meta_ids = []
+        for gmb in global_meta_bodies:
+            gma = create_global_meta_attribute(client_id, scoped_key, gmb, target_url)
+            global_meta_ids.append(gma["id"])
 
         for i in range(scenario["blueprint_count"]):
             name = f"Blueprint-{i:04d}"
@@ -419,6 +440,7 @@ def _run_seed(api_key, target_url, scenario=None):
                 attribute_count=scenario["attribute_count"],
                 scenario=scenario,
                 blueprint_idx=i,
+                global_meta_ids=global_meta_ids,
             )
 
         print(f"Client ID: {client_id}")
@@ -462,9 +484,10 @@ def _collect_stable_sample(api_key, target_url, concurrency, sample_duration=Non
     return tracker
 
 
-def _run_bench_loop(api_key, target_url, concurrency=1, duration=10):
+def _run_bench_loop(api_key, target_url, concurrency=1, duration=10, label=""):
     """Run the generate-request loop at fixed concurrency.
 
+    Prints a live progress line every 2 seconds.
     Returns (total_requests, elapsed_s, throughput).
     """
     completed = [0]
@@ -487,10 +510,32 @@ def _run_bench_loop(api_key, target_url, concurrency=1, duration=10):
         threads.append(t)
 
     start = time.monotonic()
+    last_t = [start]
+    last_count = [0]
+
+    def _reporter():
+        while not stop_event.is_set():
+            stop_event.wait(timeout=2.0)
+            if stop_event.is_set():
+                break
+            now = time.monotonic()
+            with lock:
+                c = completed[0]
+            dt = now - last_t[0]
+            live_rate = (c - last_count[0]) / dt if dt > 0 else 0.0
+            last_t[0] = now
+            last_count[0] = c
+            prefix = f"  {label} " if label else "  "
+            print(f"{prefix}{c} req, {live_rate:.1f} gen/s", flush=True)
+
+    reporter = threading.Thread(target=_reporter, daemon=True)
+    reporter.start()
+
     stop_event.wait(timeout=duration)
     elapsed = time.monotonic() - start
 
     stop_event.set()
+    reporter.join(timeout=2.0)
     for t in threads:
         t.join(timeout=2.0)
 
@@ -911,24 +956,38 @@ def _run_sweep(api_key, target_url, config_path, concurrency=1, duration=10,
         bp = scenario["blueprint_count"]
         af = scenario.get("affix_count", 0)
         at = scenario["attribute_count"]
-        client_name = f"bench-bp{bp}-aff{af}-attr{at}"
+        conc = scenario.get("concurrency", concurrency)
+        client_name = f"bench_bp{bp}_aff{af}_attr{at}_conc{conc}"
+
+        print(f"\n--- [{i + 1}/{len(scenarios)}] bp={bp}  aff={af}  attr={at}  conc={conc} ---")
 
         try:
+            print(f"  Seeding client and {bp} blueprint(s)...", end=" ", flush=True)
             client_id = create_client(api_key, target_url, name=client_name)
             key_id, scoped_key = create_api_key(client_id, api_key, target_url)
 
+            global_meta_bodies = generate_global_meta_attributes(scenario)
+            global_meta_ids = []
+            for gmb in global_meta_bodies:
+                gma = create_global_meta_attribute(client_id, api_key, gmb, target_url)
+                global_meta_ids.append(gma["id"])
+
             for j in range(bp):
                 create_blueprint(
-                    client_id, scoped_key, f"Blueprint-{j:04d}", target_url,
+                    client_id, api_key, f"Blueprint-{j:04d}", target_url,
                     attribute_count=at, scenario=scenario, blueprint_idx=j,
+                    global_meta_ids=global_meta_ids,
                 )
+            print("done")
 
+            print(f"  Benchmarking (concurrency={conc}, duration={duration}s)...", flush=True)
             total, elapsed, rate = _run_bench_loop(
-                scoped_key, target_url, concurrency, duration,
+                scoped_key, target_url, conc, duration,
+                label=f"bp={bp} aff={af} attr={at} conc={conc}",
             )
 
             stable_tracker = _collect_stable_sample(
-                scoped_key, target_url, concurrency=concurrency,
+                scoped_key, target_url, concurrency=conc,
                 sample_duration=sample_duration,
             )
             p50 = round(stable_tracker.p50(), 1) if stable_tracker.count >= 50 else None
@@ -939,7 +998,7 @@ def _run_sweep(api_key, target_url, config_path, concurrency=1, duration=10,
                 "blueprint_count": bp,
                 "affix_count": af,
                 "attribute_count": at,
-                "concurrency": concurrency,
+                "concurrency": conc,
                 "duration_s": elapsed,
                 "total_requests": total,
                 "throughput": rate,
@@ -951,7 +1010,7 @@ def _run_sweep(api_key, target_url, config_path, concurrency=1, duration=10,
             results.append(result)
 
             client_cleanups.append((client_id, key_id))
-            print(f"[{i + 1}/{len(scenarios)}] bp={bp} aff={af} attr={at} ... {rate:.0f} gen/s")
+            print(f"  {total} req in {elapsed:.1f}s = {rate:.0f} gen/s @ conc={conc}  (p50={p50 or '—'}ms  p95={p95 or '—'}ms  p99={p99 or '—'}ms)")
 
         except HTTPError as e:
             _handle_request_error(e, target_url)

@@ -1,6 +1,6 @@
 ---
 title: "Benchmark: HTML report with Chart.js"
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

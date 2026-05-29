@@ -267,9 +267,10 @@ class TestRunSeed(unittest.TestCase):
             200,
             b'{"id": "key-1", "key": "arche_k_secret", "name": "benchmark-key", "permissions": ["generate"]}',
         )
+        gma_resp = _make_mock_response(200, b'{"id": "gma-uuid", "name": "bench_global_meta_0", "valueType": "boolean"}')
         bp_resp = _make_mock_response(200, b'{"id": "bp-x", "name": "x"}')
 
-        responses = [client_resp, key_resp] + [bp_resp] * 10
+        responses = [client_resp, key_resp, gma_resp] + [bp_resp] * 10
 
         with patch("urllib.request.urlopen", side_effect=responses):
             with patch("builtins.print") as mock_print:
@@ -304,13 +305,14 @@ class TestRunSeed(unittest.TestCase):
             200,
             b'{"id": "key-1", "key": "arche_k_secret", "name": "benchmark-key", "permissions": ["generate"]}',
         )
+        gma_resp = _make_mock_response(200, b'{"id": "gma-uuid", "name": "bench_global_meta_0", "valueType": "boolean"}')
         http_error = HTTPError(
             "url", 500, "Server Error", {}, io.BytesIO(b"error"),
         )
 
         with patch(
             "urllib.request.urlopen",
-            side_effect=[client_resp, key_resp, http_error],
+            side_effect=[client_resp, key_resp, gma_resp, http_error],
         ):
             with self.assertRaises(SystemExit) as ctx:
                 _run_seed("super-key", "http://localhost:8080")

@@ -3,6 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$PROJECT_DIR"
 
 SKIP_SETUP=false
 TARGET_URL=""
@@ -33,7 +34,7 @@ cleanup() {
   echo "[bench] Cleaning up..."
   if [ "$DID_START_STACK" = true ]; then
     echo "[bench] Running docker compose down..."
-    docker compose down 2>/dev/null || true
+    docker compose down -v 2>/dev/null || true
   fi
   echo "[bench] Done."
   exit 0
@@ -61,7 +62,7 @@ if [ -n "$TARGET_URL" ]; then
   export ARCHE_API_KEY="$API_KEY"
   echo "[bench] ARCHE_API_KEY exported. Press Ctrl+C to exit."
   trap cleanup SIGINT SIGTERM EXIT
-  sleep infinity
+  tail -f /dev/null
 fi
 
 # ── Check prerequisites ──────────────────────────────
@@ -96,7 +97,9 @@ INTERVAL=2
 elapsed=0
 while [ $elapsed -lt $TIMEOUT ]; do
   http_code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/blueprints 2>/dev/null || echo "000")
-  if [ "$http_code" != "000" ] && [ "${http_code:0:1}" != "5" ]; then
+  http_code="${http_code//[!0-9]/}"
+  http_code="${http_code:0:3}"
+  if [ -n "$http_code" ] && [ "$http_code" != "000" ] && [ "${http_code:0:1}" != "5" ]; then
     echo "[bench] Service ready (HTTP $http_code)."
     break
   fi
@@ -108,11 +111,14 @@ if [ $elapsed -ge $TIMEOUT ]; then
   exit 1
 fi
 
+# Allow bootstrap log to flush
+sleep 2
+
 # ── Extract API key from container logs ──────────────
 echo "[bench] Extracting super admin API key from container logs..."
 API_KEY=""
 for i in $(seq 1 10); do
-  API_KEY=$(docker compose logs arche-service 2>/dev/null | grep -oP 'arche_k_[A-Za-z0-9]{48}' | head -1 || true)
+  API_KEY=$(docker compose logs arche-service 2>/dev/null | perl -nle 'print $& while /arche_k_[A-Za-z0-9]{48}/g' | head -1 || true)
   if [ -n "$API_KEY" ]; then
     echo "[bench] API key found."
     break
@@ -122,16 +128,76 @@ for i in $(seq 1 10); do
 done
 
 if [ -z "$API_KEY" ]; then
-  echo "[bench] Error: Could not extract API key from container logs." >&2
-  echo "[bench] This may indicate the service was already bootstrapped." >&2
-  echo "[bench] Try: docker compose down -v && $0" >&2
-  exit 1
+  if [ "$SKIP_SETUP" = true ]; then
+    echo "[bench] Error: Could not extract API key from container logs." >&2
+    echo "[bench] Try running without --skip-setup to auto-reset the stack." >&2
+    echo "[bench]   $0" >&2
+    exit 1
+  fi
+
+  echo "[bench] API key not found in logs. It may have been bootstrapped in a prior run." >&2
+  echo "[bench] Resetting the stack to force fresh bootstrap..." >&2
+  echo "[bench] Running docker compose down -v..."
+  docker compose down -v 2>/dev/null || true
+  echo "[bench] Restarting Docker Compose stack..."
+  docker compose up -d
+  DID_START_STACK=true
+
+  echo "[bench] Waiting for service to be ready..."
+  TIMEOUT=120
+  INTERVAL=2
+  elapsed=0
+  while [ $elapsed -lt $TIMEOUT ]; do
+    http_code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/blueprints 2>/dev/null || echo "000")
+    http_code="${http_code//[!0-9]/}"
+    http_code="${http_code:0:3}"
+    if [ -n "$http_code" ] && [ "$http_code" != "000" ] && [ "${http_code:0:1}" != "5" ]; then
+      echo "[bench] Service ready (HTTP $http_code)."
+      break
+    fi
+    sleep $INTERVAL
+    elapsed=$((elapsed + INTERVAL))
+  done
+  if [ $elapsed -ge $TIMEOUT ]; then
+    echo "[bench] Error: Service did not become ready within ${TIMEOUT}s after reset." >&2
+    exit 1
+  fi
+
+  echo "[bench] Extracting API key from fresh logs..."
+  for i in $(seq 1 10); do
+    API_KEY=$(docker compose logs arche-service 2>/dev/null | perl -nle 'print $& while /arche_k_[A-Za-z0-9]{48}/g' | head -1 || true)
+    if [ -n "$API_KEY" ]; then
+      echo "[bench] API key found."
+      break
+    fi
+    echo "[bench] API key not found yet, retrying in 2s (attempt $i/10)..."
+    sleep 2
+  done
+
+  if [ -z "$API_KEY" ]; then
+    echo "[bench] Error: Could not extract API key even after reset." >&2
+    exit 1
+  fi
 fi
 
 print_api_key_box "$API_KEY"
 
 export ARCHE_API_KEY="$API_KEY"
 echo "[bench] ARCHE_API_KEY exported."
-echo "[bench] Ready. Press Ctrl+C to stop the stack and exit."
+echo "[bench] Running benchmark suite..."
 
-sleep infinity
+set +e
+python "$SCRIPT_DIR/run.py" --api-key "$API_KEY" --sweep
+BENCH_EXIT=$?
+set -e
+
+if [ $BENCH_EXIT -ne 0 ]; then
+  echo "[bench] Benchmark finished with errors (exit code $BENCH_EXIT)." >&2
+else
+  echo "[bench] Benchmark complete."
+fi
+
+echo "[bench] Results:"
+echo "  CSV:   $SCRIPT_DIR/results.csv"
+echo "  HTML:  $SCRIPT_DIR/report.html"
+echo "[bench] Stopping stack..."

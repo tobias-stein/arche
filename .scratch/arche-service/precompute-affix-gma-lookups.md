@@ -1,6 +1,7 @@
 ---
 title: Pre-compute affix_by_id and gma_by_id lookup maps in cache
-status: ready-for-agent
+status: closed
+resolution: no-work-needed
 ---
 
 ## What to build

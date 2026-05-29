@@ -35,18 +35,11 @@ def send_generate_request(api_key, target_url="http://localhost:8080"):
     req = urllib.request.Request(url, data=body, headers=headers, method="POST")
 
     start = time.perf_counter()
-    try:
-        with urllib.request.urlopen(req) as resp:
-            elapsed_ms = (time.perf_counter() - start) * 1000
-            status = resp.status
-            body_str = resp.read().decode("utf-8")
-        return status, body_str, elapsed_ms
-    except HTTPError:
+    with urllib.request.urlopen(req) as resp:
         elapsed_ms = (time.perf_counter() - start) * 1000
-        raise
-    except URLError:
-        elapsed_ms = (time.perf_counter() - start) * 1000
-        raise
+        status = resp.status
+        body_str = resp.read().decode("utf-8")
+    return status, body_str, elapsed_ms
 
 
 _KEY_MAP = {
@@ -202,9 +195,8 @@ def _run_api_connectivity(api_key, target_url):
             pass
         sys.exit(1)
     except URLError as e:
-        reason = e.reason
         print(f"Error: Could not reach server at {target_url}", file=sys.stderr)
-        print(f"Reason: {reason}", file=sys.stderr)
+        print(f"Reason: {e.reason}", file=sys.stderr)
         sys.exit(1)
 
     print(f"Status: {status}")

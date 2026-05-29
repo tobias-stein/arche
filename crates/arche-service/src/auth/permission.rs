@@ -53,7 +53,7 @@ pub fn required_permission(method: &Method, path: &str) -> Option<RequiredPermis
             if path == "/api/import" || path == "/api/import/resolve" {
                 return Some(RequiredPermission::SuperAdmin);
             }
-            if path == "/api/generate" {
+            if path == "/api/generate" || path == "/api/generate/batch" {
                 return Some(RequiredPermission::Regular(Permission::Generate));
             }
             if extract_path_client_id(path).is_some() && path.ends_with("/keys") {
@@ -364,6 +364,14 @@ mod tests {
     fn test_post_generate_requires_generate() {
         assert_eq!(
             required_permission(&Method::POST, "/api/generate"),
+            Some(RequiredPermission::Regular(Permission::Generate))
+        );
+    }
+
+    #[test]
+    fn test_post_generate_batch_requires_generate() {
+        assert_eq!(
+            required_permission(&Method::POST, "/api/generate/batch"),
             Some(RequiredPermission::Regular(Permission::Generate))
         );
     }

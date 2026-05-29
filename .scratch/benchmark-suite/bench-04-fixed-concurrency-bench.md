@@ -1,6 +1,6 @@
 ---
 title: "Benchmark: Fixed-concurrency benchmark loop"
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

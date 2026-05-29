@@ -1,6 +1,6 @@
 ---
 title: "Benchmark: Synthetic data generator (all types/distributions)"
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

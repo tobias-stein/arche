@@ -9,7 +9,7 @@ from unittest.mock import patch, MagicMock
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from run import _generate_html_report, _run_sweep, SAMPLE_DURATION
+from run import _generate_html_report, _run_sweep
 
 
 SAMPLE_RESULTS = [

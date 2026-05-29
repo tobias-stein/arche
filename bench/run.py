@@ -572,7 +572,6 @@ def _generate_html_report(results, html_path):
 
     subchart_tabs = ""
     subchart_canvases = ""
-    subchart_scripts = ""
     for idx, bp in enumerate(bp_levels):
         active = "active" if idx == 0 else ""
         show = "show active" if idx == 0 else ""
@@ -583,7 +582,7 @@ def _generate_html_report(results, html_path):
             f'<button class="nav-link {active}" id="{tab_id}" '
             f'data-bs-toggle="tab" data-bs-target="#{canvas_id}" '
             f'type="button" role="tab" '
-            f'onclick="switchBlueprint({bp})">{bp} blueprints</button>'
+            f'onclick="switchBlueprint()">{bp} blueprints</button>'
             f'</li>\n'
         )
         subchart_canvases += (
@@ -592,26 +591,6 @@ def _generate_html_report(results, html_path):
             f'<canvas id="throughputChart-{bp}"></canvas>'
             f'</div>\n'
         )
-        subchart_scripts += f"""
-    var throughputCtx_{bp} = document.getElementById('throughputChart-{bp}').getContext('2d');
-    var throughputChart_{bp} = new Chart(throughputCtx_{bp}, {{
-        type: 'line',
-        data: {{
-            datasets: [],
-        }},
-        options: {{
-            responsive: true,
-            plugins: {{
-                title: {{ display: true, text: 'Throughput vs Concurrency (bp={bp})' }},
-                legend: {{ position: 'bottom' }},
-            }},
-            scales: {{
-                x: {{ title: {{ display: true, text: 'Concurrency' }} }},
-                y: {{ title: {{ display: true, text: 'gen/s' }}, beginAtZero: true }},
-            }},
-        }},
-    }});
-"""
 
     html_content = f"""<!DOCTYPE html>
 <html lang="en">
@@ -844,9 +823,8 @@ function updateThroughputCharts(filtered) {{
     }});
 }}
 
-function switchBlueprint(bp) {{
-    var filtered = getFilteredData();
-    updateThroughputCharts(filtered);
+function switchBlueprint() {{
+    applyFilters();
 }}
 
 buildFilterControls();
@@ -912,16 +890,15 @@ def _run_sweep(api_key, target_url, config_path, concurrency=1, duration=10,
                 "duration_s": f"{elapsed:.2f}",
                 "total_requests": total,
                 "throughput": f"{rate:.2f}",
+                "p50_ms": "",
+                "p95_ms": "",
+                "p99_ms": "",
             }
 
             if stable_tracker.count >= 50:
                 result["p50_ms"] = f"{stable_tracker.p50():.2f}"
                 result["p95_ms"] = f"{stable_tracker.p95():.2f}"
                 result["p99_ms"] = f"{stable_tracker.p99():.2f}"
-            else:
-                result["p50_ms"] = ""
-                result["p95_ms"] = ""
-                result["p99_ms"] = ""
 
             results.append(result)
 

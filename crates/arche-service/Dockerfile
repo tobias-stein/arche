@@ -5,6 +5,7 @@ RUN apt-get update && apt-get install -y pkg-config libssl-dev && rm -rf /var/li
 WORKDIR /app
 COPY Cargo.toml Cargo.lock rust-toolchain.toml ./
 COPY crates/ crates/
+COPY bench/ bench/
 COPY arche-service/migrations/ arche-service/migrations/
 
 RUN cargo build -p arche-service --release && \

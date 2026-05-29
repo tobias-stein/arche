@@ -1,5 +1,5 @@
 dimensions:
-  blueprints: [10, 100, 1000]
+  blueprints: [1000]
   affixes: [0, 2, 4]
-  attributes: [3, 10, 25]
-  concurrency: [1, 10, 100]
+  attributes: [4, 8, 16, 32]
+  concurrency: [100]

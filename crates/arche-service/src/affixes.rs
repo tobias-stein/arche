@@ -457,6 +457,8 @@ pub async fn create_affix(
         tracing::error!(error = %e, "affixes: audit log insert failed");
     }
 
+    state.reload_client_cache(client_id).await;
+
     Ok(Json(affix))
 }
 
@@ -600,6 +602,8 @@ pub async fn update_affix(
     {
         tracing::error!(error = %e, "affixes: audit log insert failed");
     }
+
+    state.reload_client_cache(client_id).await;
 
     Ok(Json(affix))
 }
@@ -858,6 +862,8 @@ pub async fn delete_affix(
             tracing::error!(error = %e, "affixes: audit log insert failed");
         }
     }
+
+    state.reload_client_cache(affix_client_id).await;
 
     Ok(Json(serde_json::json!({"deleted": true})))
 }

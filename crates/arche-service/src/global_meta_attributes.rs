@@ -289,6 +289,8 @@ pub async fn create_global_meta_attribute(
         updated_at,
     };
 
+    state.reload_client_cache(client_id).await;
+
     Ok(Json(gma))
 }
 
@@ -363,6 +365,8 @@ pub async fn update_global_meta_attribute(
         created_at,
         updated_at,
     };
+
+    state.reload_client_cache(client_id).await;
 
     Ok(Json(gma))
 }
@@ -669,6 +673,8 @@ pub async fn delete_global_meta_attribute(
             tracing::error!(error = %e, "gma: audit log insert failed");
         }
     }
+
+    state.reload_client_cache(gma_client_id).await;
 
     Ok(Json(serde_json::json!({"deleted": true})))
 }

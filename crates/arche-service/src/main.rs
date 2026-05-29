@@ -29,13 +29,14 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::signal;
 use tokio::sync::RwLock;
+use uuid::Uuid;
 use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 use tracing::info;
 use tracing::warn;
 
 use bootstrap::bootstrap_super_admin;
-use cache::{ApiKeyCache, Cache};
+use cache::{ApiKeyCache, Cache, FetchedClientData};
 use config::Config;
 use import::ImportStaging;
 use redis_pubsub::RedisPubSubHandle;
@@ -54,6 +55,34 @@ pub(crate) struct AppState {
 impl axum::extract::FromRef<AppState> for Arc<PgPool> {
     fn from_ref(state: &AppState) -> Self {
         state.pool.clone()
+    }
+}
+
+impl AppState {
+    pub async fn reload_client_cache(&self, client_id: Uuid) {
+        let data = match Cache::fetch_client_data(&self.pool, client_id).await {
+            Ok(d) => d,
+            Err(e) => {
+                tracing::warn!(error = %e, client_id = %client_id, "cache reload: fetch failed");
+                return;
+            }
+        };
+        let mut cache = self.cache.write().await;
+        cache.apply_client_data(client_id, data);
+    }
+
+    pub async fn invalidate_client_cache(&self, client_id: Uuid) {
+        let mut cache = self.cache.write().await;
+        cache.apply_client_data(
+            client_id,
+            FetchedClientData {
+                client: None,
+                blueprints: std::collections::HashMap::new(),
+                affixes: std::collections::HashMap::new(),
+                global_meta_attributes: std::collections::HashMap::new(),
+                blueprint_affixes: std::collections::HashMap::new(),
+            },
+        );
     }
 }
 

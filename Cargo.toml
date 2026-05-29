@@ -4,6 +4,7 @@ members = [
     "crates/arche-types",
     "crates/arche-service",
     "crates/arche-cli",
+    "bench/rust-bench",
 ]
 
 [workspace.dependencies]

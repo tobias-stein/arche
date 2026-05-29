@@ -81,6 +81,7 @@ pub struct GlobalMetaAttributeListQuery {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct WriteClientQuery {
     pub client_id: Option<uuid::Uuid>,
 }

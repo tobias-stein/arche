@@ -22,7 +22,7 @@ impl Config {
             cache_poll_interval_ms: env::var("ARCHE_CACHE_POLL_INTERVAL_MS")
                 .ok()
                 .and_then(|v| v.parse().ok())
-                .unwrap_or(4000),
+                .unwrap_or(60_000),
             db_pool_size: env::var("ARCHE_DB_POOL_SIZE")
                 .ok()
                 .and_then(|v| v.parse().ok())

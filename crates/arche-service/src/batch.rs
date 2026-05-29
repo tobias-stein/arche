@@ -185,6 +185,14 @@ pub async fn batch_edit_blueprints(
         ProblemResponse::unprocessable_entity("Failed to commit batch edit transaction")
     })?;
 
+    let mut affected_clients: HashSet<Uuid> = HashSet::new();
+    for (_, cid, _, _) in &to_update {
+        affected_clients.insert(*cid);
+    }
+    for cid in affected_clients {
+        state.reload_client_cache(cid).await;
+    }
+
     Ok(Json(BatchEditResponse {
         updated_count: to_update.len() as i64,
     }))
@@ -354,6 +362,14 @@ pub async fn batch_delete_blueprints(
         ProblemResponse::unprocessable_entity("Failed to commit batch delete transaction")
     })?;
 
+    let mut affected_clients: HashSet<Uuid> = HashSet::new();
+    for (_, cid, _) in &to_delete {
+        affected_clients.insert(*cid);
+    }
+    for cid in affected_clients {
+        state.reload_client_cache(cid).await;
+    }
+
     Ok(Json(BatchDeleteResponse {
         count: to_delete.len() as i64,
     }))
@@ -489,6 +505,14 @@ pub async fn batch_delete_affixes(
         ProblemResponse::unprocessable_entity("Failed to commit batch delete transaction")
     })?;
 
+    let mut affected_clients: HashSet<Uuid> = HashSet::new();
+    for (_, cid, _) in &to_delete {
+        affected_clients.insert(*cid);
+    }
+    for cid in affected_clients {
+        state.reload_client_cache(cid).await;
+    }
+
     Ok(Json(BatchDeleteResponse {
         count: to_delete.len() as i64,
     }))
@@ -606,6 +630,17 @@ async fn do_batch_assign(
         tracing::error!(error = %e, "batch assign: commit transaction failed");
         ProblemResponse::unprocessable_entity("Failed to commit batch assign transaction")
     })?;
+
+    let mut affected_client_ids: HashSet<Uuid> = HashSet::new();
+    for row in &affix_rows {
+        affected_client_ids.insert(row.get("client_id"));
+    }
+    for row in &blueprint_rows {
+        affected_client_ids.insert(row.get("client_id"));
+    }
+    for cid in affected_client_ids {
+        state.reload_client_cache(cid).await;
+    }
 
     Ok(BatchAssignResponse { count })
 }

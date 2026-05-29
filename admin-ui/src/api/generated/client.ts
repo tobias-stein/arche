@@ -76,7 +76,7 @@ export class ArcheClient {
       }
     }
     if (this.clientId) {
-      url.searchParams.set('client_id', this.clientId);
+      url.searchParams.set('clientId', this.clientId);
     }
 
     const headers: Record<string, string> = {

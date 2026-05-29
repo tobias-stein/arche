@@ -182,22 +182,30 @@ fi
 
 print_api_key_box "$API_KEY"
 
-export ARCHE_API_KEY="$API_KEY"
-echo "[bench] ARCHE_API_KEY exported."
-echo "[bench] Running benchmark suite..."
+echo "[bench] Seeding test data..."
+SEED_OUT=$(cargo run --release --package arche-bench -- seed \
+  --api-key "$API_KEY" \
+  --target "http://localhost:8080" \
+  --blueprints 100 \
+  --attributes 4 \
+  --affixes 0 2>&1)
+SCOPED_KEY=$(echo "$SEED_OUT" | grep "API Key:" | head -1 | awk '{print $NF}')
+CLIENT_ID=$(echo "$SEED_OUT" | grep "Client ID:" | head -1 | awk '{print $NF}')
 
-set +e
-python "$SCRIPT_DIR/run.py" --api-key "$API_KEY" --sweep
-BENCH_EXIT=$?
-set -e
-
-if [ $BENCH_EXIT -ne 0 ]; then
-  echo "[bench] Benchmark finished with errors (exit code $BENCH_EXIT)." >&2
-else
-  echo "[bench] Benchmark complete."
+if [ -z "$SCOPED_KEY" ]; then
+  echo "[bench] Error: failed to seed test data" >&2
+  echo "$SEED_OUT" >&2
+  exit 1
 fi
+echo "[bench] Client: $CLIENT_ID"
+echo "[bench] Scoped key: $SCOPED_KEY"
 
-echo "[bench] Results:"
-echo "  CSV:   $SCRIPT_DIR/results.csv"
-echo "  HTML:  $SCRIPT_DIR/report.html"
-echo "[bench] Stopping stack..."
+echo "[bench] Running sweep from scenarios.yaml..."
+cargo run --release --package arche-bench -- sweep \
+  --api-key "$API_KEY" \
+  --target "http://localhost:8080" \
+  --scenarios "$SCRIPT_DIR/scenarios.yaml" \
+  --duration 10
+
+echo ""
+echo "[bench] Benchmark complete."

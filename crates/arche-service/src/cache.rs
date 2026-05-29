@@ -17,7 +17,7 @@ pub struct Cache {
     pub blueprints: HashMap<Uuid, Blueprint>,
     pub affixes: HashMap<Uuid, Affix>,
     pub global_meta_attributes: HashMap<Uuid, GlobalMetaAttribute>,
-    pub blueprint_affixes: HashMap<Uuid, Vec<BlueprintAffix>>,
+    pub blueprint_affixes: Arc<HashMap<Uuid, Vec<BlueprintAffix>>>,
     pub by_client: HashMap<Uuid, Arc<ClientCache>>,
 }
 
@@ -69,7 +69,7 @@ impl Cache {
             blueprints,
             affixes,
             global_meta_attributes,
-            blueprint_affixes,
+            blueprint_affixes: Arc::new(blueprint_affixes),
             by_client,
         }
     }
@@ -625,7 +625,7 @@ impl Cache {
             .map(|(id, _)| *id)
             .collect();
         for id in &old_bp_ids {
-            self.blueprint_affixes.remove(id);
+            Arc::make_mut(&mut self.blueprint_affixes).remove(id);
             self.blueprints.remove(id);
         }
         self.affixes.retain(|_, a| a.client_id != client_id);
@@ -657,7 +657,7 @@ impl Cache {
                 self.blueprints.extend(data.blueprints);
                 self.affixes.extend(data.affixes);
                 self.global_meta_attributes.extend(data.global_meta_attributes);
-                self.blueprint_affixes.extend(data.blueprint_affixes);
+                Arc::make_mut(&mut self.blueprint_affixes).extend(data.blueprint_affixes);
                 self.clients.insert(client_id, client);
                 self.by_client.insert(client_id, Arc::new(cc));
             }

@@ -11,6 +11,7 @@ use uuid::Uuid;
 
 use crate::audit_log::record_audit;
 use crate::auth::permission::CurrentUser;
+use crate::auth::AuthenticatedKey;
 use crate::error::{FieldError, ProblemResponse};
 
 fn permission_to_db(p: &Permission) -> String {
@@ -238,6 +239,8 @@ pub async fn create_client(
         tracing::error!(error = %e, "clients: audit log insert failed");
     }
 
+    state.reload_client_cache(client_id).await;
+
     Ok(Json(ClientResponse {
         id: client_id,
         name: client_name,
@@ -306,6 +309,8 @@ pub async fn delete_client(
     {
         tracing::error!(error = %e, "clients: audit log insert failed");
     }
+
+    state.invalidate_client_cache(id).await;
 
     Ok(Json(serde_json::json!({"deleted": true})))
 }
@@ -432,6 +437,18 @@ pub async fn create_api_key(
     {
         tracing::error!(error = %e, "api-keys: audit log insert failed");
     }
+
+    state.api_key_cache.insert(
+        raw_key.clone(),
+        AuthenticatedKey {
+            id: key_id,
+            name: req.name.clone(),
+            client_id: Some(client_id),
+            permissions: req.permissions.clone(),
+            is_super: false,
+        },
+        None,
+    ).await;
 
     Ok(Json(CreateApiKeyResponse {
         id: key_id,

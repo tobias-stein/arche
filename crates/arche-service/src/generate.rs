@@ -39,7 +39,7 @@ pub async fn generate_handler(
 
     let seed = req.seed.unwrap_or_else(|| rand::random());
 
-    match run_single_generation(&client_cache, &bp_affixes_lookup, &req, seed, &mut None) {
+    match run_single_generation(&client_cache, bp_affixes_lookup.as_ref(), &req, seed, &mut None) {
         Ok(response) => Ok(Json(response)),
         Err(error) => Err(ProblemResponse::no_matching_blueprints(error)),
     }
@@ -104,7 +104,7 @@ pub async fn generate_batch_handler(
             let seed = req.seed.unwrap_or_else(|| rand::random());
             match run_single_generation(
                 &client_cache,
-                &bp_affixes_lookup,
+                bp_affixes_lookup.as_ref(),
                 &req,
                 seed,
                 &mut None,
@@ -229,7 +229,7 @@ async fn load_client_cache(
     state: &AppState,
     client_id: Uuid,
     is_cache_refresh: bool,
-) -> Result<(Arc<ClientCache>, HashMap<Uuid, Vec<BlueprintAffix>>), ProblemResponse> {
+) -> Result<(Arc<ClientCache>, Arc<HashMap<Uuid, Vec<BlueprintAffix>>>), ProblemResponse> {
     if is_cache_refresh {
         let data = Cache::fetch_client_data(&state.pool, client_id)
             .await
@@ -261,7 +261,7 @@ async fn load_client_cache(
             affix_resolved_attributes,
         });
 
-        Ok((client_cache, bp_affixes_lookup))
+        Ok((client_cache, Arc::new(bp_affixes_lookup)))
     } else {
         let cache = state.cache.read().await;
 

@@ -315,6 +315,8 @@ pub async fn create_blueprint(
         },
     );
 
+    state.reload_client_cache(client_id).await;
+
     Ok(Json(response))
 }
 
@@ -454,7 +456,7 @@ pub async fn update_blueprint(
 
     for key in &to_remove {
         sqlx::query(
-            "DELETE FROM blueprint_affixes WHERE blueprint_id = $1 AND affix_id = $2 AND location = $3",
+            "DELETE FROM blueprint_affixes WHERE blueprint_id = $1 AND affix_id = $2 AND location = $3::affix_location",
         )
         .bind(id)
         .bind(key.0)
@@ -528,6 +530,8 @@ pub async fn update_blueprint(
     };
 
     let response = assemble_response(&bp, &req.affixes);
+
+    state.reload_client_cache(client_id).await;
 
     Ok(Json(response))
 }
@@ -646,6 +650,8 @@ pub async fn delete_blueprint(
         tracing::error!(error = %e, "blueprints: commit delete transaction failed");
         ProblemResponse::unprocessable_entity("Failed to delete blueprint")
     })?;
+
+    state.reload_client_cache(bp.client_id).await;
 
     Ok(Json(serde_json::json!({"deleted": true})))
 }
@@ -950,7 +956,7 @@ async fn insert_affix_entries(
     for entry in entries {
         sqlx::query(
             "INSERT INTO blueprint_affixes (blueprint_id, affix_id, weight, location, sort_order) \
-             VALUES ($1, $2, $3, $4, $5)",
+             VALUES ($1, $2, $3, $4::affix_location, $5)",
         )
         .bind(blueprint_id)
         .bind(entry.affix_id)
@@ -983,7 +989,7 @@ async fn upsert_affix_pool_entries(
             if (existing_set[&key] - entry.weight).abs() > f64::EPSILON {
                 sqlx::query(
                     "UPDATE blueprint_affixes SET weight=$1, sort_order=$2 \
-                     WHERE blueprint_id=$3 AND affix_id=$4 AND location=$5",
+                     WHERE blueprint_id=$3 AND affix_id=$4 AND location=$5::affix_location",
                 )
                 .bind(entry.weight)
                 .bind(*sort_order)
@@ -1000,7 +1006,7 @@ async fn upsert_affix_pool_entries(
         } else {
             sqlx::query(
                 "INSERT INTO blueprint_affixes (blueprint_id, affix_id, weight, location, sort_order) \
-                 VALUES ($1, $2, $3, $4, $5)",
+                 VALUES ($1, $2, $3, $4::affix_location, $5)",
             )
             .bind(blueprint_id)
             .bind(entry.affix_id)

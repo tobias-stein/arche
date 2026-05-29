@@ -226,6 +226,59 @@ def _format_scenario(s):
     return ", ".join(f"{k}={v}" for k, v in s.items())
 
 
+def _print_summary_table(results):
+    """Print a terminal summary table at the end of a sweep.
+
+    Columns: Scenario, Peak gen/s, Concurrency, p50(ms), p95(ms), p99(ms).
+    Footer shows overall peak throughput and best scenario.
+    Column widths auto-adjust to content.
+    """
+    if not results:
+        return
+
+    headers = ["Scenario", "Peak gen/s", "Concurrency", "p50(ms)", "p95(ms)", "p99(ms)"]
+
+    rows = []
+    for r in results:
+        label = f"bp={r['blueprint_count']}   aff={r.get('affix_count', 0)}  attr={r['attribute_count']}"
+        peak = r['throughput']
+        conc = r['concurrency']
+        p50_s = f"{r['p50']:.1f}" if r.get('p50') is not None else "\u2014"
+        p95_s = f"{r['p95']:.1f}" if r.get('p95') is not None else "\u2014"
+        p99_s = f"{r['p99']:.1f}" if r.get('p99') is not None else "\u2014"
+        rows.append((label, peak, conc, p50_s, p95_s, p99_s))
+
+    if not rows:
+        return
+
+    col_widths = [
+        max(len(headers[0]), max(len(r[0]) for r in rows)),
+        max(len(headers[1]), max(len(f"{r[1]:.0f}") for r in rows)),
+        max(len(headers[2]), max(len(str(r[2])) for r in rows)),
+        max(len(headers[3]), max(len(r[3]) for r in rows)),
+        max(len(headers[4]), max(len(r[4]) for r in rows)),
+        max(len(headers[5]), max(len(r[5]) for r in rows)),
+    ]
+
+    sep = "  "
+    parts = []
+    parts.append(f"{{:<{col_widths[0]}}}")
+    for i in range(1, 6):
+        parts.append(f"{{:>{col_widths[i]}}}")
+    fmt = sep.join(parts)
+
+    print()
+    print(fmt.format(*headers))
+    for label, peak, conc, p50_s, p95_s, p99_s in rows:
+        print(fmt.format(label, int(round(peak)), conc, p50_s, p95_s, p99_s))
+
+    best = max(results, key=lambda r: r['throughput'])
+    best_label = f"bp={best['blueprint_count']} aff={best['affix_count']} attr={best['attribute_count']}"
+    print()
+    print(f"Peak gen/s: {best['throughput']:.0f}  ({best_label})")
+    print()
+
+
 def _parse_args(argv=None):
     parser = argparse.ArgumentParser(
         description="Benchmark suite for Arche generate endpoint"
@@ -560,8 +613,8 @@ def _run_sweep(api_key, target_url, config_path, concurrency=1, duration=10):
     """Run a multi-scenario sweep from YAML config.
 
     For each scenario: create a named client, seed data with the synthetic
-    generator, run the fixed-concurrency bench loop, record results, then
-    clean up all clients at the end.
+    generator, run the fixed-concurrency bench loop, record results, collect
+    latency sample, then clean up all clients at the end.
     """
     try:
         scenarios = load_config(config_path)
@@ -592,14 +645,24 @@ def _run_sweep(api_key, target_url, config_path, concurrency=1, duration=10):
                 scoped_key, target_url, concurrency, duration,
             )
 
+            stable_tracker = _collect_stable_sample(
+                scoped_key, target_url, concurrency=concurrency,
+            )
+            p50 = round(stable_tracker.p50(), 1) if stable_tracker.count >= 50 else None
+            p95 = round(stable_tracker.p95(), 1) if stable_tracker.count >= 50 else None
+            p99 = round(stable_tracker.p99(), 1) if stable_tracker.count >= 50 else None
+
             results.append({
                 "blueprint_count": bp,
                 "affix_count": af,
                 "attribute_count": at,
                 "concurrency": concurrency,
-                "duration_s": f"{elapsed:.2f}",
+                "duration_s": elapsed,
                 "total_requests": total,
-                "throughput": f"{rate:.2f}",
+                "throughput": rate,
+                "p50": p50,
+                "p95": p95,
+                "p99": p99,
             })
 
             client_cleanups.append((client_id, key_id))
@@ -612,15 +675,29 @@ def _run_sweep(api_key, target_url, config_path, concurrency=1, duration=10):
 
     csv_path = "bench/results.csv"
     os.makedirs(os.path.dirname(csv_path), exist_ok=True)
+    csv_rows = [
+        {
+            "blueprint_count": r["blueprint_count"],
+            "affix_count": r["affix_count"],
+            "attribute_count": r["attribute_count"],
+            "concurrency": r["concurrency"],
+            "duration_s": f"{r['duration_s']:.2f}",
+            "total_requests": r["total_requests"],
+            "throughput": f"{r['throughput']:.2f}",
+        }
+        for r in results
+    ]
     with open(csv_path, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=[
             "blueprint_count", "affix_count", "attribute_count",
             "concurrency", "duration_s", "total_requests", "throughput",
         ])
         writer.writeheader()
-        writer.writerows(results)
+        writer.writerows(csv_rows)
 
     print(f"\nResults written to {csv_path}")
+
+    _print_summary_table(results)
 
     for client_id, key_id in client_cleanups:
         try:

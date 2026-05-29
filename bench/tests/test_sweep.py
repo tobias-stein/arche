@@ -10,7 +10,7 @@ from unittest.mock import patch, MagicMock
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from run import _parse_args, _run_sweep
+from run import _parse_args, _run_sweep, _print_summary_table
 
 
 def _make_mock_response(status, body_bytes):
@@ -84,8 +84,24 @@ class TestParseArgsSweep(unittest.TestCase):
         self.assertEqual(args.config, "/tmp/my.yaml")
 
 
+def _make_mock_tracker(count=100, p50=1.2, p95=2.8, p99=4.1):
+    tracker = MagicMock()
+    tracker.count = count
+    tracker.p50.return_value = p50
+    tracker.p95.return_value = p95
+    tracker.p99.return_value = p99
+    return tracker
+
+
 class TestRunSweep(unittest.TestCase):
     maxDiff = None
+
+    def setUp(self):
+        self.cs_patcher = patch("run._collect_stable_sample", return_value=_make_mock_tracker())
+        self.cs_patcher.start()
+
+    def tearDown(self):
+        self.cs_patcher.stop()
 
     def test_sweep_processes_all_scenarios(self):
         """Verify _run_sweep processes all scenarios, creates named clients, and cleans up."""
@@ -196,7 +212,11 @@ class TestRunSweep(unittest.TestCase):
                                 duration=0.1,
                             )
 
-        printed = [call[0][0] for call in mock_print.call_args_list]
+        printed = []
+        for call in mock_print.call_args_list:
+            args, _ = call
+            if args:
+                printed.append(str(args[0]))
         combined = "\n".join(printed)
         self.assertIn("[1/2]", combined)
         self.assertIn("[2/2]", combined)
@@ -293,6 +313,162 @@ class TestRunSweep(unittest.TestCase):
             headers = dict(c.headers)
             self.assertEqual(headers.get("X-api-key"), "super-key",
                              "Cleanup should use super key")
+
+
+class TestSweepTerminalTable(unittest.TestCase):
+    """Tests for terminal summary table at end of sweep."""
+
+    def test_summary_table_has_all_columns(self):
+        """Verify table includes Scenario, Peak gen/s, Concurrency, p50/p95/p99."""
+        results = [
+            {
+                "blueprint_count": 10, "affix_count": 0, "attribute_count": 3,
+                "concurrency": 1, "duration_s": 0.1, "total_requests": 500,
+                "throughput": 854.0, "p50": 1.2, "p95": 2.8, "p99": 4.1,
+            },
+        ]
+
+        with patch("builtins.print") as mock_print:
+            _print_summary_table(results)
+
+        printed = []
+        for call in mock_print.call_args_list:
+            args, _ = call
+            if args:
+                printed.append(str(args[0]))
+        combined = "\n".join(printed)
+        self.assertIn("Scenario", combined)
+        self.assertIn("Peak gen/s", combined)
+        self.assertIn("Concurrency", combined)
+        self.assertIn("p50(ms)", combined)
+        self.assertIn("p95(ms)", combined)
+        self.assertIn("p99(ms)", combined)
+        self.assertIn("854", combined)
+        self.assertIn("bp=10", combined)
+        self.assertIn("1.2", combined)
+        self.assertIn("2.8", combined)
+        self.assertIn("4.1", combined)
+
+    def test_summary_table_footer_shows_overall_peak(self):
+        """Verify footer shows overall peak throughput and best scenario."""
+        results = [
+            {
+                "blueprint_count": 10, "affix_count": 0, "attribute_count": 3,
+                "concurrency": 1, "duration_s": 0.1, "total_requests": 500,
+                "throughput": 1000.0, "p50": 1.2, "p95": 2.8, "p99": 4.1,
+            },
+            {
+                "blueprint_count": 100, "affix_count": 2, "attribute_count": 10,
+                "concurrency": 1, "duration_s": 0.1, "total_requests": 200,
+                "throughput": 500.0, "p50": 2.1, "p95": 5.3, "p99": 8.7,
+            },
+        ]
+
+        with patch("builtins.print") as mock_print:
+            _print_summary_table(results)
+
+        printed = []
+        for call in mock_print.call_args_list:
+            args, _ = call
+            if args:
+                printed.append(str(args[0]))
+        combined = "\n".join(printed)
+        self.assertIn("Peak gen/s: 1000", combined)
+        self.assertIn("bp=10 aff=0 attr=3", combined)
+
+    def test_summary_table_handles_missing_latency(self):
+        """Verify — is shown when latency data is absent."""
+        results = [
+            {
+                "blueprint_count": 10, "affix_count": 0, "attribute_count": 3,
+                "concurrency": 1, "duration_s": 0.1, "total_requests": 500,
+                "throughput": 854.0, "p50": None, "p95": None, "p99": None,
+            },
+        ]
+
+        with patch("builtins.print") as mock_print:
+            _print_summary_table(results)
+
+        printed = []
+        for call in mock_print.call_args_list:
+            args, _ = call
+            if args:
+                printed.append(str(args[0]))
+        combined = "\n".join(printed)
+        self.assertIn("\u2014", combined)
+
+    def test_summary_table_empty_results_no_error(self):
+        """Verify no error when there are no results."""
+        with patch("builtins.print") as mock_print:
+            _print_summary_table([])
+        self.assertEqual(mock_print.call_count, 0)
+
+    def test_summary_table_printed_at_end_of_sweep(self):
+        """Verify _run_sweep prints summary table after all scenarios."""
+        scenarios = [
+            {"blueprint_count": 10, "affix_count": 0, "attribute_count": 3},
+            {"blueprint_count": 100, "affix_count": 2, "attribute_count": 10},
+        ]
+
+        mock_tracker = MagicMock()
+        mock_tracker.count = 100
+        mock_tracker.p50.return_value = 1.2
+        mock_tracker.p95.return_value = 2.8
+        mock_tracker.p99.return_value = 4.1
+
+        with patch("run.load_config", return_value=scenarios):
+            with patch("urllib.request.urlopen", side_effect=_smart_side_effect):
+                with patch("run._collect_stable_sample", return_value=mock_tracker):
+                    with patch("builtins.print") as mock_print:
+                        with patch("run.os.makedirs"):
+                            with patch("builtins.open"):
+                                _run_sweep(
+                                    api_key="super-key",
+                                    target_url="http://localhost:8080",
+                                    config_path="dummy.yaml",
+                                    concurrency=1,
+                                    duration=0.1,
+                                )
+
+        printed = []
+        for call in mock_print.call_args_list:
+            args, _ = call
+            if args:
+                printed.append(str(args[0]))
+        combined = "\n".join(printed)
+        self.assertIn("Scenario", combined)
+        self.assertIn("Peak gen/s", combined)
+        self.assertIn("Concurrency", combined)
+        self.assertIn("p50(ms)", combined)
+        self.assertIn("p95(ms)", combined)
+        self.assertIn("p99(ms)", combined)
+
+    def test_summary_table_auto_adjusts_column_widths(self):
+        """Verify columns are wide enough for all content."""
+        results = [
+            {
+                "blueprint_count": 10, "affix_count": 0, "attribute_count": 3,
+                "concurrency": 1, "duration_s": 0.1, "total_requests": 500,
+                "throughput": 100.5, "p50": 1.2, "p95": 2.8, "p99": 4.1,
+            },
+            {
+                "blueprint_count": 1000, "affix_count": 4, "attribute_count": 25,
+                "concurrency": 12, "duration_s": 0.1, "total_requests": 200,
+                "throughput": 2100.0, "p50": 4.1, "p95": 11.2, "p99": 18.3,
+            },
+        ]
+
+        with patch("builtins.print") as mock_print:
+            _print_summary_table(results)
+
+        printed = []
+        for call in mock_print.call_args_list:
+            args, _ = call
+            if args:
+                printed.append(str(args[0]))
+        combined = "\n".join(printed)
+        self.assertIn("bp=1000", combined)
+        self.assertIn("2100", combined)
 
 
 if __name__ == "__main__":

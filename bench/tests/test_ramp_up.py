@@ -10,7 +10,6 @@ from ramp_up import run_ramp_up
 
 
 class TestRunRampUp(unittest.TestCase):
-    maxDiff = None
 
     def test_starts_at_concurrency_1(self):
         """Callback is first called with concurrency=1."""

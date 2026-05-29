@@ -391,13 +391,13 @@ def _run_bench(api_key, target_url, concurrency=1, duration=10,
                 pass
 
     if ramp_up:
+        ramp_interval = 1.5
         start = time.monotonic()
 
         def _ramp_worker(c):
             ts = []
             inner_lock = threading.Lock()
             inner_stop = threading.Event()
-            inner_start = time.monotonic()
 
             def _inner_worker():
                 while not inner_stop.is_set():
@@ -406,7 +406,7 @@ def _run_bench(api_key, target_url, concurrency=1, duration=10,
                         with lock:
                             completed[0] += 1
                         with inner_lock:
-                            ts.append(time.monotonic() - inner_start + (inner_start - start))
+                            ts.append(time.monotonic() - start)
                     except (HTTPError, URLError):
                         pass
 
@@ -416,7 +416,7 @@ def _run_bench(api_key, target_url, concurrency=1, duration=10,
             ]
             for t in threads:
                 t.start()
-            inner_stop.wait(timeout=1.5)
+            inner_stop.wait(timeout=ramp_interval)
             inner_stop.set()
             for t in threads:
                 t.join(timeout=2.0)
@@ -424,7 +424,7 @@ def _run_bench(api_key, target_url, concurrency=1, duration=10,
             return ts
 
         final_conc, peak = run_ramp_up(
-            _ramp_worker, duration=duration, ramp_interval=1.5,
+            _ramp_worker, duration=duration, ramp_interval=ramp_interval,
         )
         elapsed = time.monotonic() - start
         total = completed[0]

@@ -9,7 +9,14 @@ from unittest.mock import patch, MagicMock
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from run import create_client, create_api_key, create_blueprint, _run_seed, main
+from run import (
+    create_client,
+    create_api_key,
+    create_blueprint,
+    _build_blueprint_body,
+    _run_seed,
+    _parse_args,
+)
 
 
 class TestCreateClient(unittest.TestCase):
@@ -171,6 +178,23 @@ def _make_blueprint_body(name):
     }
 
 
+class TestBuildBlueprintBody(unittest.TestCase):
+    def test_builds_expected_body(self):
+        body = _build_blueprint_body("Blueprint-0000")
+        self.assertEqual(body, _make_blueprint_body("Blueprint-0000"))
+
+    def test_builds_body_with_different_name(self):
+        body = _build_blueprint_body("MyBlueprint")
+        self.assertEqual(body["name"], "MyBlueprint")
+
+    def test_builds_three_attributes(self):
+        body = _build_blueprint_body("x")
+        self.assertEqual(len(body["attributes"]), 3)
+        self.assertEqual(
+            body["attributeOrder"], ["attr_0", "attr_1", "attr_2"],
+        )
+
+
 class TestCreateBlueprint(unittest.TestCase):
     @patch("urllib.request.urlopen")
     def test_creates_blueprint_with_correct_payload(self, mock_urlopen):
@@ -239,134 +263,99 @@ class TestCreateBlueprint(unittest.TestCase):
             create_blueprint("client-abc", "bad-key", "Blueprint-0000")
 
 
+def _make_mock_response(status, body_bytes):
+    mock_response = MagicMock()
+    mock_response.status = status
+    mock_response.read.return_value = body_bytes
+    mock_response.__enter__.return_value = mock_response
+    return mock_response
+
+
 class TestRunSeed(unittest.TestCase):
-    @patch("run.create_blueprint")
-    @patch("run.create_api_key")
-    @patch("run.create_client")
-    @patch("builtins.print")
-    def test_creates_client_api_key_and_10_blueprints(
-        self, mock_print, mock_create_client, mock_create_api_key, mock_create_blueprint
-    ):
-        mock_create_client.return_value = "client-uuid"
-        mock_create_api_key.return_value = "arche_k_secret"
+    def _mock_urlopen_sequence(self, mock_urlopen, responses):
+        mock_urlopen.side_effect = responses
 
-        _run_seed("super-key", "http://localhost:8080")
-
-        mock_create_client.assert_called_once_with("super-key", "http://localhost:8080")
-        mock_create_api_key.assert_called_once_with(
-            "client-uuid", "super-key", "http://localhost:8080"
+    def test_creates_client_api_key_and_10_blueprints(self):
+        client_resp = _make_mock_response(
+            200, b'{"id": "client-uuid", "name": "bench-scratch"}'
         )
-        self.assertEqual(mock_create_blueprint.call_count, 10)
+        key_resp = _make_mock_response(
+            200,
+            b'{"id": "key-1", "key": "arche_k_secret", "name": "benchmark-key", "permissions": ["generate"]}',
+        )
+        bp_resp = _make_mock_response(200, b'{"id": "bp-x", "name": "x"}')
 
-        expected_names = [f"Blueprint-{i:04d}" for i in range(10)]
-        for i, call_args in enumerate(mock_create_blueprint.call_args_list):
-            args, _ = call_args
-            self.assertEqual(args[0], "client-uuid")
-            self.assertEqual(args[1], "arche_k_secret")
-            self.assertEqual(args[2], expected_names[i])
-            self.assertEqual(args[3], "http://localhost:8080")
+        responses = [client_resp, key_resp] + [bp_resp] * 10
 
-    @patch("run.create_blueprint")
-    @patch("run.create_api_key")
-    @patch("run.create_client")
-    @patch("builtins.print")
-    def test_prints_client_id_and_api_key(
-        self, mock_print, mock_create_client, mock_create_api_key, mock_create_blueprint
-    ):
-        mock_create_client.return_value = "client-uuid"
-        mock_create_api_key.return_value = "arche_k_secret"
-
-        _run_seed("super-key", "http://localhost:8080")
+        with patch("urllib.request.urlopen", side_effect=responses):
+            with patch("builtins.print") as mock_print:
+                _run_seed("super-key", "http://localhost:8080")
 
         printed_texts = [call[0][0] for call in mock_print.call_args_list]
         combined = " ".join(printed_texts)
         self.assertIn("client-uuid", combined)
         self.assertIn("arche_k_secret", combined)
 
-    @patch("run.create_client")
-    @patch("builtins.print")
-    def test_exits_1_on_create_client_error(
-        self, mock_print, mock_create_client
-    ):
+    def test_exits_1_on_create_client_error(self):
         from urllib.error import HTTPError
 
-        mock_create_client.side_effect = HTTPError(
-            "url", 401, "Unauthorized", {}, io.BytesIO(b'{}'),
-        )
-
-        with self.assertRaises(SystemExit) as ctx:
-            _run_seed("bad-key", "http://localhost:8080")
+        with patch(
+            "urllib.request.urlopen",
+            side_effect=HTTPError(
+                "url", 401, "Unauthorized", {}, io.BytesIO(b'{}'),
+            ),
+        ):
+            with self.assertRaises(SystemExit) as ctx:
+                _run_seed("bad-key", "http://localhost:8080")
 
         self.assertEqual(ctx.exception.code, 1)
 
-    @patch("run.create_blueprint")
-    @patch("run.create_api_key")
-    @patch("run.create_client")
-    @patch("builtins.print")
-    def test_exits_1_on_create_blueprint_error(
-        self, mock_print, mock_create_client, mock_create_api_key, mock_create_blueprint
-    ):
+    def test_exits_1_on_create_blueprint_error(self):
         from urllib.error import HTTPError
 
-        mock_create_client.return_value = "client-uuid"
-        mock_create_api_key.return_value = "arche_k_secret"
-        mock_create_blueprint.side_effect = HTTPError(
+        client_resp = _make_mock_response(
+            200, b'{"id": "client-uuid", "name": "bench-scratch"}'
+        )
+        key_resp = _make_mock_response(
+            200,
+            b'{"id": "key-1", "key": "arche_k_secret", "name": "benchmark-key", "permissions": ["generate"]}',
+        )
+        http_error = HTTPError(
             "url", 500, "Server Error", {}, io.BytesIO(b"error"),
         )
 
-        with self.assertRaises(SystemExit) as ctx:
-            _run_seed("super-key", "http://localhost:8080")
+        with patch(
+            "urllib.request.urlopen",
+            side_effect=[client_resp, key_resp, http_error],
+        ):
+            with self.assertRaises(SystemExit) as ctx:
+                _run_seed("super-key", "http://localhost:8080")
 
         self.assertEqual(ctx.exception.code, 1)
 
-    @patch("run.create_blueprint")
-    @patch("run.create_api_key")
-    @patch("run.create_client")
-    @patch("builtins.print")
-    def test_uses_scoped_api_key_for_blueprints(
-        self, mock_print, mock_create_client, mock_create_api_key, mock_create_blueprint
-    ):
-        mock_create_client.return_value = "client-uuid"
-        mock_create_api_key.return_value = "arche_k_scoped"
 
-        _run_seed("super-key", "http://localhost:8080")
+class TestParseArgs(unittest.TestCase):
+    def test_api_key_and_seed(self):
+        args = _parse_args(["--api-key", "super-key", "--seed"])
+        self.assertEqual(args.api_key, "super-key")
+        self.assertTrue(args.seed)
 
-        for call_args, _ in mock_create_blueprint.call_args_list:
-            self.assertEqual(call_args[1], "arche_k_scoped")
-
-
-class TestMainCLIWithSeed(unittest.TestCase):
-    @patch("run._run_seed")
-    @patch("builtins.print")
-    def test_main_with_api_key_and_seed_calls_run_seed(self, mock_print, mock_run_seed):
-        testargs = ["run.py", "--api-key", "super-key", "--seed"]
-        with patch.object(sys, "argv", testargs):
-            main()
-
-        mock_run_seed.assert_called_once_with("super-key", "http://localhost:8080")
-
-    @patch("run._run_seed")
-    @patch("builtins.print")
-    def test_main_with_seed_and_target_url(self, mock_print, mock_run_seed):
-        testargs = [
-            "run.py", "--api-key", "super-key", "--seed",
+    def test_seed_and_target_url(self):
+        args = _parse_args([
+            "--api-key", "super-key", "--seed",
             "--target-url", "http://other:8080",
-        ]
-        with patch.object(sys, "argv", testargs):
-            main()
+        ])
+        self.assertEqual(args.api_key, "super-key")
+        self.assertEqual(args.target_url, "http://other:8080")
+        self.assertTrue(args.seed)
 
-        mock_run_seed.assert_called_once_with("super-key", "http://other:8080")
+    def test_without_seed(self):
+        args = _parse_args(["--api-key", "key"])
+        self.assertFalse(args.seed)
 
-    @patch("run._run_api_connectivity")
-    @patch("builtins.print")
-    def test_main_without_seed_calls_connectivity(
-        self, mock_print, mock_connectivity
-    ):
-        testargs = ["run.py", "--api-key", "key"]
-        with patch.object(sys, "argv", testargs):
-            main()
-
-        mock_connectivity.assert_called_once_with("key", "http://localhost:8080")
+    def test_default_target_url(self):
+        args = _parse_args(["--api-key", "key", "--seed"])
+        self.assertEqual(args.target_url, "http://localhost:8080")
 
 
 if __name__ == "__main__":

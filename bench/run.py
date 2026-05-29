@@ -61,6 +61,21 @@ def _request_json(method, path, body, api_key, target_url="http://localhost:8080
         return json.loads(resp.read().decode("utf-8"))
 
 
+def _handle_request_error(e, target_url):
+    """Handle HTTPError or URLError: print details and exit with code 1."""
+    if isinstance(e, HTTPError):
+        print(f"Error: HTTP {e.code} {e.reason}", file=sys.stderr)
+        try:
+            error_body = e.read().decode("utf-8", errors="replace")
+            print(f"Response body: {error_body}", file=sys.stderr)
+        except Exception:
+            pass
+    else:
+        print(f"Error: Could not reach server at {target_url}", file=sys.stderr)
+        print(f"Reason: {e.reason}", file=sys.stderr)
+    sys.exit(1)
+
+
 def create_client(api_key, target_url="http://localhost:8080"):
     """Create a client named 'bench-scratch' and return its id."""
     body = {"name": "bench-scratch"}
@@ -218,7 +233,7 @@ def _format_scenario(s):
     return ", ".join(f"{k}={v}" for k, v in s.items())
 
 
-def main():
+def _parse_args(argv=None):
     parser = argparse.ArgumentParser(
         description="Benchmark suite for Arche generate endpoint"
     )
@@ -246,7 +261,11 @@ def main():
         action="store_true",
         help="Seed test data (client, API key, blueprints)",
     )
-    args = parser.parse_args()
+    return parser.parse_args(argv)
+
+
+def main():
+    args = _parse_args()
 
     if args.api_key:
         if args.seed:
@@ -272,17 +291,9 @@ def _run_api_connectivity(api_key, target_url):
     try:
         status, body, elapsed_ms = send_generate_request(api_key, target_url)
     except HTTPError as e:
-        print(f"Error: HTTP {e.code} {e.reason}", file=sys.stderr)
-        try:
-            error_body = e.read().decode("utf-8", errors="replace")
-            print(f"Response body: {error_body}", file=sys.stderr)
-        except Exception:
-            pass
-        sys.exit(1)
+        _handle_request_error(e, target_url)
     except URLError as e:
-        print(f"Error: Could not reach server at {target_url}", file=sys.stderr)
-        print(f"Reason: {e.reason}", file=sys.stderr)
-        sys.exit(1)
+        _handle_request_error(e, target_url)
 
     print(f"Status: {status}")
     print(f"Body: {body}")
@@ -302,17 +313,9 @@ def _run_seed(api_key, target_url):
         print(f"Client ID: {client_id}")
         print(f"API Key: {scoped_key}")
     except HTTPError as e:
-        print(f"Error: HTTP {e.code} {e.reason}", file=sys.stderr)
-        try:
-            error_body = e.read().decode("utf-8", errors="replace")
-            print(f"Response body: {error_body}", file=sys.stderr)
-        except Exception:
-            pass
-        sys.exit(1)
+        _handle_request_error(e, target_url)
     except URLError as e:
-        print(f"Error: Could not reach server at {target_url}", file=sys.stderr)
-        print(f"Reason: {e.reason}", file=sys.stderr)
-        sys.exit(1)
+        _handle_request_error(e, target_url)
 
 
 if __name__ == "__main__":

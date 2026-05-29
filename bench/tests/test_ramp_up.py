@@ -179,14 +179,6 @@ class TestCheckStopConditions(unittest.TestCase):
         self.assertTrue(should_stop)
         self.assertEqual(reason, "degradation")
 
-    def test_degradation_not_below_threshold(self):
-        """Throughput at exactly 90% of peak does NOT trigger degradation."""
-        should_stop, reason = check_stop_conditions(
-            elapsed=25, peak_throughput=100, current_throughput=90,
-            throughput_15s_ago=100, min_duration=20,
-        )
-        self.assertFalse(should_stop)
-
     def test_degradation_above_threshold(self):
         """Throughput above 90% of peak does NOT trigger degradation or plateau."""
         should_stop, reason = check_stop_conditions(
@@ -195,8 +187,8 @@ class TestCheckStopConditions(unittest.TestCase):
         )
         self.assertFalse(should_stop)
 
-    def test_degradation_not_below_threshold(self):
-        """Throughput at exactly 90% of peak does NOT trigger degradation."""
+    def test_degradation_at_exact_boundary_plateau_not_triggered(self):
+        """Exactly 90% of peak does not trigger degradation; plateau also not triggered when past is lower."""
         should_stop, reason = check_stop_conditions(
             elapsed=25, peak_throughput=100, current_throughput=90,
             throughput_15s_ago=85, min_duration=20,

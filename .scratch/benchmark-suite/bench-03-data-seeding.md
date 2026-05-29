@@ -1,6 +1,6 @@
 ---
 title: "Benchmark: Single-scenario data seeding"
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

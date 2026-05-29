@@ -1,6 +1,6 @@
 ---
 title: "Benchmark: Multi-scenario sweep"
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

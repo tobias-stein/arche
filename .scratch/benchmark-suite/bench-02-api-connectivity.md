@@ -1,6 +1,6 @@
 ---
 title: "Benchmark: API connectivity + single generate"
-status: ready-for-agent
+status: completed
 ---
 
 ## Parent

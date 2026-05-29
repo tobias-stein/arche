@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { History, Pin, PinOff, X } from 'lucide-react'
+import { History, X } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useUi } from '@/stores/ui'
 import { useAuditLog } from '@/api/generated/hooks'
@@ -35,7 +35,7 @@ function resourceDetailPath(resourceType: string, resourceId: string): string | 
 }
 
 export function ActivityPanel() {
-  const { panelDocked, closePanel, setPanelDocked, selectedClientId } = useUi()
+  const { panelDocked, closePanel, selectedClientId } = useUi()
   const panelRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
   const location = useLocation()
@@ -74,7 +74,7 @@ export function ActivityPanel() {
       className={cn(
         panelDocked
           ? 'w-80 border-l bg-background shrink-0'
-          : 'fixed top-16 right-0 bottom-0 z-30 w-80 border-l bg-background shadow-lg animate-in slide-in-from-right',
+          : 'fixed top-0 right-0 bottom-0 z-30 w-80 border-l bg-background shadow-lg animate-in slide-in-from-right',
         'flex flex-col',
       )}
     >
@@ -84,13 +84,6 @@ export function ActivityPanel() {
           Activity
         </div>
         <div className="flex items-center gap-1">
-          <button
-            onClick={() => setPanelDocked(!panelDocked)}
-            className="inline-flex items-center justify-center h-8 w-8 rounded-md hover:bg-accent hover:text-accent-foreground"
-            aria-label={panelDocked ? 'Unpin panel' : 'Pin panel'}
-          >
-            {panelDocked ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
-          </button>
           <button
             onClick={closePanel}
             className="inline-flex items-center justify-center h-8 w-8 rounded-md hover:bg-accent hover:text-accent-foreground"

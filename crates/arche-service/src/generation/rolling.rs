@@ -95,6 +95,7 @@ pub fn resolve_and_roll_affix_attribute(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::cache::Cache;
     use chrono::TimeZone;
     use chrono::Utc;
     use proptest::prelude::*;
@@ -118,13 +119,19 @@ mod tests {
         })
     }
 
-    fn make_client_cache(globals: Vec<Arc<GlobalMetaAttribute>>) -> ClientCache {
+    fn make_client_cache(
+        blueprints: &[Blueprint],
+        affixes: &[Affix],
+        globals: &[Arc<GlobalMetaAttribute>],
+    ) -> ClientCache {
+        let bp_arcs: Vec<Arc<Blueprint>> = blueprints.iter().map(|bp| Arc::new(bp.clone())).collect();
+        let aff_arcs: Vec<Arc<Affix>> = affixes.iter().map(|a| Arc::new(a.clone())).collect();
         ClientCache {
-            blueprints: vec![],
-            affixes: vec![],
-            global_meta_attributes: globals,
-            blueprint_resolved_attributes: HashMap::new(),
-            affix_resolved_attributes: HashMap::new(),
+            blueprints: bp_arcs.clone(),
+            affixes: aff_arcs.clone(),
+            global_meta_attributes: globals.to_vec(),
+            blueprint_resolved_attributes: Cache::resolve_blueprint_attributes(&bp_arcs, globals),
+            affix_resolved_attributes: Cache::resolve_affix_attributes(&aff_arcs, globals),
         }
     }
 
@@ -156,7 +163,7 @@ mod tests {
             vec!["damage".into()],
         );
 
-        let cache = make_client_cache(vec![]);
+        let cache = make_client_cache(&[bp.clone()], &[], &[]);
         let resolved = resolve_attributes(&bp, &cache);
 
         assert_eq!(resolved.len(), 1);
@@ -184,7 +191,7 @@ mod tests {
             vec!["damage".into()],
         );
 
-        let cache = make_client_cache(vec![global]);
+        let cache = make_client_cache(&[bp.clone()], &[], &[global]);
         let resolved = resolve_attributes(&bp, &cache);
 
         assert_eq!(resolved.len(), 1);
@@ -215,7 +222,7 @@ mod tests {
             vec!["damage".into(), "rarity".into()],
         );
 
-        let cache = make_client_cache(vec![global]);
+        let cache = make_client_cache(&[bp.clone()], &[], &[global]);
         let resolved = resolve_attributes(&bp, &cache);
 
         assert_eq!(resolved.len(), 2);
@@ -236,7 +243,7 @@ mod tests {
             vec!["damage".into()],
         );
 
-        let cache = make_client_cache(vec![]);
+        let cache = make_client_cache(&[bp.clone()], &[], &[]);
         let resolved = resolve_attributes(&bp, &cache);
 
         assert!(resolved.is_empty());
@@ -411,7 +418,7 @@ mod tests {
             vec!["a".into(), "m".into(), "z".into()],
         );
 
-        let cache = make_client_cache(vec![]);
+        let cache = make_client_cache(&[bp.clone()], &[], &[]);
         let rolled = roll_blueprint_attributes(&bp, &cache, 1);
 
         let keys: Vec<&str> = rolled.keys().map(|s| s.as_str()).collect();
@@ -427,7 +434,7 @@ mod tests {
             vec!["damage".into()],
         );
 
-        let cache = make_client_cache(vec![]);
+        let cache = make_client_cache(&[bp.clone()], &[], &[]);
         let result1 = roll_blueprint_attributes(&bp, &cache, 42);
         let result2 = roll_blueprint_attributes(&bp, &cache, 42);
 
@@ -572,7 +579,7 @@ mod tests {
             serde_json::json!({"name": "fireDamage", "value_type": "range", "min": 5.0, "max": 15.0}),
         );
 
-        let cache = make_client_cache(vec![]);
+        let cache = make_client_cache(&[], &[affix.clone()], &[]);
         let mut rng = StdRng::seed_from_u64(42);
 
         let result = resolve_and_roll_affix_attribute(&affix, &cache, &mut rng);
@@ -590,7 +597,7 @@ mod tests {
             serde_json::json!({"name": "rarity", "value_type": "enum", "values": ["common", "rare", "legendary"]}),
         );
 
-        let cache = make_client_cache(vec![]);
+        let cache = make_client_cache(&[], &[affix.clone()], &[]);
         let mut rng = StdRng::seed_from_u64(99);
 
         let result = resolve_and_roll_affix_attribute(&affix, &cache, &mut rng);
@@ -608,7 +615,7 @@ mod tests {
             serde_json::json!({"name": "blessingPower", "value_type": "single", "value": 42.0}),
         );
 
-        let cache = make_client_cache(vec![]);
+        let cache = make_client_cache(&[], &[affix.clone()], &[]);
         let mut rng = StdRng::seed_from_u64(1);
 
         let result = resolve_and_roll_affix_attribute(&affix, &cache, &mut rng);
@@ -633,7 +640,7 @@ mod tests {
             serde_json::json!({"$ref_id": gma_id.to_string()}),
         );
 
-        let cache = make_client_cache(vec![gma]);
+        let cache = make_client_cache(&[], &[affix.clone()], &[gma]);
         let mut rng = StdRng::seed_from_u64(42);
 
         let result = resolve_and_roll_affix_attribute(&affix, &cache, &mut rng);
@@ -651,7 +658,7 @@ mod tests {
             serde_json::json!({"$ref_id": Uuid::new_v4().to_string()}),
         );
 
-        let cache = make_client_cache(vec![]);
+        let cache = make_client_cache(&[], &[affix.clone()], &[]);
         let mut rng = StdRng::seed_from_u64(1);
 
         let result = resolve_and_roll_affix_attribute(&affix, &cache, &mut rng);
@@ -666,7 +673,7 @@ mod tests {
             serde_json::json!({"name": "fireDamage", "value_type": "range", "min": 5.0, "max": 15.0}),
         );
 
-        let cache = make_client_cache(vec![]);
+        let cache = make_client_cache(&[], &[affix.clone()], &[]);
         let mut rng1 = StdRng::seed_from_u64(123);
         let result1 = resolve_and_roll_affix_attribute(&affix, &cache, &mut rng1);
 
@@ -684,7 +691,7 @@ mod tests {
             serde_json::json!("not_an_affix_attribute"),
         );
 
-        let cache = make_client_cache(vec![]);
+        let cache = make_client_cache(&[], &[affix.clone()], &[]);
         let mut rng = StdRng::seed_from_u64(1);
 
         let result = resolve_and_roll_affix_attribute(&affix, &cache, &mut rng);

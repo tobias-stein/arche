@@ -105,6 +105,7 @@ fn payload_matches_constraint(payload: &AttributePayload, constraint: &Constrain
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::cache::Cache;
     use arche_types::attribute::*;
     use arche_types::generate::*;
     use arche_types::GlobalMetaAttribute;
@@ -163,11 +164,13 @@ mod tests {
     ) -> (ClientCache, Vec<Arc<Blueprint>>) {
         let bp_arcs: Vec<Arc<Blueprint>> = blueprints.into_iter().map(Arc::new).collect();
         let gma_arcs: Vec<Arc<GlobalMetaAttribute>> = gmas.into_iter().map(Arc::new).collect();
+        let blueprint_resolved_attributes =
+            Cache::resolve_blueprint_attributes(&bp_arcs, &gma_arcs);
         let cc = ClientCache {
             blueprints: bp_arcs.clone(),
             affixes: vec![],
             global_meta_attributes: gma_arcs,
-            blueprint_resolved_attributes: HashMap::new(),
+            blueprint_resolved_attributes,
             affix_resolved_attributes: HashMap::new(),
         };
         (cc, bp_arcs)
@@ -233,6 +236,7 @@ mod tests {
             seed: Some(42),
             constraints: None,
             affixes: None,
+            client_id: None,
         };
 
         let result = select_blueprint(&cc, &req, &mut rng).unwrap();
@@ -259,6 +263,7 @@ mod tests {
             seed: Some(42),
             constraints: None,
             affixes: None,
+            client_id: None,
         };
 
         let err = select_blueprint(&cc, &req, &mut rng).unwrap_err();
@@ -301,6 +306,7 @@ mod tests {
             seed: None,
             constraints: Some(constraints),
             affixes: None,
+            client_id: None,
         };
 
         let result = select_blueprint(&cc, &req, &mut rng).unwrap();
@@ -338,6 +344,7 @@ mod tests {
             seed: None,
             constraints: Some(constraints),
             affixes: None,
+            client_id: None,
         };
 
         let err = select_blueprint(&cc, &req, &mut rng).unwrap_err();
@@ -378,6 +385,7 @@ mod tests {
             seed: None,
             constraints: Some(constraints),
             affixes: None,
+            client_id: None,
         };
 
         let result = select_blueprint(&cc, &req, &mut rng).unwrap();
@@ -415,6 +423,7 @@ mod tests {
             seed: None,
             constraints: Some(constraints),
             affixes: None,
+            client_id: None,
         };
 
         let err = select_blueprint(&cc, &req, &mut rng).unwrap_err();
@@ -455,6 +464,7 @@ mod tests {
             seed: None,
             constraints: Some(constraints),
             affixes: None,
+            client_id: None,
         };
 
         let result = select_blueprint(&cc, &req, &mut rng).unwrap();
@@ -492,6 +502,7 @@ mod tests {
             seed: None,
             constraints: Some(constraints),
             affixes: None,
+            client_id: None,
         };
 
         let err = select_blueprint(&cc, &req, &mut rng).unwrap_err();
@@ -532,6 +543,7 @@ mod tests {
             seed: None,
             constraints: Some(constraints),
             affixes: None,
+            client_id: None,
         };
 
         let result = select_blueprint(&cc, &req, &mut rng).unwrap();
@@ -569,6 +581,7 @@ mod tests {
             seed: None,
             constraints: Some(constraints),
             affixes: None,
+            client_id: None,
         };
 
         let err = select_blueprint(&cc, &req, &mut rng).unwrap_err();
@@ -609,6 +622,7 @@ mod tests {
             seed: None,
             constraints: Some(constraints),
             affixes: None,
+            client_id: None,
         };
 
         let result = select_blueprint(&cc, &req, &mut rng).unwrap();
@@ -640,6 +654,7 @@ mod tests {
             seed: None,
             constraints: Some(constraints),
             affixes: None,
+            client_id: None,
         };
 
         let result = select_blueprint(&cc, &req, &mut rng).unwrap();
@@ -678,6 +693,7 @@ mod tests {
             seed: None,
             constraints: Some(constraints),
             affixes: None,
+            client_id: None,
         };
 
         let result = select_blueprint(&cc, &req, &mut rng).unwrap();
@@ -731,6 +747,7 @@ mod tests {
             seed: None,
             constraints: Some(constraints),
             affixes: None,
+            client_id: None,
         };
 
         let result = select_blueprint(&cc, &req, &mut rng).unwrap();
@@ -781,6 +798,7 @@ mod tests {
             seed: None,
             constraints: Some(constraints),
             affixes: None,
+            client_id: None,
         };
 
         let err = select_blueprint(&cc, &req, &mut rng).unwrap_err();
@@ -820,6 +838,7 @@ mod tests {
             seed: None,
             constraints: Some(constraints),
             affixes: None,
+            client_id: None,
         };
 
         let err = select_blueprint(&cc, &req, &mut rng).unwrap_err();
@@ -868,6 +887,7 @@ mod tests {
             seed: None,
             constraints: Some(constraints),
             affixes: None,
+            client_id: None,
         };
 
         let result = select_blueprint(&cc, &req, &mut rng).unwrap();
@@ -912,6 +932,7 @@ mod tests {
             seed: Some(12345),
             constraints: None,
             affixes: None,
+            client_id: None,
         };
         let result1 = select_blueprint(&cc, &req, &mut rng1).unwrap();
 
@@ -955,6 +976,7 @@ mod tests {
                 seed: Some(seed),
                 constraints: None,
                 affixes: None,
+                client_id: None,
             };
             let result = select_blueprint(&cc, &req, &mut rng).unwrap();
             if result.id == high_weight_id {
@@ -983,6 +1005,7 @@ mod tests {
             seed: None,
             constraints: None,
             affixes: None,
+            client_id: None,
         };
 
         let result = select_blueprint(&cc, &req, &mut rng).unwrap();
@@ -999,6 +1022,7 @@ mod tests {
             seed: None,
             constraints: None,
             affixes: None,
+            client_id: None,
         };
 
         let err = select_blueprint(&cc, &req, &mut rng).unwrap_err();

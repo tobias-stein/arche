@@ -133,11 +133,12 @@ async fn main() {
         port = config.port,
         mode = if config.redis_url.is_some() { "cluster" } else { "single" },
         db_host = %extract_db_host(&config.database_url),
+        db_pool_size = config.db_pool_size,
         "starting server",
     );
 
     let pool = PgPoolOptions::new()
-        .max_connections(5)
+        .max_connections(config.db_pool_size)
         .connect(&config.database_url)
         .await
         .expect("failed to connect to database");

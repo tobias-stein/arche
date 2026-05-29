@@ -6,10 +6,12 @@ pub struct Config {
     pub database_url: String,
     pub redis_url: Option<String>,
     pub cache_poll_interval_ms: u64,
+    pub db_pool_size: u32,
 }
 
 impl Config {
     pub fn from_env() -> Self {
+        let default_pool_size = (std::thread::available_parallelism().map(|n| n.get()).unwrap_or(1) * 2 + 10) as u32;
         Self {
             port: env::var("ARCHE_PORT")
                 .ok()
@@ -21,6 +23,10 @@ impl Config {
                 .ok()
                 .and_then(|v| v.parse().ok())
                 .unwrap_or(4000),
+            db_pool_size: env::var("ARCHE_DB_POOL_SIZE")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(default_pool_size),
         }
     }
 

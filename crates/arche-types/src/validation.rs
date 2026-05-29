@@ -164,25 +164,25 @@ pub fn validate_blueprint(blueprint: &Blueprint) -> Vec<ValidationError> {
 
     check_affix_non_negative(
         &mut errors,
-        "minPrefixes",
+        "min_prefixes",
         "min_prefixes",
         blueprint.min_prefixes,
     );
     check_affix_non_negative(
         &mut errors,
-        "maxPrefixes",
+        "max_prefixes",
         "max_prefixes",
         blueprint.max_prefixes,
     );
     check_affix_non_negative(
         &mut errors,
-        "minSuffixes",
+        "min_suffixes",
         "min_suffixes",
         blueprint.min_suffixes,
     );
     check_affix_non_negative(
         &mut errors,
-        "maxSuffixes",
+        "max_suffixes",
         "max_suffixes",
         blueprint.max_suffixes,
     );
@@ -210,7 +210,7 @@ pub fn validate_blueprint(blueprint: &Blueprint) -> Vec<ValidationError> {
                         ));
                     }
                 } else if let Some(value_type_str) =
-                    attr_obj.get("valueType").and_then(|v| v.as_str())
+                    attr_obj.get("value_type").and_then(|v| v.as_str())
                 {
                     let value_type = match value_type_str {
                         "single" => ValueType::Single,
@@ -223,7 +223,7 @@ pub fn validate_blueprint(blueprint: &Blueprint) -> Vec<ValidationError> {
 
                     let mut payload_map = serde_json::Map::new();
                     for (k, v) in attr_obj.iter() {
-                        if k != "valueType" {
+                        if k != "value_type" {
                             payload_map.insert(k.clone(), v.clone());
                         }
                     }
@@ -366,7 +366,7 @@ mod tests {
 
     #[test]
     fn test_ref_id_with_inline_fields() {
-        let payload = json!({"$ref_id": "some-uuid", "valueType": "string", "min": 1});
+        let payload = json!({"$ref_id": "some-uuid", "value_type": "string", "min": 1});
         let errors = validate_attribute_payload(&ValueType::String, &payload);
         assert_eq!(errors.len(), 1);
         assert!(errors[0].message.contains("cannot have both"));
@@ -380,7 +380,7 @@ mod tests {
 
     #[test]
     fn test_valid_attribute_order() {
-        let attributes = json!({"a": {"valueType": "string"}, "b": {"valueType": "string"}});
+        let attributes = json!({"a": {"value_type": "string"}, "b": {"value_type": "string"}});
         let order = vec!["a".into(), "b".into()];
         let errors = validate_attribute_order(&order, &attributes);
         assert!(errors.is_empty());
@@ -447,7 +447,7 @@ mod tests {
             archetype: "sword".into(),
             weight: 1.0,
             description: None,
-            attributes: json!({"material": {"valueType": "string"}}),
+            attributes: json!({"material": {"value_type": "string"}}),
             attribute_order: vec!["material".into()],
             min_prefixes: 0,
             max_prefixes: 2,
@@ -542,7 +542,7 @@ mod tests {
     #[test]
     fn test_blueprint_invalid_attribute_payload() {
         let mut bp = valid_blueprint();
-        bp.attributes = json!({"damage": {"valueType": "range", "min": 100, "max": 1}});
+        bp.attributes = json!({"damage": {"value_type": "range", "min": 100, "max": 1}});
         bp.attribute_order = vec!["damage".into()];
         let errors = validate_blueprint(&bp);
         assert_eq!(errors.len(), 1);
@@ -572,7 +572,7 @@ mod tests {
     fn test_blueprint_ref_id_with_inline_fields() {
         let mut bp = valid_blueprint();
         bp.attributes =
-            json!({"rarity": {"$ref_id": "some-uuid", "valueType": "string", "min": 1}});
+            json!({"rarity": {"$ref_id": "some-uuid", "value_type": "string", "min": 1}});
         bp.attribute_order = vec!["rarity".into()];
         let errors = validate_blueprint(&bp);
         assert_eq!(errors.len(), 1);
@@ -585,17 +585,17 @@ mod tests {
         bp.weight = 0.0;
         bp.min_prefixes = 3;
         bp.max_prefixes = 1;
-        bp.attributes = json!({"a": {"valueType": "range", "min": 10, "max": 1}});
+        bp.attributes = json!({"a": {"value_type": "range", "min": 10, "max": 1}});
         bp.attribute_order = vec!["a".into(), "b".into()];
         let errors = validate_blueprint(&bp);
         assert_eq!(errors.len(), 4);
     }
 
     #[test]
-    fn test_blueprint_camelcase_paths() {
+    fn test_blueprint_snake_case_paths() {
         let mut bp = valid_blueprint();
         bp.min_prefixes = -1;
         let errors = validate_blueprint(&bp);
-        assert_eq!(errors[0].path, "minPrefixes");
+        assert_eq!(errors[0].path, "min_prefixes");
     }
 }

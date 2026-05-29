@@ -47,16 +47,16 @@ const ACTIONS = [
 const PER_PAGE_OPTIONS = [10, 25, 50]
 
 type FilterState = {
-  clientId: string
-  resourceType: string
+  client_id: string
+  resource_type: string
   action: string
   from: string
   to: string
 }
 
 const EMPTY_FILTERS: FilterState = {
-  clientId: '',
-  resourceType: '',
+  client_id: '',
+  resource_type: '',
   action: '',
   from: '',
   to: '',
@@ -215,8 +215,8 @@ export default function AuditLog() {
       cursor: currentCursor,
       limit: perPage,
     }
-    if (appliedFilters.clientId) q.clientId = appliedFilters.clientId
-    if (appliedFilters.resourceType) q.resourceType = appliedFilters.resourceType
+    if (appliedFilters.client_id) q.client_id = appliedFilters.client_id
+    if (appliedFilters.resource_type) q.resource_type = appliedFilters.resource_type
     if (appliedFilters.action) q.action = appliedFilters.action
     if (appliedFilters.from) q.from = new Date(appliedFilters.from).toISOString()
     if (appliedFilters.to) {
@@ -230,7 +230,7 @@ export default function AuditLog() {
   const { data, isLoading, isError, error } = useAuditLog(buildQuery())
 
   const entries: AuditLogEntry[] = (data?.data ?? []) as AuditLogEntry[]
-  const nextCursor = data?.nextCursor
+  const nextCursor = data?.next_cursor ?? undefined
   const hasPrev = cursorStack.length > 0
   const hasNext = !!nextCursor
 
@@ -238,7 +238,7 @@ export default function AuditLog() {
     JSON.stringify(filters) !== JSON.stringify(appliedFilters)
 
   const hasAppliedFilters =
-    appliedFilters.resourceType !== '' ||
+    appliedFilters.resource_type !== '' ||
     appliedFilters.action !== '' ||
     appliedFilters.from !== '' ||
     appliedFilters.to !== ''
@@ -261,7 +261,7 @@ export default function AuditLog() {
   }
 
   function goNext() {
-    if (nextCursor) {
+    if (nextCursor != null) {
       setCursorStack((s) => [...s, currentCursor ?? ''])
       setCurrentCursor(nextCursor)
       setExpandedRowId(null)
@@ -298,8 +298,8 @@ export default function AuditLog() {
                 </label>
                 <select
                   id="audit-resource-type"
-                  value={filters.resourceType}
-                  onChange={(e) => setFilters((f) => ({ ...f, resourceType: e.target.value }))}
+                  value={filters.resource_type}
+                  onChange={(e) => setFilters((f) => ({ ...f, resource_type: e.target.value }))}
                   className="h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 >
                   {RESOURCE_TYPES.map((rt) => (
@@ -450,12 +450,12 @@ export default function AuditLog() {
                       <TableCell className="text-sm" title={formatUtcTooltip(entry.timestamp)}>
                         {formatLocalTime(entry.timestamp)}
                       </TableCell>
-                      <TableCell className="text-sm">{entry.actorKeyName}</TableCell>
+                      <TableCell className="text-sm">{entry.actor_key_name}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">
-                        {entry.clientId ? entry.clientId.slice(0, 8) : '-'}
+                        {entry.client_id ? entry.client_id.slice(0, 8) : '-'}
                       </TableCell>
                       <TableCell className="text-sm capitalize">
-                        {entry.resourceType.replace(/_/g, ' ')}
+                        {entry.resource_type.replace(/_/g, ' ')}
                       </TableCell>
                       <TableCell>
                         <Badge variant={actionBadgeVariant(entry.action)}>
@@ -463,7 +463,7 @@ export default function AuditLog() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-sm font-mono">
-                        {entry.resourceId.slice(0, 12)}
+                        {entry.resource_id.slice(0, 12)}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -501,12 +501,12 @@ export default function AuditLog() {
                       </span>
                     </div>
                     <div className="flex items-center gap-2 text-sm">
-                      <span className="font-medium">{entry.actorKeyName}</span>
+                      <span className="font-medium">{entry.actor_key_name}</span>
                     </div>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <span className="capitalize">{entry.resourceType.replace(/_/g, ' ')}</span>
-                      <span className="font-mono">{entry.resourceId.slice(0, 12)}</span>
-                      {entry.clientId && <span>Client: {entry.clientId.slice(0, 8)}</span>}
+                      <span className="capitalize">{entry.resource_type.replace(/_/g, ' ')}</span>
+                      <span className="font-mono">{entry.resource_id.slice(0, 12)}</span>
+                      {entry.client_id && <span>Client: {entry.client_id.slice(0, 8)}</span>}
                     </div>
                     {expandedRowId === entry.id ? (
                       <ChevronUp className="h-4 w-4 ml-auto text-muted-foreground" />

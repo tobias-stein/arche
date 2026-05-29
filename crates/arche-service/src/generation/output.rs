@@ -317,8 +317,8 @@ mod tests {
         let json = serde_json::to_value(&entry).unwrap();
         let obj = json.as_object().unwrap();
 
-        assert_eq!(obj.get("affixId").unwrap(), &serde_json::json!(Uuid::nil().to_string()));
-        assert_eq!(obj.get("affixName").unwrap(), &serde_json::json!("Fire"));
+        assert_eq!(obj.get("affix_id").unwrap(), &serde_json::json!(Uuid::nil().to_string()));
+        assert_eq!(obj.get("affix_name").unwrap(), &serde_json::json!("Fire"));
         assert_eq!(obj.get("fireDamage").unwrap(), &serde_json::json!(12.7));
     }
 }

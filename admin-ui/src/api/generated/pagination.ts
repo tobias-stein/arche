@@ -9,7 +9,7 @@ export interface PaginationParams {
   cursor?: string;
   limit?: number;
   page?: number;
-  perPage?: number;
+  per_page?: number;
 }
 
 export interface CursorPagination {
@@ -19,7 +19,7 @@ export interface CursorPagination {
 
 export interface OffsetPagination {
   page: number;
-  perPage?: number;
+  per_page?: number;
 }
 
 export type PaginationMode = CursorPagination | OffsetPagination;
@@ -45,11 +45,11 @@ export function toQueryParams(params?: any): Record<string, string> {
 }
 
 export function parseNextCursor<T>(response: PaginatedResponse<T>): string | undefined {
-  return response.nextCursor;
+  return response.next_cursor;
 }
 
 export function hasMorePages<T>(response: PaginatedResponse<T>): boolean {
-  return response.nextCursor !== undefined && response.nextCursor !== null;
+  return response.next_cursor !== undefined && response.next_cursor !== null;
 }
 
 export function getTotalCount<T>(response: PaginatedResponse<T>): number | undefined {

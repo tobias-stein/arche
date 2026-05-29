@@ -2,7 +2,7 @@ import type { GlobalMetaAttribute } from '@/api/generated/types'
 
 export function getPreview(gma: GlobalMetaAttribute): string {
   const p = gma.payload
-  switch (gma.valueType) {
+  switch (gma.value_type) {
     case 'single':
       return String(p.value ?? '\u2014')
     case 'enum': {
@@ -12,8 +12,8 @@ export function getPreview(gma: GlobalMetaAttribute): string {
     case 'range':
       return `${p.min ?? '?'} \u2013 ${p.max ?? '?'}`
     case 'string': {
-      const min = p.minLength
-      const max = p.maxLength
+      const min = p.min_length
+      const max = p.max_length
       if (min != null && max != null) return `${min} \u2013 ${max} characters`
       if (min != null) return `\u2265 ${min} characters`
       if (max != null) return `\u2264 ${max} characters`
@@ -54,7 +54,7 @@ export function extractPayloadState(gma: GlobalMetaAttribute): AttributeFormStat
   let distStdDev = ''
   let distRate = ''
 
-  switch (gma.valueType) {
+  switch (gma.value_type) {
     case 'single':
       singleValue = p.value != null ? String(p.value) : ''
       break
@@ -66,22 +66,22 @@ export function extractPayloadState(gma: GlobalMetaAttribute): AttributeFormStat
       rangeMax = p.max != null ? String(p.max) : ''
       break
     case 'string':
-      strMinLen = p.minLength != null ? String(p.minLength) : ''
-      strMaxLen = p.maxLength != null ? String(p.maxLength) : ''
+      strMinLen = p.min_length != null ? String(p.min_length) : ''
+      strMaxLen = p.max_length != null ? String(p.max_length) : ''
       break
     case 'boolean':
       boolVal = p.value === true
       break
   }
 
-  const dist = p.distribution as { type?: string; stdDev?: number; rate?: number } | undefined
-  if (dist && (gma.valueType === 'single' || gma.valueType === 'range')) {
+  const dist = p.distribution as { type?: string; std_dev?: number; rate?: number } | undefined
+  if (dist && (gma.value_type === 'single' || gma.value_type === 'range')) {
     useDist = true
     if (dist.type === 'normal' || dist.type === 'exponential') {
       distType = dist.type as 'normal' | 'exponential'
     }
-    if (dist.type === 'normal' && dist.stdDev != null) {
-      distStdDev = String(dist.stdDev)
+    if (dist.type === 'normal' && dist.std_dev != null) {
+      distStdDev = String(dist.std_dev)
     }
     if (dist.type === 'exponential' && dist.rate != null) {
       distRate = String(dist.rate)
@@ -95,12 +95,12 @@ export function buildDistribution(
   distType: 'uniform' | 'normal' | 'exponential',
   distStdDev: string,
   distRate: string,
-): { type: string; stdDev?: number; rate?: number } | null {
+): { type: string; std_dev?: number; rate?: number } | null {
   if (distType === 'uniform') return { type: 'uniform' }
   if (distType === 'normal') {
     const sd = parseFloat(distStdDev)
     if (isNaN(sd) || sd <= 0) return null
-    return { type: 'normal', stdDev: sd }
+    return { type: 'normal', std_dev: sd }
   }
   const rate = parseFloat(distRate)
   if (isNaN(rate) || rate <= 0) return null

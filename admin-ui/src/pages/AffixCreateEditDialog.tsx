@@ -88,7 +88,7 @@ function getDistribution(
   return {
     use: true,
     type: distType,
-    stdDev: distType === 'normal' ? String(dist.stdDev ?? '') : '',
+    stdDev: distType === 'normal' ? String(dist.std_dev ?? '') : '',
     rate: distType === 'exponential' ? String(dist.rate ?? '') : '',
   }
 }
@@ -124,10 +124,10 @@ function InlineAttributeForm({
     inline && inline.value_type === 'range' ? String(inline.max ?? '') : '',
   )
   const [strMinLen, setStrMinLen] = useState(
-    inline && inline.value_type === 'string' ? String(inline.minLength ?? '') : '',
+    inline && inline.value_type === 'string' ? String(inline.min_length ?? '') : '',
   )
   const [strMaxLen, setStrMaxLen] = useState(
-    inline && inline.value_type === 'string' ? String(inline.maxLength ?? '') : '',
+    inline && inline.value_type === 'string' ? String(inline.max_length ?? '') : '',
   )
   const [boolVal, setBoolVal] = useState(
     inline && inline.value_type === 'boolean' ? inline.value === true : false,
@@ -144,7 +144,7 @@ function InlineAttributeForm({
     if (distType === 'normal') {
       const sd = parseFloat(distStdDev)
       if (isNaN(sd) || sd <= 0) return null
-      return { type: 'normal', stdDev: sd }
+      return { type: 'normal', std_dev: sd }
     }
     const rate = parseFloat(distRate)
     if (isNaN(rate) || rate <= 0) return null
@@ -191,8 +191,8 @@ function InlineAttributeForm({
       case 'string': {
         const minL = strMinLen ? parseInt(strMinLen) : undefined
         const maxL = strMaxLen ? parseInt(strMaxLen) : undefined
-        if (minL !== undefined) base.minLength = minL
-        if (maxL !== undefined) base.maxLength = maxL
+        if (minL !== undefined) base.min_length = minL
+        if (maxL !== undefined) base.max_length = maxL
         break
       }
       case 'boolean':
@@ -438,7 +438,7 @@ function GlobalAttributePicker({
   refId: string
   onChange: (attr: AffixAttribute | null) => void
 }) {
-  const { data, isLoading } = useGlobalMetaAttributesList({ perPage: 200 })
+  const { data, isLoading } = useGlobalMetaAttributesList({ per_page: 200 })
   const [search, setSearch] = useState('')
   const [open, setOpen] = useState(false)
 
@@ -516,7 +516,7 @@ function GlobalAttributePicker({
                   >
                     <span className="truncate">{gma.name}</span>
                     <Badge variant="outline" className="ml-auto shrink-0 text-xs">
-                      {gma.valueType}
+                      {gma.value_type}
                     </Badge>
                   </button>
                 ))

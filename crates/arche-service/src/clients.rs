@@ -1374,9 +1374,9 @@ mod tests {
             assert!(obj.contains_key("id"));
             assert!(obj.contains_key("name"));
             assert!(obj.contains_key("permissions"));
-            assert!(obj.contains_key("createdAt"));
+            assert!(obj.contains_key("created_at"));
             assert!(!obj.contains_key("key"), "list should not expose raw key");
-            assert!(!obj.contains_key("keyHash"), "list should not expose key hash");
+            assert!(!obj.contains_key("key_hash"), "list should not expose key hash");
 
             // Cleanup
             sqlx::query("DELETE FROM api_keys WHERE client_id = $1")

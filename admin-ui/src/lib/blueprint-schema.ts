@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 const distributionConfigSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('uniform') }),
-  z.object({ type: z.literal('normal'), stdDev: z.number() }),
+  z.object({ type: z.literal('normal'), std_dev: z.number() }),
   z.object({
     type: z.literal('exponential'),
     rate: z.number(),
@@ -19,8 +19,8 @@ export const inlineAttributeDefSchema = z.object({
   values: z.array(z.string()).optional(),
   min: z.number().optional(),
   max: z.number().optional(),
-  minLength: z.number().optional(),
-  maxLength: z.number().optional(),
+  min_length: z.number().optional(),
+  max_length: z.number().optional(),
   distribution: distributionConfigSchema.optional(),
   description: z.string().optional(),
 })
@@ -37,20 +37,20 @@ export const affixPoolEntrySchema = z.object({
 
 export const blueprintAffixConfigSchema = z
   .object({
-    minPrefixes: z.number().min(0),
-    maxPrefixes: z.number().min(0),
-    minSuffixes: z.number().min(0),
-    maxSuffixes: z.number().min(0),
+    min_prefixes: z.number().min(0),
+    max_prefixes: z.number().min(0),
+    min_suffixes: z.number().min(0),
+    max_suffixes: z.number().min(0),
     prefixes: z.array(affixPoolEntrySchema),
     suffixes: z.array(affixPoolEntrySchema),
   })
-  .refine((data) => data.maxPrefixes >= data.minPrefixes, {
+  .refine((data) => data.max_prefixes >= data.min_prefixes, {
     message: 'Max prefixes must be >= min prefixes',
-    path: ['maxPrefixes'],
+    path: ['max_prefixes'],
   })
-  .refine((data) => data.maxSuffixes >= data.minSuffixes, {
+  .refine((data) => data.max_suffixes >= data.min_suffixes, {
     message: 'Max suffixes must be >= min suffixes',
-    path: ['maxSuffixes'],
+    path: ['max_suffixes'],
   })
 
 export const createBlueprintSchema = z.object({
@@ -59,7 +59,7 @@ export const createBlueprintSchema = z.object({
   weight: z.number().positive('Weight must be greater than 0'),
   description: z.string().optional().nullable(),
   attributes: z.record(z.string(), blueprintAttributeSchema),
-  attributeOrder: z.array(z.string()),
+  attribute_order: z.array(z.string()),
   affixes: blueprintAffixConfigSchema,
 })
 

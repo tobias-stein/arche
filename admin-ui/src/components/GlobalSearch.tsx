@@ -51,14 +51,14 @@ export function GlobalSearch() {
 
   const { data: bpData, isLoading: bpLoading } = useQuery<PaginatedResponse<Blueprint>>({
     queryKey: ['blueprints', 'search', debouncedInput],
-    queryFn: () => client.listBlueprints({ search: debouncedInput, perPage: 5 }),
+    queryFn: () => client.listBlueprints({ search: debouncedInput, per_page: 5 }),
     enabled: hasSearch,
     staleTime: 60_000,
   })
 
   const { data: affixData, isLoading: affixLoading } = useQuery<PaginatedResponse<Affix>>({
     queryKey: ['affixes', 'search', debouncedInput],
-    queryFn: () => client.listAffixes({ search: debouncedInput, perPage: 5 }),
+    queryFn: () => client.listAffixes({ search: debouncedInput, per_page: 5 }),
     enabled: hasSearch,
     staleTime: 60_000,
   })

@@ -97,14 +97,14 @@ pub struct ClientImport {
 }
 
 #[derive(serde::Deserialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 struct ClientJson {
     id: Uuid,
     name: String,
 }
 
 #[derive(serde::Deserialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 struct BlueprintJson {
     id: Uuid,
     name: String,
@@ -120,7 +120,7 @@ struct BlueprintJson {
 }
 
 #[derive(serde::Deserialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 struct AffixJson {
     id: Uuid,
     name: String,
@@ -131,7 +131,7 @@ struct AffixJson {
 }
 
 #[derive(serde::Deserialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 struct GmaJson {
     id: Uuid,
     name: String,
@@ -141,7 +141,7 @@ struct GmaJson {
 }
 
 #[derive(serde::Deserialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 struct BaJson {
     id: Uuid,
     blueprint_id: Uuid,
@@ -1887,11 +1887,11 @@ use std::collections::{HashMap, HashSet};
                     "archetype": "sword",
                     "weight": 1.0,
                     "attributes": {},
-                    "attributeOrder": [],
-                    "minPrefixes": 0,
-                    "maxPrefixes": 0,
-                    "minSuffixes": 0,
-                    "maxSuffixes": 0
+                    "attribute_order": [],
+                    "min_prefixes": 0,
+                    "max_prefixes": 0,
+                    "min_suffixes": 0,
+                    "max_suffixes": 0
                 })])
                 .unwrap(),
             ),

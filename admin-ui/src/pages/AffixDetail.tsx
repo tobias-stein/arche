@@ -94,7 +94,7 @@ function AuditLogDiff({ entry }: { entry: AuditLogEntry }) {
         )}
         <span className="font-medium">{entry.action}</span>
         <span className="text-muted-foreground">
-          by {entry.actorKeyName}
+          by {entry.actor_key_name}
         </span>
         <span className="ml-auto text-xs text-muted-foreground">
           {formatDateTime(entry.timestamp)}
@@ -185,10 +185,10 @@ export default function AffixDetail() {
   const {
     data: auditData,
     isLoading: auditLoading,
-  } = useAuditLog({ resourceType: 'affix' })
+  } = useAuditLog({ resource_type: 'affix' })
 
   const auditEntries = ((auditData?.data ?? []) as AuditLogEntry[]).filter(
-    (entry) => entry.resourceId === id,
+    (entry) => entry.resource_id === id,
   )
 
   if (isLoading) {
@@ -302,16 +302,16 @@ export default function AffixDetail() {
               <div className="flex items-center gap-2">
                 <span className="text-muted-foreground">Client ID:</span>
                 <code className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">
-                  {affix.clientId}
+                  {affix.client_id}
                 </code>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-muted-foreground">Created:</span>
-                <span>{formatDateTime(affix.createdAt)}</span>
+                <span>{formatDateTime(affix.created_at)}</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-muted-foreground">Updated:</span>
-                <span>{formatDateTime(affix.updatedAt)}</span>
+                <span>{formatDateTime(affix.updated_at)}</span>
               </div>
             </CardContent>
           </Card>

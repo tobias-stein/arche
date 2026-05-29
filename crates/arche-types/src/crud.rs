@@ -10,7 +10,7 @@ use crate::attribute::{
 use crate::{AffixLocation, Permission};
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct BlueprintResponse {
     pub id: Uuid,
     pub client_id: Uuid,
@@ -31,7 +31,7 @@ pub struct BlueprintResponse {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct CreateBlueprintRequest {
     pub name: String,
     pub archetype: String,
@@ -46,7 +46,7 @@ pub struct CreateBlueprintRequest {
 pub type UpdateBlueprintRequest = CreateBlueprintRequest;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct CreateAffixRequest {
     pub name: String,
     #[serde(rename = "type")]
@@ -59,7 +59,7 @@ pub struct CreateAffixRequest {
 pub type UpdateAffixRequest = CreateAffixRequest;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct CreateGlobalMetaAttributeRequest {
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -71,13 +71,13 @@ pub struct CreateGlobalMetaAttributeRequest {
 pub type UpdateGlobalMetaAttributeRequest = CreateGlobalMetaAttributeRequest;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct CreateClientRequest {
     pub name: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct ApiKeySummary {
     pub id: Uuid,
     pub name: String,
@@ -86,7 +86,7 @@ pub struct ApiKeySummary {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct ClientResponse {
     pub id: Uuid,
     pub name: String,
@@ -96,14 +96,14 @@ pub struct ClientResponse {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct CreateApiKeyRequest {
     pub name: String,
     pub permissions: Vec<Permission>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct CreateApiKeyResponse {
     pub id: Uuid,
     pub name: String,
@@ -112,7 +112,7 @@ pub struct CreateApiKeyResponse {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct ApiKeyResponse {
     pub id: Uuid,
     pub name: String,
@@ -123,7 +123,7 @@ pub struct ApiKeyResponse {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct BootstrapResponse {
     pub bootstrapped: bool,
     #[serde(skip_serializing_if = "Option::is_none")]

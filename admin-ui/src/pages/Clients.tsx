@@ -37,7 +37,7 @@ export default function Clients() {
   const [newClientName, setNewClientName] = useState('')
   const [deletingClient, setDeletingClient] = useState<ClientResponse | null>(null)
 
-  const { data, isLoading, isError, error } = useClientsList({ page, perPage: DEFAULT_PER_PAGE })
+  const { data, isLoading, isError, error } = useClientsList({ page, per_page: DEFAULT_PER_PAGE })
   const createMutation = useCreateClient()
   const deleteMutation = useDeleteClient()
 
@@ -149,12 +149,12 @@ export default function Clients() {
                         </Link>
                       </TableCell>
                       <TableCell className="text-muted-foreground">
-                        {formatDate(client.createdAt)}
+                        {formatDate(client.created_at)}
                       </TableCell>
                       <TableCell>
                         <Badge variant="secondary">
                           <Key className="mr-1 h-3 w-3" />
-                          {client.apiKeys.length}
+                          {client.api_keys.length}
                         </Badge>
                       </TableCell>
                       <TableCell>

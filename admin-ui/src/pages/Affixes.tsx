@@ -116,7 +116,7 @@ function BlueprintPickerDialog({
 }) {
   const { toast } = useToast()
   const { data: bpData, isLoading } = useBlueprintsList(
-    { perPage: 100 },
+    { per_page: 100 },
   )
   const batchAssignMutation = useBatchAssignAffixes()
 
@@ -148,8 +148,8 @@ function BlueprintPickerDialog({
     if (selectedBpIds.size === 0) return
     try {
       await batchAssignMutation.mutateAsync({
-        blueprintIds: Array.from(selectedBpIds),
-        affixIds: selectedAffixIds,
+        blueprint_ids: Array.from(selectedBpIds),
+        affix_ids: Array.from(selectedAffixIds),
         weight: 1,
       })
       toast({
@@ -265,7 +265,7 @@ export default function Affixes() {
     error,
   } = useAffixesList({
     page,
-    perPage: PER_PAGE,
+    per_page: PER_PAGE,
     search: debouncedSearch || undefined,
   })
 
@@ -579,7 +579,7 @@ export default function Affixes() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm">
-                        {formatDate(affix.updatedAt)}
+                        {formatDate(affix.updated_at)}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
@@ -679,7 +679,7 @@ export default function Affixes() {
                       {getValueTypeDisplay(affix.attribute)}
                     </Badge>
                     <span className="text-xs text-muted-foreground">
-                      {formatDate(affix.updatedAt)}
+                      {formatDate(affix.updated_at)}
                     </span>
                   </div>
                   <p className="text-sm text-muted-foreground">

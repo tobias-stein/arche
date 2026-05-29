@@ -33,7 +33,7 @@ function renderModal(blueprint?: Blueprint | null, duplicateFrom?: Blueprint | n
 function createMockBlueprint(): Blueprint {
   return {
     id: 'bp-1',
-    clientId: 'client-1',
+    client_id: 'client-1',
     name: 'Test BP',
     archetype: 'weapon',
     weight: 5,
@@ -41,13 +41,13 @@ function createMockBlueprint(): Blueprint {
     attributes: {
       damage: { value_type: 'single', value: 10 },
     },
-    attributeOrder: ['damage'],
-    minPrefixes: 1,
-    maxPrefixes: 3,
-    minSuffixes: 0,
-    maxSuffixes: 2,
-    createdAt: '2026-01-01T00:00:00Z',
-    updatedAt: '2026-01-01T00:00:00Z',
+    attribute_order: ['damage'],
+    min_prefixes: 1,
+    max_prefixes: 3,
+    min_suffixes: 0,
+    max_suffixes: 2,
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
   }
 }
 
@@ -206,8 +206,8 @@ describe('BlueprintFormModal', () => {
         prefixes?: AffixPoolEntry[]
         suffixes?: AffixPoolEntry[]
       }
-      extended.prefixes = [{ affixId: 'aff-a', weight: 7 }]
-      extended.suffixes = [{ affixId: 'aff-b', weight: 2 }]
+      extended.prefixes = [{ affix_id: 'aff-a', weight: 7 }]
+      extended.suffixes = [{ affix_id: 'aff-b', weight: 2 }]
       return extended
     }
 

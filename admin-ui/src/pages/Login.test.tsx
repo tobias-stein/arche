@@ -115,9 +115,9 @@ describe('Login page', () => {
     mockGetMe.mockResolvedValue({
       id: 'key-1',
       name: 'Super Key',
-      clientId: null,
+      client_id: null,
       permissions: ['admin', 'read', 'write', 'delete', 'generate'],
-      isSuper: true,
+      is_super: true,
     })
 
     renderLogin()

@@ -25,9 +25,9 @@ function superKeyResponse() {
   return {
     id: 'key-super-1',
     name: 'Super Admin Key',
-    clientId: null,
+    client_id: null,
     permissions: ['admin', 'read', 'write', 'delete', 'generate'],
-    isSuper: true,
+    is_super: true,
   }
 }
 
@@ -35,9 +35,9 @@ function clientKeyResponse(clientId: string) {
   return {
     id: 'key-client-1',
     name: 'Client Key',
-    clientId,
+    client_id: clientId,
     permissions: ['read', 'write', 'generate'],
-    isSuper: false,
+    is_super: false,
   }
 }
 
@@ -60,7 +60,7 @@ describe('useAuth store', () => {
     expect(get().isSuperAdmin).toBe(false)
     expect(get().keyId).toBeNull()
     expect(get().keyName).toBeNull()
-    expect(get().clientId).toBeNull()
+    expect(get().client_id).toBeNull()
     expect(get().permissions).toEqual([])
   })
 
@@ -75,7 +75,7 @@ describe('useAuth store', () => {
     expect(get().isSuperAdmin).toBe(true)
     expect(get().keyId).toBe('key-super-1')
     expect(get().keyName).toBe('Super Admin Key')
-    expect(get().clientId).toBeNull()
+    expect(get().client_id).toBeNull()
     expect(get().permissions).toEqual(['admin', 'read', 'write', 'delete', 'generate'])
     expect(mockSetApiKey).toHaveBeenCalledWith('super-key')
     expect(mockSetSelectedClientId).toHaveBeenCalledWith(null)
@@ -92,7 +92,7 @@ describe('useAuth store', () => {
     expect(get().isSuperAdmin).toBe(false)
     expect(get().keyId).toBe('key-client-1')
     expect(get().keyName).toBe('Client Key')
-    expect(get().clientId).toBe('client-abc')
+    expect(get().client_id).toBe('client-abc')
     expect(get().permissions).toEqual(['read', 'write', 'generate'])
     expect(mockSetApiKey).toHaveBeenCalledWith('client-key')
     expect(mockSetSelectedClientId).toHaveBeenCalledWith('client-abc')
@@ -138,13 +138,13 @@ describe('useAuth store', () => {
     mockGetMe.mockResolvedValue({
       id: 'key-bad',
       name: 'Bad Key',
-      clientId: null,
+      client_id: null,
       permissions: [],
-      isSuper: false,
+      is_super: false,
     })
 
     const get = await getState()
-    await expect(get().login('bad-key')).rejects.toThrow('missing clientId and isSuper')
+    await expect(get().login('bad-key')).rejects.toThrow('missing clientId and is_super')
 
     expect(get().apiKey).toBeNull()
     expect(get().isAuthenticated).toBe(false)
@@ -168,7 +168,7 @@ describe('useAuth store', () => {
     expect(get().isSuperAdmin).toBe(false)
     expect(get().keyId).toBeNull()
     expect(get().keyName).toBeNull()
-    expect(get().clientId).toBeNull()
+    expect(get().client_id).toBeNull()
     expect(get().permissions).toEqual([])
     expect(mockSetApiKey).toHaveBeenCalledWith('')
   })

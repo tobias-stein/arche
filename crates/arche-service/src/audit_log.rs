@@ -246,10 +246,10 @@ mod tests {
         let json = json!({
             "cursor": "550e8400-e29b-41d4-a716-446655440000",
             "limit": 25,
-            "clientId": cid.to_string(),
-            "resourceType": "blueprint",
+            "client_id": cid.to_string(),
+            "resource_type": "blueprint",
             "action": "created",
-            "actorKeyId": akid.to_string(),
+            "actor_key_id": akid.to_string(),
             "from": "1970-01-01T00:00:01Z",
             "to": "1970-01-01T00:00:02Z",
         });
@@ -281,10 +281,10 @@ mod tests {
             to: Some(to),
         };
         let obj = serde_json::to_value(&q).unwrap().as_object().unwrap().clone();
-        assert!(obj.contains_key("clientId"));
-        assert!(obj.contains_key("resourceType"));
+        assert!(obj.contains_key("client_id"));
+        assert!(obj.contains_key("resource_type"));
         assert!(obj.contains_key("action"));
-        assert!(obj.contains_key("actorKeyId"));
+        assert!(obj.contains_key("actor_key_id"));
         assert_eq!(obj.get("from").unwrap(), "1970-01-01T00:00:01Z");
         assert_eq!(obj.get("to").unwrap(), "1970-01-01T00:00:02Z");
     }
@@ -363,9 +363,9 @@ mod tests {
         let json = serde_json::to_value(&resp).unwrap();
         let obj = json.as_object().unwrap();
         assert!(obj.contains_key("data"));
-        assert!(obj.contains_key("nextCursor"));
+        assert!(obj.contains_key("next_cursor"));
         assert!(!obj.contains_key("total"));
-        assert_eq!(obj.get("nextCursor").unwrap(), &serde_json::json!(uuid.to_string()));
+        assert_eq!(obj.get("next_cursor").unwrap(), &serde_json::json!(uuid.to_string()));
     }
 
     mod db_tests {

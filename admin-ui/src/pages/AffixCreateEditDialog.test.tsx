@@ -13,7 +13,7 @@ setClient(new ArcheClient({ baseUrl: 'http://localhost:3000' }))
 
 const mockAffix: Affix = {
   id: 'aff-1',
-  clientId: 'client-1',
+  client_id: 'client-1',
   name: 'Flame',
   location: 'prefix',
   description: 'Adds fire damage',
@@ -22,19 +22,19 @@ const mockAffix: Affix = {
     value_type: 'single',
     value: 10,
   },
-  createdAt: '2024-01-01T00:00:00Z',
-  updatedAt: '2024-01-01T00:00:00Z',
+  created_at: '2024-01-01T00:00:00Z',
+  updated_at: '2024-01-01T00:00:00Z',
 }
 
 const mockAffixWithGlobal: Affix = {
   id: 'aff-2',
-  clientId: 'client-1',
+  client_id: 'client-1',
   name: 'Ice',
   location: 'suffix',
   description: null,
   attribute: { $ref_id: 'gma-1' },
-  createdAt: '2024-01-01T00:00:00Z',
-  updatedAt: '2024-01-01T00:00:00Z',
+  created_at: '2024-01-01T00:00:00Z',
+  updated_at: '2024-01-01T00:00:00Z',
 }
 
 function renderDialog(

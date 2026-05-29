@@ -77,8 +77,8 @@ function checkBlueprintPool(
   bp: ExtendedBlueprint,
   warnings: Warning[],
 ) {
-  checkPool(bp.prefixes, 'prefix', bp, bp.minPrefixes, warnings)
-  checkPool(bp.suffixes, 'suffix', bp, bp.minSuffixes, warnings)
+  checkPool(bp.prefixes, 'prefix', bp, bp.min_prefixes, warnings)
+  checkPool(bp.suffixes, 'suffix', bp, bp.min_suffixes, warnings)
 }
 
 function checkPoolWeights(
@@ -90,9 +90,9 @@ function checkPoolWeights(
   for (const entry of pool ?? []) {
     if (entry.weight === 0) {
       warnings.push({
-        id: `zero-weight-pool-${bp.id}-${entry.affixId}`,
+        id: `zero-weight-pool-${bp.id}-${entry.affix_id}`,
         title: 'Zero-weight affix assignment',
-        description: `Blueprint "${bp.name}" has a ${poolType} affix "${entry.affixId}" with weight 0 — it will never roll.`,
+        description: `Blueprint "${bp.name}" has a ${poolType} affix "${entry.affix_id}" with weight 0 — it will never roll.`,
         severity: 'warning',
         resourceType: 'blueprint',
         resourceId: bp.id,
@@ -163,7 +163,7 @@ function checkAttributePayload(
 }
 
 function checkDistribution(
-  dist: { type: string; stdDev?: number; rate?: number },
+  dist: { type: string; std_dev?: number; rate?: number },
   resourceId: string,
   resourceName: string,
   resourceType: 'blueprint' | 'affix',
@@ -171,7 +171,7 @@ function checkDistribution(
   warnings: Warning[],
 ) {
   const label = resourceLabel(resourceType)
-  if (dist.type === 'normal' && (dist.stdDev === 0 || dist.stdDev === undefined)) {
+  if (dist.type === 'normal' && (dist.std_dev === 0 || dist.std_dev === undefined)) {
     warnings.push({
       id: `invalid-dist-${resourceId}-${attrKey}`,
       title: 'Invalid distribution config',
@@ -212,7 +212,7 @@ function checkBlueprintAttributes(
   globalIds: Set<string>,
   warnings: Warning[],
 ) {
-  for (const key of bp.attributeOrder ?? []) {
+  for (const key of bp.attribute_order ?? []) {
     const attr = bp.attributes?.[key]
     if (!attr) continue
 

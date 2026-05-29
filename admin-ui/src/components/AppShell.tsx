@@ -24,7 +24,7 @@ function ThemeToggle() {
 
 function Header() {
   const { panelOpen, togglePanel, openSearch } = useUi()
-  const { isAuthenticated, isSuperAdmin, clientId } = useAuth()
+  const { isAuthenticated, isSuperAdmin, client_id: clientId } = useAuth()
   const { data: clientData } = useClient(clientId ?? '')
 
   const isClientScoped = isAuthenticated && !isSuperAdmin && clientId

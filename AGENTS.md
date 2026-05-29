@@ -41,3 +41,17 @@ The following were resolved in the last design session. See `docs/design/ui-ux.m
 - Invalid distribution config (std_dev = 0, rate = 0)
 
 **Auth:** API-key-only model kept (ADR 0001). Multi-user deferred.
+
+### JSON serialization convention
+
+All JSON in the Arche API uses **snake_case** for keys. This applies to:
+- `crates/` — serde attributes use `#[serde(rename_all = "snake_case")]` on all request/response structs and enums
+- `admin-ui/` — TypeScript interfaces mirror the API with snake_case property names
+- `bench/` — `json!()` literals use snake_case keys for API payloads
+
+Exceptions (explicit serde overrides):
+- `#[serde(rename = "type")]` — Rust reserved-word workaround (`type_` fields)
+- `#[serde(rename = "enum")]` — Rust reserved-word workaround (`Enum` variant)
+- `#[serde(rename = "$ref_id")]` — JSON Schema `$ref` syntax
+- `#[serde(tag = "type")]` — internally-tagged `DistributionConfig` (single word)
+- `#[serde(tag = "value_type")]` — internally-tagged `AttributePayload`

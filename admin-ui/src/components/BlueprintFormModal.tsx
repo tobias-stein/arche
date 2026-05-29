@@ -105,8 +105,8 @@ function getAttributePreview(attr: BlueprintAttribute): string {
       return `${attr.min} \u2013 ${attr.max}`
     case 'string': {
       const parts: string[] = []
-      if (attr.minLength !== undefined) parts.push(`min: ${attr.minLength}`)
-      if (attr.maxLength !== undefined) parts.push(`max: ${attr.maxLength}`)
+  if (attr.min_length !== undefined) parts.push(`min: ${attr.min_length}`)
+  if (attr.max_length !== undefined) parts.push(`max: ${attr.max_length}`)
       return parts.length > 0 ? parts.join(', ') : '\u2014'
     }
     case 'boolean':
@@ -164,7 +164,7 @@ function buildDistribution(distType: string, stdDev: string, rate: string) {
   if (distType === 'none') return undefined
   if (distType === 'uniform') return { type: 'uniform' } as const
   if (distType === 'normal')
-    return { type: 'normal', stdDev: Number(stdDev) || 1 } as const
+    return { type: 'normal', std_dev: Number(stdDev) || 1 } as const
   if (distType === 'exponential')
     return { type: 'exponential', rate: Number(rate) || 1 } as const
   return undefined
@@ -283,8 +283,8 @@ function InlineAttributeForm({
       }
       case 'string':
         payload = { value_type: 'string' }
-        if (stringMinLen) payload.minLength = Number(stringMinLen)
-        if (stringMaxLen) payload.maxLength = Number(stringMaxLen)
+    if (stringMinLen) payload.min_length = Number(stringMinLen)
+    if (stringMaxLen) payload.max_length = Number(stringMaxLen)
         break
       case 'boolean':
         payload = { value_type: 'boolean', value: boolValue === 'true' }
@@ -528,7 +528,7 @@ function GlobalAttributePickerDialog({
 }) {
   const [search, setSearch] = useState('')
   const { data, isLoading } = useGlobalMetaAttributesList({
-    perPage: 50,
+    per_page: 50,
     search: search || undefined,
   })
 
@@ -569,7 +569,7 @@ function GlobalAttributePickerDialog({
                   }}
                 >
                   <span className="font-medium">{gma.name}</span>
-                  <Badge variant="outline">{gma.valueType}</Badge>
+                  <Badge variant="outline">{gma.value_type}</Badge>
                 </button>
               ))
             )}
@@ -593,7 +593,7 @@ function AffixPickerDialog({
 }) {
   const [search, setSearch] = useState('')
   const { data, isLoading } = useAffixesList({
-    perPage: 50,
+    per_page: 50,
     search: search || undefined,
   })
 
@@ -675,19 +675,19 @@ export function BlueprintFormModal({
     sourceData?.attributes ?? {},
   )
   const [attributeOrder, setAttributeOrder] = useState<string[]>(
-    sourceData?.attributeOrder ?? [],
+    sourceData?.attribute_order ?? [],
   )
   const [minPrefixes, setMinPrefixes] = useState(
-    sourceData?.minPrefixes ?? 0,
+    sourceData?.min_prefixes ?? 0,
   )
   const [maxPrefixes, setMaxPrefixes] = useState(
-    sourceData?.maxPrefixes ?? 0,
+    sourceData?.max_prefixes ?? 0,
   )
   const [minSuffixes, setMinSuffixes] = useState(
-    sourceData?.minSuffixes ?? 0,
+    sourceData?.min_suffixes ?? 0,
   )
   const [maxSuffixes, setMaxSuffixes] = useState(
-    sourceData?.maxSuffixes ?? 0,
+    sourceData?.max_suffixes ?? 0,
   )
   const [prefixes, setPrefixes] = useState<AffixPoolEntry[]>(
     getExtendedPoolData(sourceData).prefixes,
@@ -788,7 +788,7 @@ export function BlueprintFormModal({
 
   const handleAddAffix = useCallback(
     (affix: Affix) => {
-      const entry: AffixPoolEntry = { affixId: affix.id, weight: 1 }
+      const entry: AffixPoolEntry = { affix_id: affix.id, weight: 1 }
 
       if (affix.location === 'prefix') {
         setPrefixes((prev) => [...prev, entry])
@@ -832,10 +832,10 @@ export function BlueprintFormModal({
     clearErrors()
 
     const affixes: BlueprintAffixConfig = {
-      minPrefixes,
-      maxPrefixes,
-      minSuffixes,
-      maxSuffixes,
+      min_prefixes: minPrefixes,
+      max_prefixes: maxPrefixes,
+      min_suffixes: minSuffixes,
+      max_suffixes: maxSuffixes,
       prefixes,
       suffixes,
     }
@@ -846,7 +846,7 @@ export function BlueprintFormModal({
       weight,
       description: description || null,
       attributes,
-      attributeOrder,
+      attribute_order: attributeOrder,
       affixes,
     }
 
@@ -894,11 +894,11 @@ export function BlueprintFormModal({
     setWeight(sourceData?.weight ?? 1)
     setDescription(sourceData?.description ?? '')
     setAttributes(sourceData?.attributes ?? {})
-    setAttributeOrder(sourceData?.attributeOrder ?? [])
-    setMinPrefixes(sourceData?.minPrefixes ?? 0)
-    setMaxPrefixes(sourceData?.maxPrefixes ?? 0)
-    setMinSuffixes(sourceData?.minSuffixes ?? 0)
-    setMaxSuffixes(sourceData?.maxSuffixes ?? 0)
+    setAttributeOrder(sourceData?.attribute_order ?? [])
+    setMinPrefixes(sourceData?.min_prefixes ?? 0)
+    setMaxPrefixes(sourceData?.max_prefixes ?? 0)
+    setMinSuffixes(sourceData?.min_suffixes ?? 0)
+    setMaxSuffixes(sourceData?.max_suffixes ?? 0)
     const { prefixes: poolPrefixes, suffixes: poolSuffixes } =
       getExtendedPoolData(sourceData)
     setPrefixes(poolPrefixes)
@@ -1244,7 +1244,7 @@ export function BlueprintFormModal({
                                   id={`prefix-${idx}`}
                                 >
                                   <TableCell className="font-mono text-xs">
-                                    {p.affixId}
+                                    {p.affix_id}
                                   </TableCell>
                                   <TableCell>
                                     <Input
@@ -1382,7 +1382,7 @@ export function BlueprintFormModal({
                                   id={`suffix-${idx}`}
                                 >
                                   <TableCell className="font-mono text-xs">
-                                    {s.affixId}
+                                    {s.affix_id}
                                   </TableCell>
                                   <TableCell>
                                     <Input

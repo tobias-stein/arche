@@ -73,8 +73,8 @@ function getAttributePreview(attr: BlueprintAttribute): string {
       return `${inline.min} \u2013 ${inline.max}`
     case 'string': {
       const parts: string[] = []
-      if (inline.minLength !== undefined) parts.push(`min: ${inline.minLength}`)
-      if (inline.maxLength !== undefined) parts.push(`max: ${inline.maxLength}`)
+      if (inline.min_length !== undefined) parts.push(`min: ${inline.min_length}`)
+      if (inline.max_length !== undefined) parts.push(`max: ${inline.max_length}`)
       return parts.length > 0 ? parts.join(', ') : '\u2014'
     }
     case 'boolean':
@@ -134,7 +134,7 @@ function AuditLogDiff({ entry }: { entry: AuditLogEntry }) {
         )}
         <span className="font-medium">{entry.action}</span>
         <span className="text-muted-foreground">
-          by {entry.actorKeyName}
+          by {entry.actor_key_name}
         </span>
         <span className="ml-auto text-xs text-muted-foreground">
           {formatDate(entry.timestamp)}
@@ -250,20 +250,20 @@ function PoolTable({ entries, affixMap, label }: PoolTableProps) {
         </TableHeader>
         <TableBody>
           {entries.map((entry) => {
-            const affix = affixMap.get(entry.affixId)
+            const affix = affixMap.get(entry.affix_id)
             return (
-              <TableRow key={entry.affixId}>
+              <TableRow key={entry.affix_id}>
                 <TableCell>
                   {affix ? (
                     <Link
-                      to={`/affixes/${entry.affixId}`}
+                      to={`/affixes/${entry.affix_id}`}
                       className="text-primary hover:underline"
                     >
                       {affix.name}
                     </Link>
                   ) : (
                     <code className="font-mono text-xs text-muted-foreground">
-                      {entry.affixId}
+                      {entry.affix_id}
                     </code>
                   )}
                 </TableCell>
@@ -291,7 +291,7 @@ export default function BlueprintDetail() {
 
   const createMutation = useCreateBlueprint()
 
-  const { data: affixData } = useAffixesList({ perPage: 200 })
+  const { data: affixData } = useAffixesList({ per_page: 200 })
 
   const affixMap = useMemo(() => {
     const map = new Map<string, Affix>()
@@ -305,10 +305,10 @@ export default function BlueprintDetail() {
   const {
     data: auditData,
     isLoading: auditLoading,
-  } = useAuditLog({ resourceType: 'blueprint' })
+  } = useAuditLog({ resource_type: 'blueprint' })
 
   const auditEntries = ((auditData?.data ?? []) as AuditLogEntry[]).filter(
-    (entry) => entry.resourceId === id,
+    (entry) => entry.resource_id === id,
   )
 
   if (isLoading) {
@@ -356,7 +356,7 @@ export default function BlueprintDetail() {
   const prefixes = extended.prefixes ?? []
   const suffixes = extended.suffixes ?? []
 
-  const sortedAttrKeys = blueprint.attributeOrder.filter(
+  const sortedAttrKeys = blueprint.attribute_order.filter(
     (k) => k in (blueprint.attributes ?? {}),
   )
 
@@ -370,12 +370,12 @@ export default function BlueprintDetail() {
         weight: blueprintData.weight,
         description: blueprintData.description,
         attributes: blueprintData.attributes,
-        attributeOrder: blueprintData.attributeOrder,
+        attribute_order: blueprintData.attribute_order,
         affixes: {
-          minPrefixes: blueprintData.minPrefixes,
-          maxPrefixes: blueprintData.maxPrefixes,
-          minSuffixes: blueprintData.minSuffixes,
-          maxSuffixes: blueprintData.maxSuffixes,
+          min_prefixes: blueprintData.min_prefixes,
+          max_prefixes: blueprintData.max_prefixes,
+          min_suffixes: blueprintData.min_suffixes,
+          max_suffixes: blueprintData.max_suffixes,
           prefixes: [],
           suffixes: [],
         },
@@ -485,16 +485,16 @@ export default function BlueprintDetail() {
               <div className="flex items-center gap-2">
                 <span className="text-muted-foreground">Client ID:</span>
                 <code className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">
-                  {blueprint.clientId}
+                  {blueprint.client_id}
                 </code>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-muted-foreground">Created:</span>
-                <span>{formatDate(blueprint.createdAt)}</span>
+                <span>{formatDate(blueprint.created_at)}</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-muted-foreground">Updated:</span>
-                <span>{formatDate(blueprint.updatedAt)}</span>
+                <span>{formatDate(blueprint.updated_at)}</span>
               </div>
             </CardContent>
           </Card>
@@ -548,7 +548,7 @@ export default function BlueprintDetail() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base">
-                Prefixes (min: {blueprint.minPrefixes}, max: {blueprint.maxPrefixes})
+                Prefixes (min: {blueprint.min_prefixes}, max: {blueprint.max_prefixes})
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -564,7 +564,7 @@ export default function BlueprintDetail() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base">
-                Suffixes (min: {blueprint.minSuffixes}, max: {blueprint.maxSuffixes})
+                Suffixes (min: {blueprint.min_suffixes}, max: {blueprint.max_suffixes})
               </CardTitle>
             </CardHeader>
             <CardContent>

@@ -57,7 +57,7 @@ describe('AppShell', () => {
     useAuth.setState({
       isAuthenticated: true,
       isSuperAdmin: false,
-      clientId: 'client-abc',
+      client_id: 'client-abc',
     })
 
     renderShell()

@@ -42,7 +42,7 @@ export function ActivityPanel() {
   const queryClient = useQueryClient()
 
   const { data } = useAuditLog({
-    clientId: selectedClientId ?? undefined,
+    client_id: selectedClientId ?? undefined,
     limit: 50,
   })
 
@@ -64,7 +64,7 @@ export function ActivityPanel() {
   const entries = data?.data ?? []
 
   const handleEntryClick = (entry: AuditLogEntry) => {
-    const path = resourceDetailPath(entry.resourceType, entry.resourceId)
+    const path = resourceDetailPath(entry.resource_type, entry.resource_id)
     if (path) navigate(path)
   }
 
@@ -125,11 +125,11 @@ export function ActivityPanel() {
                     </span>
                   </div>
                   <div className="mt-1 text-sm text-muted-foreground">
-                    {entry.actorKeyName}
+                    {entry.actor_key_name}
                   </div>
                   <div className="mt-0.5 text-sm">
-                    <span className="font-medium">{entry.resourceType}</span>{' '}
-                    <span>{entry.resourceId}</span>
+                    <span className="font-medium">{entry.resource_type}</span>{' '}
+                    <span>{entry.resource_id}</span>
                   </div>
                 </button>
               </li>

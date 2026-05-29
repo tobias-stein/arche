@@ -190,8 +190,8 @@ describe('GlobalSearch', () => {
     expect(mockListAffixes).not.toHaveBeenCalled()
 
     await vi.waitFor(() => {
-      expect(mockListBlueprints).toHaveBeenCalledWith({ search: 'test', perPage: 5 })
-      expect(mockListAffixes).toHaveBeenCalledWith({ search: 'test', perPage: 5 })
+      expect(mockListBlueprints).toHaveBeenCalledWith({ search: 'test', per_page: 5 })
+      expect(mockListAffixes).toHaveBeenCalledWith({ search: 'test', per_page: 5 })
     })
   })
 

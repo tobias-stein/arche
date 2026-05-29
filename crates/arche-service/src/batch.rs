@@ -96,12 +96,10 @@ pub async fn batch_edit_blueprints(
                 }
                 Some(existing) => {
                     let existing_type = existing
-                        .get("valueType")
-                        .or_else(|| existing.get("value_type"))
+                        .get("value_type")
                         .and_then(|v| v.as_str());
                     let new_type = new_attr
-                        .get("valueType")
-                        .or_else(|| new_attr.get("value_type"))
+                        .get("value_type")
                         .and_then(|v| v.as_str());
 
                     match (existing_type, new_type) {
@@ -681,7 +679,7 @@ mod tests {
     #[test]
     fn test_batch_edit_request_deserialization() {
         let json = json!({
-            "blueprintIds": [
+            "blueprint_ids": [
                 "550e8400-e29b-41d4-a716-446655440000",
                 "550e8400-e29b-41d4-a716-446655440001"
             ],
@@ -708,7 +706,7 @@ mod tests {
     #[test]
     fn test_batch_edit_request_multiple_attributes() {
         let json = json!({
-            "blueprintIds": ["550e8400-e29b-41d4-a716-446655440000"],
+            "blueprint_ids": ["550e8400-e29b-41d4-a716-446655440000"],
             "attributes": {
                 "damage": {"value_type": "range", "min": 1.0, "max": 10.0},
                 "speed": {"value_type": "single", "value": 5.0}
@@ -765,11 +763,11 @@ mod tests {
     #[test]
     fn test_batch_assign_request_deserialization() {
         let json = json!({
-            "blueprintIds": [
+            "blueprint_ids": [
                 "550e8400-e29b-41d4-a716-446655440000",
                 "550e8400-e29b-41d4-a716-446655440001"
             ],
-            "affixIds": [
+            "affix_ids": [
                 "660e8400-e29b-41d4-a716-446655440000",
                 "660e8400-e29b-41d4-a716-446655440001"
             ],
@@ -1024,7 +1022,7 @@ mod tests {
                 insert_test_blueprint(&pool, client_id, "Sword C", attrs_c, &["damage"]).await;
 
             let body = json!({
-                "blueprintIds": [bp_a, bp_b, bp_c],
+                "blueprint_ids": [bp_a, bp_b, bp_c],
                 "attributes": {
                     "damage": {"value_type": "range", "min": 3.0, "max": 7.0}
                 }
@@ -1076,7 +1074,7 @@ mod tests {
                 insert_test_blueprint(&pool, client_id, "Sword B", attrs_without, &["speed"]).await;
 
             let body = json!({
-                "blueprintIds": [bp_a, bp_b],
+                "blueprint_ids": [bp_a, bp_b],
                 "attributes": {
                     "damage": {"value_type": "range", "min": 3.0, "max": 7.0}
                 }
@@ -1122,7 +1120,7 @@ mod tests {
                 insert_test_blueprint(&pool, client_id, "Sword A", attrs, &["damage"]).await;
 
             let body = json!({
-                "blueprintIds": [bp],
+                "blueprint_ids": [bp],
                 "attributes": {
                     "damage": {"value_type": "range", "min": 3.0, "max": 7.0}
                 }
@@ -1170,7 +1168,7 @@ mod tests {
             .await;
 
             let body = json!({
-                "blueprintIds": [bp],
+                "blueprint_ids": [bp],
                 "attributes": {
                     "damage": {"value_type": "range", "min": 3.0, "max": 7.0}
                 }
@@ -1221,7 +1219,7 @@ mod tests {
             .await;
 
             let body = json!({
-                "blueprintIds": [bp],
+                "blueprint_ids": [bp],
                 "attributes": {
                     "damage": {"value_type": "range", "min": 3.0, "max": 7.0}
                 }
@@ -1264,7 +1262,7 @@ mod tests {
                 insert_test_blueprint(&pool, client_id, "Sword B", attrs_b, &["damage"]).await;
 
             let body = json!({
-                "blueprintIds": [bp_a, bp_b],
+                "blueprint_ids": [bp_a, bp_b],
                 "attributes": {
                     "damage": {"value_type": "range", "min": 3.0, "max": 7.0}
                 }
@@ -1312,7 +1310,7 @@ mod tests {
             let unknown_id = Uuid::new_v4();
 
             let body = json!({
-                "blueprintIds": [bp, unknown_id],
+                "blueprint_ids": [bp, unknown_id],
                 "attributes": {
                     "damage": {"value_type": "range", "min": 3.0, "max": 7.0}
                 }
@@ -1344,7 +1342,7 @@ mod tests {
                 None => return,
             };
             let body = json!({
-                "blueprintIds": [],
+                "blueprint_ids": [],
                 "attributes": {
                     "damage": {"value_type": "range", "min": 3.0, "max": 7.0}
                 }
@@ -1373,7 +1371,7 @@ mod tests {
                 insert_test_blueprint(&pool, client_id, "Sword A", attrs, &["damage"]).await;
 
             let body = json!({
-                "blueprintIds": [bp],
+                "blueprint_ids": [bp],
                 "attributes": {}
             });
 
@@ -1400,7 +1398,7 @@ mod tests {
                 insert_test_blueprint(&pool, client_id, "Sword A", attrs, &["speed"]).await;
 
             let body = json!({
-                "blueprintIds": [bp],
+                "blueprint_ids": [bp],
                 "attributes": {
                     "damage": {"value_type": "range", "min": 3.0, "max": 7.0}
                 }
@@ -1909,8 +1907,8 @@ mod tests {
             let affix_b = insert_test_affix(&pool, client_id, "Ice", "prefix").await;
 
             let body = json!({
-                "blueprintIds": [bp_a, bp_b],
-                "affixIds": [affix_a, affix_b],
+                "blueprint_ids": [bp_a, bp_b],
+                "affix_ids": [affix_a, affix_b],
                 "weight": 1.0
             });
             let state = build_test_state(pool.clone());
@@ -1971,8 +1969,8 @@ mod tests {
             let suffix_affix = insert_test_affix(&pool, client_id, "of Strength", "suffix").await;
 
             let body = json!({
-                "blueprintIds": [bp],
-                "affixIds": [prefix_affix, suffix_affix],
+                "blueprint_ids": [bp],
+                "affix_ids": [prefix_affix, suffix_affix],
                 "weight": 1.0
             });
             let state = build_test_state(pool.clone());
@@ -2042,8 +2040,8 @@ mod tests {
             insert_test_blueprint_affix(&pool, bp, affix, "prefix").await;
 
             let body = json!({
-                "blueprintIds": [bp],
-                "affixIds": [affix],
+                "blueprint_ids": [bp],
+                "affix_ids": [affix],
                 "weight": 1.0
             });
             let state = build_test_state(pool.clone());
@@ -2105,8 +2103,8 @@ mod tests {
             let nonexistent_bp = Uuid::new_v4();
 
             let body = json!({
-                "blueprintIds": [bp, nonexistent_bp],
-                "affixIds": [affix, nonexistent_affix],
+                "blueprint_ids": [bp, nonexistent_bp],
+                "affix_ids": [affix, nonexistent_affix],
                 "weight": 1.0
             });
             let state = build_test_state(pool.clone());
@@ -2167,8 +2165,8 @@ mod tests {
             let affix = insert_test_affix(&pool, client_id, "Fire", "prefix").await;
 
             let body = json!({
-                "blueprintIds": [bp_a, bp_b],
-                "affixIds": [affix],
+                "blueprint_ids": [bp_a, bp_b],
+                "affix_ids": [affix],
                 "weight": 2.5
             });
             let state = build_test_state(pool.clone());
@@ -2228,8 +2226,8 @@ mod tests {
             let affix = insert_test_affix(&pool, client_id, "Fire", "prefix").await;
 
             let body = json!({
-                "blueprintIds": [bp],
-                "affixIds": [affix],
+                "blueprint_ids": [bp],
+                "affix_ids": [affix],
                 "weight": 1.0
             });
             let state = build_test_state(pool.clone());
@@ -2307,8 +2305,8 @@ mod tests {
             let suffix_affix = insert_test_affix(&pool, client_id, "of Ice", "suffix").await;
 
             let body = json!({
-                "blueprintIds": [bp],
-                "affixIds": [prefix_affix, suffix_affix],
+                "blueprint_ids": [bp],
+                "affix_ids": [prefix_affix, suffix_affix],
                 "weight": 2.0
             });
             let state = build_test_state(pool.clone());
@@ -2401,8 +2399,8 @@ mod tests {
             let affix = insert_test_affix(&pool, client_id, "Fire", "prefix").await;
 
             let body = json!({
-                "blueprintIds": [bp_a, bp_b],
-                "affixIds": [affix],
+                "blueprint_ids": [bp_a, bp_b],
+                "affix_ids": [affix],
                 "weight": 1.0
             });
             let state = build_test_state(pool.clone());
@@ -2451,8 +2449,8 @@ mod tests {
             let affix = insert_test_affix(&pool, client_id, "Fire", "prefix").await;
 
             let body = json!({
-                "blueprintIds": [],
-                "affixIds": [affix],
+                "blueprint_ids": [],
+                "affix_ids": [affix],
                 "weight": 1.0
             });
             let state = build_test_state(pool.clone());
@@ -2492,8 +2490,8 @@ mod tests {
             let bp = insert_test_blueprint(&pool, client_id, "Sword A", attrs, &["damage"]).await;
 
             let body = json!({
-                "blueprintIds": [bp],
-                "affixIds": [],
+                "blueprint_ids": [bp],
+                "affix_ids": [],
                 "weight": 1.0
             });
             let state = build_test_state(pool.clone());
@@ -2535,8 +2533,8 @@ mod tests {
             let affix = insert_test_affix(&pool, client_a, "Fire", "prefix").await;
 
             let body = json!({
-                "blueprintIds": [bp],
-                "affixIds": [affix],
+                "blueprint_ids": [bp],
+                "affix_ids": [affix],
                 "weight": 1.0
             });
             let state = build_test_state(pool.clone());
@@ -2595,8 +2593,8 @@ mod tests {
             let nonexistent_affix = Uuid::new_v4();
 
             let body = json!({
-                "blueprintIds": [nonexistent_bp],
-                "affixIds": [nonexistent_affix],
+                "blueprint_ids": [nonexistent_bp],
+                "affix_ids": [nonexistent_affix],
                 "weight": 1.0
             });
             let state = build_test_state(pool.clone());

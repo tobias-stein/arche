@@ -7,7 +7,7 @@ use crate::common::ProblemJson;
 use crate::ValueType;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct ExportRequest {
     pub client_ids: Vec<Uuid>,
     #[serde(default)]
@@ -19,7 +19,7 @@ pub struct ExportRequest {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct ExportManifest {
     pub version: String,
     pub timestamp: chrono::DateTime<chrono::Utc>,
@@ -27,7 +27,7 @@ pub struct ExportManifest {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct ImportSuccessResponse {
     pub status: String,
     pub clients_created: i64,
@@ -35,7 +35,7 @@ pub struct ImportSuccessResponse {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct ConflictAttribute {
     pub key: String,
     pub old_value: serde_json::Value,
@@ -44,7 +44,7 @@ pub struct ConflictAttribute {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct ConflictDetail {
     pub resource_type: String,
     pub resource_id: Uuid,
@@ -54,7 +54,7 @@ pub struct ConflictDetail {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct ImportConflictResponse {
     #[serde(flatten)]
     pub problem: ProblemJson,
@@ -64,7 +64,7 @@ pub struct ImportConflictResponse {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub enum ResolutionStrategy {
     KeepOld,
     KeepNew,
@@ -72,7 +72,7 @@ pub enum ResolutionStrategy {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct ResourceResolution {
     pub strategy: ResolutionStrategy,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -80,7 +80,7 @@ pub struct ResourceResolution {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct ConflictResolutionRequest {
     pub import_token: String,
     pub resolutions: HashMap<Uuid, ResourceResolution>,

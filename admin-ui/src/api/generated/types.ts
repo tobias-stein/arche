@@ -20,7 +20,7 @@ export type ResolutionStrategy = 'keepOld' | 'keepNew' | 'perAttribute';
 
 export type DistributionConfig =
   | { type: 'uniform' }
-  | { type: 'normal'; stdDev: number }
+  | { type: 'normal'; std_dev: number }
   | { type: 'exponential'; rate: number };
 
 // --- Attributes ---
@@ -29,7 +29,7 @@ export type AttributePayload =
   | { value_type: 'single'; value: number; distribution?: DistributionConfig }
   | { value_type: 'enum'; values: string[] }
   | { value_type: 'range'; min: number; max: number; distribution?: DistributionConfig }
-  | { value_type: 'string'; minLength?: number; maxLength?: number }
+  | { value_type: 'string'; min_length?: number; max_length?: number }
   | { value_type: 'boolean'; value: boolean };
 
 export type InlineAttributeDef = AttributePayload & {
@@ -50,15 +50,15 @@ export type BlueprintAttribute = InlineAttributeDef | RefAttribute;
 export type AffixAttribute = AffixInlineAttributeDef | RefAttribute;
 
 export interface AffixPoolEntry {
-  affixId: string;
+  affix_id: string;
   weight: number;
 }
 
 export interface BlueprintAffixConfig {
-  minPrefixes: number;
-  maxPrefixes: number;
-  minSuffixes: number;
-  maxSuffixes: number;
+  min_prefixes: number;
+  max_prefixes: number;
+  min_suffixes: number;
+  max_suffixes: number;
   prefixes: AffixPoolEntry[];
   suffixes: AffixPoolEntry[];
 }
@@ -67,19 +67,19 @@ export interface BlueprintAffixConfig {
 
 export interface Blueprint {
   id: string;
-  clientId: string;
+  client_id: string;
   name: string;
   archetype: string;
   weight: number;
   description: string | null;
   attributes: Record<string, BlueprintAttribute>;
-  attributeOrder: string[];
-  minPrefixes: number;
-  maxPrefixes: number;
-  minSuffixes: number;
-  maxSuffixes: number;
-  createdAt: string;
-  updatedAt: string;
+  attribute_order: string[];
+  min_prefixes: number;
+  max_prefixes: number;
+  min_suffixes: number;
+  max_suffixes: number;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface CreateBlueprintRequest {
@@ -88,7 +88,7 @@ export interface CreateBlueprintRequest {
   weight: number;
   description?: string | null;
   attributes: Record<string, BlueprintAttribute>;
-  attributeOrder: string[];
+  attribute_order: string[];
   affixes: BlueprintAffixConfig;
 }
 
@@ -98,7 +98,7 @@ export interface BlueprintListQuery {
   cursor?: string;
   limit?: number;
   page?: number;
-  perPage?: number;
+  per_page?: number;
   archetype?: string;
   search?: string;
 }
@@ -107,13 +107,13 @@ export interface BlueprintListQuery {
 
 export interface Affix {
   id: string;
-  clientId: string;
+  client_id: string;
   name: string;
   location: AffixLocation;
   description: string | null;
   attribute: AffixAttribute;
-  createdAt: string;
-  updatedAt: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface CreateAffixRequest {
@@ -132,16 +132,16 @@ export interface GenerateRequest {
   seed?: number | null;
   constraints?: Record<string, ConstraintValue> | null;
   affixes?: AffixConstraints | null;
-  clientId?: string | null;
+  client_id?: string | null;
 }
 
 export interface GenerateResponse {
   seed: number;
   name: string;
-  nameParts: NameParts;
-  blueprintId: string;
-  blueprintAttributes: Record<string, unknown>;
-  affixAttributes: AffixAttributeEntry[];
+  name_parts: NameParts;
+  blueprint_id: string;
+  blueprint_attributes: Record<string, unknown>;
+  affix_attributes: AffixAttributeEntry[];
 }
 
 export interface NameParts {
@@ -151,8 +151,8 @@ export interface NameParts {
 }
 
 export interface AffixAttributeEntry {
-  affixId: string;
-  affixName: string;
+  affix_id: string;
+  affix_name: string;
   [key: string]: unknown;
 }
 
@@ -167,10 +167,10 @@ export interface ConstraintConfig {
 export type ConstraintValue = ConstraintConfig | boolean | number | string;
 
 export interface AffixConstraints {
-  minPrefixes: number;
-  maxPrefixes: number;
-  minSuffixes: number;
-  maxSuffixes: number;
+  min_prefixes: number;
+  max_prefixes: number;
+  min_suffixes: number;
+  max_suffixes: number;
   require?: string[];
   block?: string[];
 }
@@ -179,13 +179,13 @@ export interface AffixConstraints {
 
 export interface GlobalMetaAttribute {
   id: string;
-  clientId: string;
+  client_id: string;
   name: string;
   description: string | null;
-  valueType: ValueType;
+  value_type: ValueType;
   payload: Record<string, unknown>;
-  createdAt: string;
-  updatedAt: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export type CreateGlobalMetaAttributeRequest = {
@@ -200,15 +200,15 @@ export type UpdateGlobalMetaAttributeRequest = CreateGlobalMetaAttributeRequest;
 export interface Client {
   id: string;
   name: string;
-  createdAt: string;
-  updatedAt: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface ClientResponse {
   id: string;
   name: string;
-  createdAt: string;
-  apiKeys: ApiKeySummary[];
+  created_at: string;
+  api_keys: ApiKeySummary[];
 }
 
 export interface CreateClientRequest {
@@ -219,7 +219,7 @@ export interface ApiKeySummary {
   id: string;
   name: string;
   permissions: Permission[];
-  createdAt: string;
+  created_at: string;
 }
 
 export interface CreateApiKeyRequest {
@@ -243,9 +243,9 @@ export interface ApiKeyResponse {
 export interface MeResponse {
   id: string;
   name: string;
-  clientId: string | null;
+  client_id: string | null;
   permissions: Permission[];
-  isSuper: boolean;
+  is_super: boolean;
 }
 
 // --- Audit Log ---
@@ -253,11 +253,11 @@ export interface MeResponse {
 export interface AuditLogEntry {
   id: string;
   timestamp: string;
-  actorKeyId: string;
-  actorKeyName: string;
-  clientId: string | null;
-  resourceType: string;
-  resourceId: string;
+  actor_key_id: string;
+  actor_key_name: string;
+  client_id: string | null;
+  resource_type: string;
+  resource_id: string;
   action: AuditAction;
   before: Record<string, unknown> | null;
   after: Record<string, unknown> | null;
@@ -266,10 +266,10 @@ export interface AuditLogEntry {
 export interface AuditLogListQuery {
   cursor?: string;
   limit?: number;
-  clientId?: string;
-  resourceType?: string;
+  client_id?: string;
+  resource_type?: string;
   action?: string;
-  actorKeyId?: string;
+  actor_key_id?: string;
   from?: string;
   to?: string;
 }
@@ -278,7 +278,7 @@ export interface AuditLogListQuery {
 
 export interface PaginatedResponse<T> {
   data: T[];
-  nextCursor?: string;
+  next_cursor?: string;
   total?: number;
 }
 
@@ -293,48 +293,48 @@ export interface BatchDeleteResponse {
 }
 
 export interface BatchAssignRequest {
-  blueprintIds: string[];
-  affixIds: string[];
+  blueprint_ids: string[];
+  affix_ids: string[];
   weight: number;
 }
 
 export interface BatchEditRequest {
-  blueprintIds: string[];
+  blueprint_ids: string[];
   attributes: Record<string, unknown>;
 }
 
 // --- Export / Import ---
 
 export interface ExportRequest {
-  clientIds: string[];
-  includeApiKeys: boolean;
-  includeAuditLog: boolean;
-  inlineGlobalRefs: boolean;
+  client_ids: string[];
+  include_api_keys: boolean;
+  include_audit_log: boolean;
+  inline_global_refs: boolean;
 }
 
 export interface ExportManifest {
   version: string;
   timestamp: string;
-  clientCount: number;
+  client_count: number;
 }
 
 export interface ImportSuccessResponse {
   status: string;
-  clientsCreated: number;
-  resourcesImported: number;
+  clients_created: number;
+  resources_imported: number;
 }
 
 export interface ConflictAttribute {
   key: string;
   oldValue: unknown;
   newValue: unknown;
-  valueType: ValueType;
+  value_type: ValueType;
 }
 
 export interface ConflictDetail {
-  resourceType: string;
-  resourceId: string;
-  resourceName: string;
+  resource_type: string;
+  resource_id: string;
+  resource_name: string;
   attributes: ConflictAttribute[];
 }
 
@@ -352,7 +352,7 @@ export interface ResourceResolution {
 }
 
 export interface ConflictResolutionRequest {
-  importToken: string;
+  import_token: string;
   resolutions: Record<string, ResourceResolution>;
 }
 

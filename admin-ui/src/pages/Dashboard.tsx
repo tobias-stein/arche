@@ -163,15 +163,15 @@ export default function Dashboard() {
 
   const { data: blueprintsData, isLoading: bpLoading, isError: bpError } = useBlueprintsList({
     page: 1,
-    perPage: 200,
+    per_page: 200,
   })
   const { data: affixesData, isLoading: affLoading } = useAffixesList({
     page: 1,
-    perPage: 200,
+    per_page: 200,
   })
   const { data: gmaData } = useGlobalMetaAttributesList({
     page: 1,
-    perPage: 200,
+    per_page: 200,
   })
   const generateMutation = useGenerate()
   const [dismissedWarnings, setDismissedWarnings] = useState<Set<string>>(
@@ -199,7 +199,7 @@ export default function Dashboard() {
   const allAttributeKeys = useMemo(() => {
     const keys = new Set<string>()
     for (const bp of blueprints) {
-      for (const key of bp.attributeOrder) {
+      for (const key of bp.attribute_order) {
         keys.add(key)
       }
     }
@@ -277,10 +277,10 @@ export default function Dashboard() {
     setGenError(null)
 
     const affixConstraints: AffixConstraints = {
-      minPrefixes,
-      maxPrefixes,
-      minSuffixes,
-      maxSuffixes,
+      min_prefixes: minPrefixes,
+      max_prefixes: maxPrefixes,
+      min_suffixes: minSuffixes,
+      max_suffixes: maxSuffixes,
       require: requireIds.length > 0 ? requireIds : undefined,
       block: blockIds.length > 0 ? blockIds : undefined,
     }
@@ -290,7 +290,7 @@ export default function Dashboard() {
       seed: seed.trim() ? Number(seed.trim()) : null,
       constraints: buildConstraints(constraints),
       affixes: affixConstraints,
-      clientId: selectedClientId,
+      client_id: selectedClientId,
     }
 
     try {
@@ -752,17 +752,17 @@ export default function Dashboard() {
               </div>
               <div>
                 <Label className="text-xs text-muted-foreground">Blueprint ID</Label>
-                <p className="text-sm font-mono">{result.blueprintId}</p>
+                <p className="text-sm font-mono">{result.blueprint_id}</p>
               </div>
             </div>
 
-            {Object.keys(result.blueprintAttributes).length > 0 && (
+            {Object.keys(result.blueprint_attributes).length > 0 && (
               <div>
                 <Label className="text-xs text-muted-foreground mb-2 block">
                   Blueprint Attributes
                 </Label>
                 <div className="flex flex-wrap gap-2">
-                  {Object.entries(result.blueprintAttributes).map(([key, value]) => (
+                  {Object.entries(result.blueprint_attributes).map(([key, value]) => (
                     <Badge key={key} variant="secondary">
                       {key}: {JSON.stringify(value)}
                     </Badge>
@@ -771,20 +771,20 @@ export default function Dashboard() {
               </div>
             )}
 
-            {result.affixAttributes.length > 0 && (
+            {result.affix_attributes.length > 0 && (
               <div>
                 <Label className="text-xs text-muted-foreground mb-2 block">
                   Affix Attributes
                 </Label>
                 <div className="space-y-2">
-                  {result.affixAttributes.map((entry) => (
-                    <Card key={entry.affixId} className="p-3">
+                  {result.affix_attributes.map((entry) => (
+                    <Card key={entry.affix_id} className="p-3">
                       <div className="flex items-center gap-2 mb-1">
-                        <Badge variant="outline">{entry.affixName}</Badge>
+                        <Badge variant="outline">{entry.affix_name}</Badge>
                       </div>
                       <div className="flex flex-wrap gap-1">
                         {Object.entries(entry)
-                          .filter(([k]) => k !== 'affixId' && k !== 'affixName')
+                          .filter(([k]) => k !== 'affix_id' && k !== 'affix_name')
                           .map(([key, value]) => (
                             <Badge key={key} variant="secondary" className="text-xs">
                               {key}: {JSON.stringify(value)}

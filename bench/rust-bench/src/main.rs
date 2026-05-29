@@ -668,7 +668,7 @@ async fn create_global_meta_attribute(
 ) -> Uuid {
     let resp = client
         .post(format!(
-            "{target}/api/global-meta-attributes?clientId={client_id}"
+            "{target}/api/global-meta-attributes?client_id={client_id}"
         ))
         .header("X-API-Key", api_key)
         .json(body)
@@ -693,7 +693,7 @@ async fn create_blueprint_raw(
     body: &serde_json::Value,
 ) -> Uuid {
     let resp = client
-        .post(format!("{target}/api/blueprints?clientId={client_id}"))
+        .post(format!("{target}/api/blueprints?client_id={client_id}"))
         .header("X-API-Key", api_key)
         .json(body)
         .send()
@@ -736,7 +736,7 @@ async fn create_affix(
     });
 
     let resp = client
-        .post(format!("{target}/api/affixes?clientId={client_id}"))
+        .post(format!("{target}/api/affixes?client_id={client_id}"))
         .header("X-API-Key", api_key)
         .json(&affix_body)
         .send()
@@ -856,7 +856,7 @@ fn generate_blueprint_body(
 
     let prefixes: Vec<serde_json::Value> = affix_ids
         .iter()
-        .map(|id| serde_json::json!({ "affixId": id, "weight": 1.0 }))
+        .map(|id| serde_json::json!({ "affix_id": id, "weight": 1.0 }))
         .collect();
 
     let affix_count = affix_ids.len() as u32;
@@ -867,12 +867,12 @@ fn generate_blueprint_body(
         "archetype": "item",
         "weight": 1.0,
         "attributes": attributes,
-        "attributeOrder": attribute_order,
+        "attribute_order": attribute_order,
         "affixes": {
-            "minPrefixes": min_prefixes,
-            "maxPrefixes": affix_count,
-            "minSuffixes": 0,
-            "maxSuffixes": 0,
+            "min_prefixes": min_prefixes,
+            "max_prefixes": affix_count,
+            "min_suffixes": 0,
+            "max_suffixes": 0,
             "prefixes": prefixes,
             "suffixes": [],
         }
@@ -947,7 +947,7 @@ fn make_range_attribute(rng: &mut ChaCha8Rng, description: &str) -> serde_json::
     let max_val = round_2dp(rng.gen_range(51.0..200.0));
     let mut attr = serde_json::json!({
         "description": description,
-        "valueType": "range",
+        "value_type": "range",
         "min": min_val,
         "max": max_val,
     });
@@ -955,7 +955,7 @@ fn make_range_attribute(rng: &mut ChaCha8Rng, description: &str) -> serde_json::
         "uniform" => serde_json::json!({ "type": "uniform" }),
         "normal" => serde_json::json!({
             "type": "normal",
-            "stdDev": round_2dp(rng.gen_range(1.0..50.0)),
+            "std_dev": round_2dp(rng.gen_range(1.0..50.0)),
         }),
         _ => serde_json::json!({
             "type": "exponential",
@@ -971,7 +971,7 @@ fn make_range_attribute(rng: &mut ChaCha8Rng, description: &str) -> serde_json::
 fn make_single_attribute(rng: &mut ChaCha8Rng, description: &str) -> serde_json::Value {
     serde_json::json!({
         "description": description,
-        "valueType": "single",
+        "value_type": "single",
         "value": round_2dp(rng.gen_range(0.0..100.0)),
     })
 }
@@ -983,7 +983,7 @@ fn make_enum_attribute(rng: &mut ChaCha8Rng, description: &str) -> serde_json::V
         .collect();
     serde_json::json!({
         "description": description,
-        "valueType": "enum",
+        "value_type": "enum",
         "values": options,
     })
 }
@@ -991,16 +991,16 @@ fn make_enum_attribute(rng: &mut ChaCha8Rng, description: &str) -> serde_json::V
 fn make_string_attribute(rng: &mut ChaCha8Rng, description: &str) -> serde_json::Value {
     serde_json::json!({
         "description": description,
-        "valueType": "string",
-        "minLength": rng.gen_range(1..10),
-        "maxLength": rng.gen_range(10..100),
+        "value_type": "string",
+        "min_length": rng.gen_range(1..10),
+        "max_length": rng.gen_range(10..100),
     })
 }
 
 fn make_boolean_attribute(rng: &mut ChaCha8Rng, description: &str) -> serde_json::Value {
     serde_json::json!({
         "description": description,
-        "valueType": "boolean",
+        "value_type": "boolean",
         "value": rng.gen_bool(0.5),
     })
 }

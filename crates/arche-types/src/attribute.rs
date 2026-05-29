@@ -5,8 +5,8 @@ use uuid::Uuid;
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(
     tag = "type",
-    rename_all = "camelCase",
-    rename_all_fields = "camelCase"
+    rename_all = "snake_case",
+    rename_all_fields = "snake_case"
 )]
 pub enum DistributionConfig {
     Uniform,
@@ -16,9 +16,9 @@ pub enum DistributionConfig {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(
-    tag = "valueType",
-    rename_all = "camelCase",
-    rename_all_fields = "camelCase"
+    tag = "value_type",
+    rename_all = "snake_case",
+    rename_all_fields = "snake_case"
 )]
 pub enum AttributePayload {
     Single {
@@ -48,7 +48,7 @@ pub enum AttributePayload {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct InlineAttributeDef {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
@@ -71,7 +71,7 @@ pub enum BlueprintAttribute {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct AffixInlineAttributeDef {
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -91,14 +91,14 @@ pub enum AffixAttribute {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct AffixPoolEntry {
     pub affix_id: Uuid,
     pub weight: f64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct BlueprintAffixConfig {
     pub min_prefixes: i32,
     pub max_prefixes: i32,

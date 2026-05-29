@@ -24,7 +24,7 @@ static BATCH_GENERATE_SCHEMA: Lazy<Value> =
 
 #[allow(dead_code)]
 #[derive(schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 struct BlueprintSchemas {
     create_request: CreateBlueprintRequest,
     response: Blueprint,
@@ -32,7 +32,7 @@ struct BlueprintSchemas {
 
 #[allow(dead_code)]
 #[derive(schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 struct AffixSchemas {
     create_request: CreateAffixRequest,
     response: Affix,
@@ -40,7 +40,7 @@ struct AffixSchemas {
 
 #[allow(dead_code)]
 #[derive(schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 struct GenerateSchemas {
     request: GenerateRequest,
     response: GenerateResponse,
@@ -48,7 +48,7 @@ struct GenerateSchemas {
 
 #[allow(dead_code)]
 #[derive(schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 struct BatchGenerateSchemas {
     request: BatchGenerateRequest,
     response: BatchGenerateResponse,

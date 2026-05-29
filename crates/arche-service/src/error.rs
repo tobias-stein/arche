@@ -10,7 +10,7 @@ pub struct FieldError {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct ReferenceInfo {
     pub resource_type: String,
     pub resource_id: Uuid,
@@ -18,7 +18,7 @@ pub struct ReferenceInfo {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct ProblemResponse {
     #[serde(rename = "type")]
     pub type_: String,

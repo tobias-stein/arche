@@ -13,12 +13,12 @@ describe('createBlueprintSchema', () => {
     attributes: {
       damage: { value_type: 'single', value: 10 },
     },
-    attributeOrder: ['damage'],
+    attribute_order: ['damage'],
     affixes: {
-      minPrefixes: 0,
-      maxPrefixes: 2,
-      minSuffixes: 0,
-      maxSuffixes: 0,
+      min_prefixes: 0,
+      max_prefixes: 2,
+      min_suffixes: 0,
+      max_suffixes: 0,
       prefixes: [],
       suffixes: [],
     },
@@ -63,8 +63,8 @@ describe('createBlueprintSchema', () => {
       ...validData,
       affixes: {
         ...validData.affixes,
-        minPrefixes: 5,
-        maxPrefixes: 2,
+        min_prefixes: 5,
+        max_prefixes: 2,
       },
     })
     expect(result.success).toBe(false)
@@ -78,8 +78,8 @@ describe('createBlueprintSchema', () => {
       ...validData,
       affixes: {
         ...validData.affixes,
-        minSuffixes: 5,
-        maxSuffixes: 2,
+        min_suffixes: 5,
+        max_suffixes: 2,
       },
     })
     expect(result.success).toBe(false)
@@ -94,7 +94,7 @@ describe('createBlueprintSchema', () => {
       attributes: {
         dmg: { $ref_id: 'gma-1' },
       },
-      attributeOrder: ['dmg'],
+      attribute_order: ['dmg'],
     })
     expect(result.success).toBe(true)
   })
@@ -105,7 +105,7 @@ describe('createBlueprintSchema', () => {
       attributes: {
         dmg: { $ref_id: '' },
       },
-      attributeOrder: ['dmg'],
+      attribute_order: ['dmg'],
     })
     expect(result.success).toBe(false)
   })
@@ -119,14 +119,14 @@ describe('editBlueprintSchema', () => {
       weight: 5,
       description: null,
       attributes: {
-        damage: { valueType: 'single', value: 10 },
+        damage: { value_type: 'single', value: 10 },
       },
-      attributeOrder: ['damage'],
+      attribute_order: ['damage'],
       affixes: {
-        minPrefixes: 0,
-        maxPrefixes: 2,
-        minSuffixes: 0,
-        maxSuffixes: 0,
+        min_prefixes: 0,
+        max_prefixes: 2,
+        min_suffixes: 0,
+        max_suffixes: 0,
         prefixes: [],
         suffixes: [],
       },
@@ -164,10 +164,10 @@ describe('editBlueprintSchema', () => {
   it('validates nested affixes config when provided with invalid values', () => {
     const result = editBlueprintSchema.safeParse({
       affixes: {
-        minPrefixes: 1,
-        maxPrefixes: 0,
-        minSuffixes: 0,
-        maxSuffixes: 0,
+        min_prefixes: 1,
+        max_prefixes: 0,
+        min_suffixes: 0,
+        max_suffixes: 0,
         prefixes: [],
         suffixes: [],
       },

@@ -12,7 +12,7 @@ pub mod generate;
 pub mod validation;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub enum ValueType {
     Single,
     Enum,
@@ -22,14 +22,14 @@ pub enum ValueType {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub enum AffixLocation {
     Prefix,
     Suffix,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub enum AuditAction {
     Created,
     Updated,
@@ -39,7 +39,7 @@ pub enum AuditAction {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub enum Permission {
     Read,
     Write,
@@ -49,7 +49,7 @@ pub enum Permission {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct Client {
     pub id: Uuid,
     pub name: String,
@@ -58,7 +58,7 @@ pub struct Client {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct Blueprint {
     pub id: Uuid,
     pub client_id: Uuid,
@@ -77,7 +77,7 @@ pub struct Blueprint {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct Affix {
     pub id: Uuid,
     pub client_id: Uuid,
@@ -90,7 +90,7 @@ pub struct Affix {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct GlobalMetaAttribute {
     pub id: Uuid,
     pub client_id: Uuid,
@@ -103,7 +103,7 @@ pub struct GlobalMetaAttribute {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct ApiKey {
     pub id: Uuid,
     pub client_id: Option<Uuid>,
@@ -116,7 +116,7 @@ pub struct ApiKey {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct AuditLogEntry {
     pub id: Uuid,
     pub timestamp: DateTime<Utc>,
@@ -131,7 +131,7 @@ pub struct AuditLogEntry {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct BlueprintAffix {
     pub id: Uuid,
     pub blueprint_id: Uuid,
@@ -159,7 +159,7 @@ mod tests {
             (DistributionConfig::Uniform, json!({"type": "uniform"})),
             (
                 DistributionConfig::Normal { std_dev: 2.5 },
-                json!({"type": "normal", "stdDev": 2.5}),
+                json!({"type": "normal", "std_dev": 2.5}),
             ),
             (
                 DistributionConfig::Exponential { rate: 1.5 },
@@ -182,13 +182,13 @@ mod tests {
                     value: 10.0,
                     distribution: None,
                 },
-                json!({"valueType": "single", "value": 10.0}),
+                json!({"value_type": "single", "value": 10.0}),
             ),
             (
                 AttributePayload::Enum {
                     values: vec!["a".into(), "b".into()],
                 },
-                json!({"valueType": "enum", "values": ["a", "b"]}),
+                json!({"value_type": "enum", "values": ["a", "b"]}),
             ),
             (
                 AttributePayload::Range {
@@ -196,18 +196,18 @@ mod tests {
                     max: 10.0,
                     distribution: Some(DistributionConfig::Uniform),
                 },
-                json!({"valueType": "range", "min": 1.0, "max": 10.0, "distribution": {"type": "uniform"}}),
+                json!({"value_type": "range", "min": 1.0, "max": 10.0, "distribution": {"type": "uniform"}}),
             ),
             (
                 AttributePayload::String {
                     min_length: Some(1),
                     max_length: None,
                 },
-                json!({"valueType": "string", "minLength": 1}),
+                json!({"value_type": "string", "min_length": 1}),
             ),
             (
                 AttributePayload::Boolean { value: true },
-                json!({"valueType": "boolean", "value": true}),
+                json!({"value_type": "boolean", "value": true}),
             ),
         ];
         for (variant, expected) in cases {
@@ -231,7 +231,7 @@ mod tests {
         let value = serde_json::to_value(&attr).unwrap();
         assert_eq!(
             value,
-            json!({"description": "Physical damage", "valueType": "range", "min": 10.0, "max": 23.0, "distribution": {"type": "uniform"}})
+            json!({"description": "Physical damage", "value_type": "range", "min": 10.0, "max": 23.0, "distribution": {"type": "uniform"}})
         );
         let deserialized: BlueprintAttribute = serde_json::from_value(value).unwrap();
         assert_eq!(deserialized, attr);
@@ -261,7 +261,7 @@ mod tests {
         let value = serde_json::to_value(&attr).unwrap();
         assert_eq!(
             value,
-            json!({"name": "fire_damage", "description": "Fire damage", "valueType": "range", "min": 5.0, "max": 15.0})
+            json!({"name": "fire_damage", "description": "Fire damage", "value_type": "range", "min": 5.0, "max": 15.0})
         );
         let deserialized: AffixAttribute = serde_json::from_value(value).unwrap();
         assert_eq!(deserialized, attr);
@@ -356,6 +356,7 @@ mod tests {
             seed: None,
             constraints: None,
             affixes: None,
+            client_id: None,
         };
         let value = serde_json::to_value(&req).unwrap();
         assert_eq!(value, json!({}));
@@ -390,6 +391,7 @@ mod tests {
                 require: vec![Uuid::new_v4(), Uuid::new_v4()],
                 block: vec![Uuid::new_v4()],
             }),
+            client_id: None,
         };
         let value = serde_json::to_value(&req).unwrap();
         let deserialized: GenerateRequest = serde_json::from_value(value).unwrap();
@@ -397,12 +399,13 @@ mod tests {
     }
 
     #[test]
-    fn test_generate_request_camel_case() {
+    fn test_generate_request_snake_case() {
         let req = GenerateRequest {
             archetype: Some("sword".into()),
             seed: None,
             constraints: None,
             affixes: None,
+            client_id: None,
         };
         let obj = serde_json::to_value(&req)
             .unwrap()
@@ -431,7 +434,7 @@ mod tests {
             affix_attributes: vec![AffixAttributeEntry {
                 affix_id: Uuid::new_v4(),
                 affix_name: "Fire".into(),
-                attributes: json!({"fireDamage": 12.7}),
+                attributes: json!({"fire_damage": 12.7}),
             }],
         };
         let value = serde_json::to_value(&resp).unwrap();
@@ -488,7 +491,7 @@ mod tests {
     }
 
     #[test]
-    fn test_batch_generate_response_camel_case() {
+    fn test_batch_generate_response_snake_case() {
         let resp = BatchGenerateResponse {
             results: vec![],
         };
@@ -501,7 +504,7 @@ mod tests {
     }
 
     #[test]
-    fn test_generate_response_camel_case() {
+    fn test_generate_response_snake_case() {
         let resp = GenerateResponse {
             seed: 0,
             name: "".into(),
@@ -519,10 +522,10 @@ mod tests {
             .as_object()
             .unwrap()
             .clone();
-        assert!(obj.contains_key("nameParts"));
-        assert!(obj.contains_key("blueprintId"));
-        assert!(obj.contains_key("blueprintAttributes"));
-        assert!(obj.contains_key("affixAttributes"));
+        assert!(obj.contains_key("name_parts"));
+        assert!(obj.contains_key("blueprint_id"));
+        assert!(obj.contains_key("blueprint_attributes"));
+        assert!(obj.contains_key("affix_attributes"));
     }
 
     #[test]
@@ -561,7 +564,7 @@ mod tests {
     }
 
     #[test]
-    fn test_create_blueprint_request_camel_case() {
+    fn test_create_blueprint_request_snake_case() {
         let req = CreateBlueprintRequest {
             name: "x".into(),
             archetype: "x".into(),
@@ -583,7 +586,7 @@ mod tests {
             .as_object()
             .unwrap()
             .clone();
-        assert!(obj.contains_key("attributeOrder"));
+        assert!(obj.contains_key("attribute_order"));
     }
 
     #[test]
@@ -621,7 +624,7 @@ mod tests {
     }
 
     #[test]
-    fn test_blueprint_response_camel_case() {
+    fn test_blueprint_response_snake_case() {
         let resp = BlueprintResponse {
             id: Uuid::nil(),
             client_id: Uuid::nil(),
@@ -651,9 +654,9 @@ mod tests {
             .as_object()
             .unwrap()
             .clone();
-        assert!(obj.contains_key("clientId"));
-        assert!(obj.contains_key("attributeOrder"));
-        assert!(obj.contains_key("minPrefixes"));
+        assert!(obj.contains_key("client_id"));
+        assert!(obj.contains_key("attribute_order"));
+        assert!(obj.contains_key("min_prefixes"));
         assert!(obj.contains_key("affixes"));
     }
 
@@ -707,7 +710,7 @@ mod tests {
         let value = serde_json::to_value(&req).unwrap();
         assert_eq!(
             value,
-            json!({"name": "rarity", "description": "Quality tier", "valueType": "enum", "values": ["common", "rare", "legendary"]})
+            json!({"name": "rarity", "description": "Quality tier", "value_type": "enum", "values": ["common", "rare", "legendary"]})
         );
         let deserialized: CreateGlobalMetaAttributeRequest = serde_json::from_value(value).unwrap();
         assert_eq!(deserialized, req);
@@ -738,7 +741,7 @@ mod tests {
     }
 
     #[test]
-    fn test_client_response_camel_case() {
+    fn test_client_response_snake_case() {
         let resp = ClientResponse {
             id: Uuid::nil(),
             name: "x".into(),
@@ -750,8 +753,8 @@ mod tests {
             .as_object()
             .unwrap()
             .clone();
-        assert!(obj.contains_key("createdAt"));
-        assert!(obj.contains_key("apiKeys"));
+        assert!(obj.contains_key("created_at"));
+        assert!(obj.contains_key("api_keys"));
     }
 
     #[test]
@@ -854,7 +857,7 @@ mod tests {
     }
 
     #[test]
-    fn test_export_request_camel_case() {
+    fn test_export_request_snake_case() {
         let req = ExportRequest {
             client_ids: vec![],
             include_api_keys: false,
@@ -866,10 +869,10 @@ mod tests {
             .as_object()
             .unwrap()
             .clone();
-        assert!(obj.contains_key("clientIds"));
-        assert!(obj.contains_key("includeApiKeys"));
-        assert!(obj.contains_key("includeAuditLog"));
-        assert!(obj.contains_key("inlineGlobalRefs"));
+        assert!(obj.contains_key("client_ids"));
+        assert!(obj.contains_key("include_api_keys"));
+        assert!(obj.contains_key("include_audit_log"));
+        assert!(obj.contains_key("inline_global_refs"));
     }
 
     #[test]
@@ -924,7 +927,7 @@ mod tests {
     }
 
     #[test]
-    fn test_import_conflict_response_camel_case() {
+    fn test_import_conflict_response_snake_case() {
         let resp = ImportConflictResponse {
             problem: ProblemJson {
                 type_: "/x".into(),
@@ -943,19 +946,19 @@ mod tests {
         let value = serde_json::to_value(&resp).unwrap();
         let obj = value.as_object().unwrap();
         assert!(obj.contains_key("conflicts"), "should have conflicts key");
-        assert!(obj.contains_key("importToken"), "should have importToken key");
+        assert!(obj.contains_key("import_token"), "should have importToken key");
         let conflicts = obj.get("conflicts").unwrap().as_array().unwrap();
         let first = conflicts[0].as_object().unwrap();
         assert!(
-            first.contains_key("resourceType"),
+            first.contains_key("resource_type"),
             "conflict should have resourceType"
         );
         assert!(
-            first.contains_key("resourceId"),
+            first.contains_key("resource_id"),
             "conflict should have resourceId"
         );
         assert!(
-            first.contains_key("resourceName"),
+            first.contains_key("resource_name"),
             "conflict should have resourceName"
         );
     }
@@ -963,9 +966,9 @@ mod tests {
     #[test]
     fn test_resolution_strategy_round_trip() {
         let cases = vec![
-            (ResolutionStrategy::KeepOld, "\"keepOld\""),
-            (ResolutionStrategy::KeepNew, "\"keepNew\""),
-            (ResolutionStrategy::PerAttribute, "\"perAttribute\""),
+            (ResolutionStrategy::KeepOld, "\"keep_old\""),
+            (ResolutionStrategy::KeepNew, "\"keep_new\""),
+            (ResolutionStrategy::PerAttribute, "\"per_attribute\""),
         ];
         for (variant, expected) in cases {
             let json = serde_json::to_string(&variant).unwrap();
@@ -1009,7 +1012,7 @@ mod tests {
         let value = serde_json::to_value(&resp).unwrap();
         assert_eq!(
             value,
-            json!({"data": ["a", "b"], "nextCursor": "cursor-1", "total": 42})
+            json!({"data": ["a", "b"], "next_cursor": "cursor-1", "total": 42})
         );
         let deserialized: PaginatedResponse<String> = serde_json::from_value(value).unwrap();
         assert_eq!(deserialized, resp);
@@ -1027,7 +1030,7 @@ mod tests {
     }
 
     #[test]
-    fn test_paginated_response_camel_case() {
+    fn test_paginated_response_snake_case() {
         let resp: PaginatedResponse<i32> = PaginatedResponse {
             data: vec![],
             next_cursor: Some("x".into()),
@@ -1038,7 +1041,7 @@ mod tests {
             .as_object()
             .unwrap()
             .clone();
-        assert!(obj.contains_key("nextCursor"));
+        assert!(obj.contains_key("next_cursor"));
     }
 
     #[test]
@@ -1071,7 +1074,7 @@ mod tests {
     }
 
     #[test]
-    fn test_bootstrap_response_camel_case() {
+    fn test_bootstrap_response_snake_case() {
         let resp = BootstrapResponse {
             bootstrapped: true,
             key: Some("arche_k_abc123".into()),
@@ -1135,7 +1138,7 @@ mod tests {
     }
 
     #[test]
-    fn test_audit_log_list_query_camel_case() {
+    fn test_audit_log_list_query_snake_case() {
         let q = AuditLogListQuery {
             cursor: None,
             limit: None,
@@ -1151,9 +1154,9 @@ mod tests {
             .as_object()
             .unwrap()
             .clone();
-        assert!(obj.contains_key("clientId"));
-        assert!(obj.contains_key("resourceType"));
-        assert!(obj.contains_key("actorKeyId"));
+        assert!(obj.contains_key("client_id"));
+        assert!(obj.contains_key("resource_type"));
+        assert!(obj.contains_key("actor_key_id"));
     }
 
     #[test]

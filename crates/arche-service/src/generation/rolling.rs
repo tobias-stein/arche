@@ -429,7 +429,7 @@ mod tests {
     fn test_deterministic_with_same_seed_and_input() {
         let bp = make_blueprint(
             serde_json::json!({
-                "damage": {"value_type": "range", "min": 10.0, "max": 20.0, "distribution": {"type": "normal", "stdDev": 2.0}},
+                "damage": {"value_type": "range", "min": 10.0, "max": 20.0, "distribution": {"type": "normal", "std_dev": 2.0}},
             }),
             vec!["damage".into()],
         );

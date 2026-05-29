@@ -138,7 +138,7 @@ function AffixPickerDialog({
   selectedBlueprintIds: string[]
 }) {
   const { toast } = useToast()
-  const { data: affixData, isLoading } = useAffixesList({ perPage: 200 })
+  const { data: affixData, isLoading } = useAffixesList({ per_page: 200 })
   const batchAssignMutation = useBatchAssignBlueprints()
 
   const [selectedAffixIds, setSelectedAffixIds] = useState<Set<string>>(new Set())
@@ -169,8 +169,8 @@ function AffixPickerDialog({
     if (selectedAffixIds.size === 0) return
     try {
       await batchAssignMutation.mutateAsync({
-        blueprintIds: selectedBlueprintIds,
-        affixIds: Array.from(selectedAffixIds),
+        blueprint_ids: selectedBlueprintIds,
+        affix_ids: Array.from(selectedAffixIds),
         weight: 1,
       })
       toast({
@@ -288,7 +288,7 @@ export default function Blueprints() {
   const listQuery = useMemo(
     () => ({
       page,
-      perPage,
+      per_page: perPage,
       search: debouncedSearch || undefined,
       archetype: archetypeFilter !== 'all' ? archetypeFilter : undefined,
     }),
@@ -302,7 +302,7 @@ export default function Blueprints() {
     error,
   } = useBlueprintsList(listQuery)
 
-  const { data: allData } = useBlueprintsList({ perPage: 200 })
+  const { data: allData } = useBlueprintsList({ per_page: 200 })
 
   const blueprints = useMemo<Blueprint[]>(
     () => (data?.data ?? []) as Blueprint[],
@@ -335,7 +335,7 @@ export default function Blueprints() {
           cmp = a.weight - b.weight
           break
         case 'updated':
-          cmp = a.updatedAt.localeCompare(b.updatedAt)
+          cmp = a.updated_at.localeCompare(b.updated_at)
           break
       }
       return sortDir === 'asc' ? cmp : -cmp
@@ -711,7 +711,7 @@ export default function Blueprints() {
                         {bp.weight}
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm">
-                        {formatTimestamp(bp.updatedAt)}
+                        {formatTimestamp(bp.updated_at)}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
@@ -811,7 +811,7 @@ export default function Blueprints() {
                       Weight: {bp.weight}
                     </span>
                     <span className="text-xs text-muted-foreground">
-                      {formatDate(bp.updatedAt)}
+                      {formatDate(bp.updated_at)}
                     </span>
                   </div>
                   {bp.description && (

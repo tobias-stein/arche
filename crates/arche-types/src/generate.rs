@@ -4,7 +4,7 @@ use std::collections::{BTreeMap, HashMap};
 use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct ConstraintConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub gte: Option<f64>,
@@ -26,7 +26,7 @@ pub enum ConstraintValue {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct AffixConstraints {
     #[serde(default)]
     pub min_prefixes: i32,
@@ -43,7 +43,7 @@ pub struct AffixConstraints {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct GenerateRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub archetype: Option<String>,
@@ -58,7 +58,7 @@ pub struct GenerateRequest {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct NameParts {
     pub base: String,
     #[serde(default)]
@@ -68,7 +68,7 @@ pub struct NameParts {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct AffixAttributeEntry {
     pub affix_id: Uuid,
     pub affix_name: String,
@@ -77,7 +77,7 @@ pub struct AffixAttributeEntry {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct GenerateResponse {
     pub seed: u64,
     pub name: String,
@@ -88,13 +88,13 @@ pub struct GenerateResponse {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct BatchGenerateRequest {
     pub requests: Vec<GenerateRequest>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct BatchGenerateResultItem {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub result: Option<GenerateResponse>,
@@ -103,7 +103,7 @@ pub struct BatchGenerateResultItem {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct BatchGenerateResponse {
     pub results: Vec<BatchGenerateResultItem>,
 }

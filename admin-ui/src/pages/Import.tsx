@@ -108,7 +108,7 @@ export default function ImportPage() {
   function allResolved(): boolean {
     if (!conflictInfo) return false
     return conflictInfo.conflicts.every((c) => {
-      const res = attributeResolutions[c.resourceId]
+      const res = attributeResolutions[c.resource_id]
       if (!res) return false
       return c.attributes.every((a) => res[a.key] !== undefined)
     })
@@ -174,7 +174,7 @@ export default function ImportPage() {
       if (!response.ok) {
         if (response.status === 409) {
           const info: ConflictInfo = {
-            importToken: data.importToken ?? '',
+            importToken: data.import_token ?? '',
             type: data.type ?? '/errors/import-conflict',
             title: data.title ?? 'Import Conflict',
             status: data.status ?? 409,
@@ -216,7 +216,7 @@ export default function ImportPage() {
   function applyToResource(resourceId: string, strategy: ResolutionStrategy) {
     if (!conflictInfo) return
     const res = conflictInfo.conflicts.find(
-      (c) => c.resourceId === resourceId,
+      (c) => c.resource_id === resourceId,
     )
     if (!res) return
     const attrs: Record<string, ResolutionStrategy> = {}
@@ -232,12 +232,12 @@ export default function ImportPage() {
     const newAttrResolutions = { ...attributeResolutions }
     const newResourceStrategies = { ...resourceStrategies }
     for (const c of conflictInfo.conflicts) {
-      newResourceStrategies[c.resourceId] = strategy
+      newResourceStrategies[c.resource_id] = strategy
       const attrs: Record<string, ResolutionStrategy> = {}
       for (const a of c.attributes) {
         attrs[a.key] = strategy
       }
-      newAttrResolutions[c.resourceId] = attrs
+      newAttrResolutions[c.resource_id] = attrs
     }
     setAttributeResolutions(newAttrResolutions)
     setResourceStrategies(newResourceStrategies)
@@ -252,18 +252,18 @@ export default function ImportPage() {
 
     const resolutions: Record<string, ResourceResolution> = {}
     for (const c of conflictInfo.conflicts) {
-      const attrs = attributeResolutions[c.resourceId]
+      const attrs = attributeResolutions[c.resource_id]
       if (!attrs) {
-        resolutions[c.resourceId] = { strategy: 'keepOld' }
+        resolutions[c.resource_id] = { strategy: 'keepOld' }
         continue
       }
       const strategies = new Set(Object.values(attrs))
       if (strategies.size === 1) {
-        resolutions[c.resourceId] = {
+        resolutions[c.resource_id] = {
           strategy: strategies.values().next().value!,
         }
       } else {
-        resolutions[c.resourceId] = {
+        resolutions[c.resource_id] = {
           strategy: 'perAttribute',
           attributes: attrs,
         }
@@ -272,12 +272,12 @@ export default function ImportPage() {
 
     try {
       const result = await resolveMutation.mutateAsync({
-        importToken: conflictInfo.importToken,
+        import_token: conflictInfo.importToken,
         resolutions,
       })
       toast({
         title: 'Import complete',
-        description: `${result.resourcesImported} resources imported across ${result.clientsCreated} clients.`,
+        description: `${result.resources_imported} resources imported across ${result.clients_created} clients.`,
         variant: 'success',
       })
       setImportResult(result)
@@ -439,8 +439,8 @@ export default function ImportPage() {
               </div>
               <CardTitle className="mt-4">Import Successful</CardTitle>
               <p className="mt-1 text-sm text-muted-foreground text-center">
-                {importResult.clientsCreated} clients created,&nbsp;
-                {importResult.resourcesImported} resources imported.
+                {importResult.clients_created} clients created,&nbsp;
+                {importResult.resources_imported} resources imported.
               </p>
               <div className="mt-4 flex gap-3">
                 <Button variant="outline" onClick={reset}>
@@ -489,12 +489,12 @@ export default function ImportPage() {
               <div className="space-y-4">
                 {conflictInfo.conflicts.map((conflict) => (
                   <ConflictRow
-                    key={conflict.resourceId}
+                    key={conflict.resource_id}
                     conflict={conflict}
                     getAttrStrategy={getAttrStrategy}
                     setAttrResolution={setAttrResolution}
                     resourceStrategy={
-                      resourceStrategies[conflict.resourceId]
+                      resourceStrategies[conflict.resource_id]
                     }
                     applyToResource={applyToResource}
                   />
@@ -551,8 +551,8 @@ function ConflictRow({
     <Card>
       <CardHeader className="pb-2">
         <div className="flex items-center gap-2 flex-wrap">
-          <Badge variant="secondary">{conflict.resourceType}</Badge>
-          <span className="font-medium">{conflict.resourceName}</span>
+          <Badge variant="secondary">{conflict.resource_type}</Badge>
+          <span className="font-medium">{conflict.resource_name}</span>
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -563,7 +563,7 @@ function ConflictRow({
           <Select
             value={resourceStrategy ?? ''}
             onValueChange={(v) =>
-              applyToResource(conflict.resourceId, v as ResolutionStrategy)
+              applyToResource(conflict.resource_id, v as ResolutionStrategy)
             }
           >
             <SelectTrigger className="h-7 text-xs w-[160px]">
@@ -588,7 +588,7 @@ function ConflictRow({
             </TableHeader>
             <TableBody>
               {conflict.attributes.map((attr) => {
-                const current = getAttrStrategy(conflict.resourceId, attr.key)
+                const current = getAttrStrategy(conflict.resource_id, attr.key)
                 return (
                   <TableRow key={attr.key}>
                     <TableCell className="font-mono text-xs">
@@ -605,7 +605,7 @@ function ConflictRow({
                         value={current}
                         onValueChange={(v) =>
                           setAttrResolution(
-                            conflict.resourceId,
+                            conflict.resource_id,
                             attr.key,
                             v as ResolutionStrategy,
                           )

@@ -9,7 +9,7 @@ interface AuthState {
   isSuperAdmin: boolean
   keyId: string | null
   keyName: string | null
-  clientId: string | null
+  client_id: string | null
   permissions: Permission[]
   login: (key: string) => Promise<void>
   logout: () => void
@@ -21,24 +21,24 @@ export const useAuth = create<AuthState>((set) => ({
   isSuperAdmin: false,
   keyId: null,
   keyName: null,
-  clientId: null,
+  client_id: null,
   permissions: [],
   login: async (key: string) => {
     const client = getClient()
     client.setApiKey(key)
     const me = await client.getMe()
-    if (!me.isSuper && !me.clientId) {
-      throw new Error('Invalid API key response: missing clientId and isSuper')
+    if (!me.is_super && !me.client_id) {
+      throw new Error('Invalid API key response: missing clientId and is_super')
     }
-    const selectedClientId = me.isSuper ? null : me.clientId
+    const selectedClientId = me.is_super ? null : me.client_id
     useUi.getState().setSelectedClientId(selectedClientId)
     set({
       apiKey: key,
       isAuthenticated: true,
-      isSuperAdmin: me.isSuper,
+      isSuperAdmin: me.is_super,
       keyId: me.id,
       keyName: me.name,
-      clientId: selectedClientId,
+      client_id: selectedClientId,
       permissions: me.permissions,
     })
   },
@@ -50,7 +50,7 @@ export const useAuth = create<AuthState>((set) => ({
       isSuperAdmin: false,
       keyId: null,
       keyName: null,
-      clientId: null,
+      client_id: null,
       permissions: [],
     })
     window.location.hash = '#/login'

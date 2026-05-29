@@ -19,7 +19,7 @@ import { useToast } from '@/hooks/use-toast'
 
 export default function ExportPage() {
   const { toast } = useToast()
-  const { data, isLoading, isError, error } = useClientsList({ perPage: 500 })
+  const { data, isLoading, isError, error } = useClientsList({ per_page: 500 })
   const exportMutation = useExportData()
 
   const clients = useMemo<ClientResponse[]>(
@@ -60,10 +60,10 @@ export default function ExportPage() {
 
   async function handleExport() {
     const request: ExportRequest = {
-      clientIds: Array.from(effectiveSelectedIds),
-      includeApiKeys,
-      includeAuditLog,
-      inlineGlobalRefs,
+      client_ids: Array.from(effectiveSelectedIds),
+      include_api_keys: includeApiKeys,
+      include_audit_log: includeAuditLog,
+      inline_global_refs: inlineGlobalRefs,
     }
     try {
       const buffer = await exportMutation.mutateAsync(request)
@@ -160,7 +160,7 @@ export default function ExportPage() {
                         {client.name}
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm">
-                        {new Date(client.createdAt).toLocaleDateString()}
+                        {new Date(client.created_at).toLocaleDateString()}
                       </TableCell>
                     </TableRow>
                   ))}

@@ -99,7 +99,7 @@ function EditGlobalMetaAttributeDialog({
   const { toast } = useToast()
   const updateMutation = useUpdateGlobalMetaAttribute()
 
-  const valueType = gma?.valueType ?? 'single'
+  const valueType = gma?.value_type ?? 'single'
   const payloadState = gma ? extractPayloadState(gma) : null
 
   const [name, setName] = useState(gma?.name ?? '')
@@ -200,7 +200,7 @@ function EditGlobalMetaAttributeDialog({
         request: {
           name: name.trim(),
           description: description.trim() || null,
-          value_type: gma.valueType,
+          value_type: gma.value_type,
           ...gma.payload,
         } as Parameters<typeof updateMutation.mutateAsync>[0]['request'],
       })
@@ -855,7 +855,7 @@ export default function GlobalMetaAttributes() {
     error,
   } = useGlobalMetaAttributesList({
     page,
-    perPage: PER_PAGE,
+    per_page: PER_PAGE,
     search: debouncedSearch || undefined,
   })
 
@@ -868,7 +868,7 @@ export default function GlobalMetaAttributes() {
     () =>
       typeFilter === 'all'
         ? allItems
-        : allItems.filter((a) => a.valueType === typeFilter),
+        : allItems.filter((a) => a.value_type === typeFilter),
     [allItems, typeFilter],
   )
 
@@ -885,8 +885,8 @@ export default function GlobalMetaAttributes() {
   }
 
   // Fetch blueprints and affixes for usage count computation
-  const { data: bpData } = useBlueprintsList({ perPage: 500 })
-  const { data: affData } = useAffixesList({ perPage: 500 })
+  const { data: bpData } = useBlueprintsList({ per_page: 500 })
+  const { data: affData } = useAffixesList({ per_page: 500 })
 
   const usageCounts = useMemo(() => {
     const counts = new Map<string, number>()
@@ -1050,7 +1050,7 @@ export default function GlobalMetaAttributes() {
                           </Link>
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline">{gma.valueType}</Badge>
+                          <Badge variant="outline">{gma.value_type}</Badge>
                         </TableCell>
                         <TableCell className="text-muted-foreground text-sm font-mono">
                           {getPreview(gma)}
@@ -1133,7 +1133,7 @@ export default function GlobalMetaAttributes() {
                     </div>
                     <div className="flex items-center gap-2">
                       <Badge variant="outline" className="text-xs">
-                        {gma.valueType}
+                        {gma.value_type}
                       </Badge>
                       <span className="text-xs text-muted-foreground font-mono">
                         {getPreview(gma)}

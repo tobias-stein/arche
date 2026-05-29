@@ -147,7 +147,7 @@ export function useBatchEditBlueprints(client?: ArcheClient) {
 // --- Affixes ---
 
 export function useAffixesList(
-  query?: { cursor?: string; limit?: number; page?: number; perPage?: number; search?: string },
+  query?: { cursor?: string; limit?: number; page?: number; per_page?: number; search?: string },
   client?: ArcheClient,
 ) {
   const c = useArcheClient(client);
@@ -228,7 +228,7 @@ export function useBatchAssignAffixes(client?: ArcheClient) {
 // --- Global Meta Attributes ---
 
 export function useGlobalMetaAttributesList(
-  query?: { cursor?: string; limit?: number; page?: number; perPage?: number; search?: string },
+  query?: { cursor?: string; limit?: number; page?: number; per_page?: number; search?: string },
   client?: ArcheClient,
 ) {
   const c = useArcheClient(client);
@@ -286,7 +286,7 @@ export function useDeleteGlobalMetaAttribute(client?: ArcheClient) {
 // --- Clients ---
 
 export function useClientsList(
-  query?: { cursor?: string; limit?: number; page?: number; perPage?: number },
+  query?: { cursor?: string; limit?: number; page?: number; per_page?: number },
   client?: ArcheClient,
 ) {
   const c = useArcheClient(client);

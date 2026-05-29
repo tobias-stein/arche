@@ -6,7 +6,7 @@ const DEFAULT_LIMIT: i32 = 50;
 const MAX_LIMIT: i32 = 200;
 
 #[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct PaginationParams {
     #[serde(default)]
     pub cursor: Option<String>,
@@ -579,7 +579,7 @@ mod tests {
 
     #[test]
     fn test_deserialize_pagination_params_offset_mode() {
-        let json = r#"{"page":2,"perPage":25}"#;
+        let json = r#"{"page":2,"per_page":25}"#;
         let params: PaginationParams = serde_json::from_str(json).unwrap();
         assert_eq!(params.page, Some(2));
         assert_eq!(params.per_page, Some(25));
@@ -597,9 +597,9 @@ mod tests {
         let json = serde_json::to_value(&resp).unwrap();
         let obj = json.as_object().unwrap();
         assert!(obj.contains_key("data"));
-        assert!(obj.contains_key("nextCursor"));
+        assert!(obj.contains_key("next_cursor"));
         assert!(!obj.contains_key("total"));
-        assert_eq!(obj.get("nextCursor").unwrap(), &serde_json::json!(uuid.to_string()));
+        assert_eq!(obj.get("next_cursor").unwrap(), &serde_json::json!(uuid.to_string()));
     }
 
     #[test]
@@ -612,7 +612,7 @@ mod tests {
         let json = serde_json::to_value(&resp).unwrap();
         let obj = json.as_object().unwrap();
         assert!(obj.contains_key("data"));
-        assert!(!obj.contains_key("nextCursor"));
+        assert!(!obj.contains_key("next_cursor"));
         assert!(obj.contains_key("total"));
         assert_eq!(obj.get("total").unwrap(), 42);
     }

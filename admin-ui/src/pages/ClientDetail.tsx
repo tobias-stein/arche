@@ -189,7 +189,7 @@ export default function ClientDetail() {
         <div>
           <h1 className="text-2xl font-bold">{client.name}</h1>
           <p className="text-sm text-muted-foreground">
-            Created {formatDate(client.createdAt)}
+            Created {formatDate(client.created_at)}
           </p>
         </div>
       </div>

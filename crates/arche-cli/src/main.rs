@@ -194,6 +194,7 @@ fn build_generate_request(args: &cli::GenerateArgs) -> Result<GenerateRequest, C
         seed: args.seed,
         constraints,
         affixes,
+        client_id: None,
     })
 }
 
@@ -1341,7 +1342,7 @@ mod generate_tests {
             .await;
 
         let config = make_config(&uri, false, false);
-        let args = make_args(None, None, None, Some(r#"{"minPrefixes":1,"maxPrefixes":2}"#), "json");
+        let args = make_args(None, None, None, Some(r#"{"min_prefixes":1,"max_prefixes":2}"#), "json");
         let result = run_generate(args, config).await;
         assert!(result.is_ok());
     }
@@ -1469,7 +1470,7 @@ mod generate_tests {
             Some("sword"),
             Some(r#"{"damage":{"gte":15}}"#),
             Some(42),
-            Some(r#"{"minPrefixes":1}"#),
+            Some(r#"{"min_prefixes":1}"#),
             "pretty",
         );
         let result = run_generate(args, config).await;
@@ -1540,7 +1541,7 @@ mod generate_tests {
             Some("sword"),
             Some(r#"{"damage":{"gte":15}}"#),
             Some(12345),
-            Some(r#"{"minPrefixes":1,"maxPrefixes":2}"#),
+            Some(r#"{"min_prefixes":1,"max_prefixes":2}"#),
             "json",
         );
         let req = build_generate_request(&args).unwrap();

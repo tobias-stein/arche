@@ -75,7 +75,7 @@ function AuditLogDiff({ entry }: { entry: AuditLogEntry }) {
           <ChevronRight className="h-4 w-4" />
         )}
         <span className="font-medium">{entry.action}</span>
-        <span className="text-muted-foreground">by {entry.actorKeyName}</span>
+        <span className="text-muted-foreground">by {entry.actor_key_name}</span>
         <span className="ml-auto text-xs text-muted-foreground">
           {formatDateTime(entry.timestamp)}
         </span>
@@ -152,7 +152,7 @@ function EditGlobalMetaAttributeDialog({
   const { toast } = useToast()
   const updateMutation = useUpdateGlobalMetaAttribute()
 
-  const valueType = gma?.valueType ?? 'single'
+  const valueType = gma?.value_type ?? 'single'
   const payloadState = gma ? extractPayloadState(gma) : null
 
   const [name, setName] = useState(gma?.name ?? '')
@@ -504,16 +504,16 @@ export default function GlobalMetaAttributeDetail() {
     isError,
   } = useGlobalMetaAttribute(id ?? '')
 
-  const { data: bpData } = useBlueprintsList({ perPage: 500 })
-  const { data: affData } = useAffixesList({ perPage: 500 })
+  const { data: bpData } = useBlueprintsList({ per_page: 500 })
+  const { data: affData } = useAffixesList({ per_page: 500 })
 
   const {
     data: auditData,
     isLoading: auditLoading,
-  } = useAuditLog({ resourceType: 'global_meta_attribute' })
+  } = useAuditLog({ resource_type: 'global_meta_attribute' })
 
   const auditEntries = ((auditData?.data ?? []) as AuditLogEntry[]).filter(
-    (entry) => entry.resourceId === id,
+    (entry) => entry.resource_id === id,
   )
 
   const referencedBy = useMemo(() => {
@@ -601,7 +601,7 @@ export default function GlobalMetaAttributeDetail() {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-3 flex-wrap">
             <h2 className="text-2xl font-bold truncate">{gma.name}</h2>
-            <Badge variant="outline">{gma.valueType}</Badge>
+                  <Badge variant="outline">{gma.value_type}</Badge>
           </div>
           {gma.description && (
             <p className="text-muted-foreground mt-1">{gma.description}</p>
@@ -652,7 +652,7 @@ export default function GlobalMetaAttributeDetail() {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Value Type</p>
-                  <Badge variant="outline">{gma.valueType}</Badge>
+            <Badge variant="outline">{gma.value_type}</Badge>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Preview</p>
@@ -690,16 +690,16 @@ export default function GlobalMetaAttributeDetail() {
               <div className="flex items-center gap-2">
                 <span className="text-muted-foreground">Client ID:</span>
                 <code className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">
-                  {gma.clientId}
+                  {gma.client_id}
                 </code>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-muted-foreground">Created:</span>
-                <span>{formatDateTime(gma.createdAt)}</span>
+                <span>{formatDateTime(gma.created_at)}</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-muted-foreground">Updated:</span>
-                <span>{formatDateTime(gma.updatedAt)}</span>
+                <span>{formatDateTime(gma.updated_at)}</span>
               </div>
             </CardContent>
           </Card>

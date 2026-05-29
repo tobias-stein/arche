@@ -113,7 +113,7 @@ describe('Blueprints list page', () => {
   function setBlueprints(data: ReturnType<typeof makeBlueprint>[], total?: number) {
     mockBlueprintsList.mockImplementation((query?: Record<string, unknown>) => {
       const q = query as Record<string, unknown> | undefined
-      const perPage = q?.perPage ? Number(q?.perPage) : 25
+      const perPage = q?.per_page ? Number(q?.per_page) : 25
       const slice = data.slice(0, perPage)
       return {
         data: { data: slice, total: total ?? data.length },

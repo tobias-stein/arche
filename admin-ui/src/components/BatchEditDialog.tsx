@@ -36,7 +36,7 @@ function computeMergedAttrs(blueprints: Blueprint[]): MergedAttr[] {
 
   const allKeys = new Set<string>()
   for (const bp of blueprints) {
-    for (const key of bp.attributeOrder) {
+    for (const key of bp.attribute_order) {
       const attr = bp.attributes[key]
       if (attr && !('$ref_id' in attr)) {
         allKeys.add(key)
@@ -215,7 +215,7 @@ export function BatchEditDialog({
 
     try {
       await batchEditMutation.mutateAsync({
-        blueprintIds: blueprints.map((bp) => bp.id),
+        blueprint_ids: blueprints.map((bp) => bp.id),
         attributes,
       })
       toast({

@@ -1216,7 +1216,7 @@ mod tests {
     fn test_blueprint_list_query_json_deserialization() {
         let cid = Uuid::new_v4();
         let json = format!(
-            r#"{{"cursor":"abc","limit":5,"page":2,"perPage":20,"clientId":"{}","archetype":"sword","search":"fire"}}"#,
+            r#"{{"cursor":"abc","limit":5,"page":2,"per_page":20,"client_id":"{}","archetype":"sword","search":"fire"}}"#,
             cid
         );
         let query: BlueprintListQuery = serde_json::from_str(&json).unwrap();
@@ -2710,12 +2710,12 @@ mod tests {
                         "value": true
                     }
                 },
-                "attributeOrder": ["bad_attr"],
+                "attribute_order": ["bad_attr"],
                 "affixes": {
-                    "minPrefixes": 0,
-                    "maxPrefixes": 0,
-                    "minSuffixes": 0,
-                    "maxSuffixes": 0,
+                    "min_prefixes": 0,
+                    "max_prefixes": 0,
+                    "min_suffixes": 0,
+                    "max_suffixes": 0,
                     "prefixes": [],
                     "suffixes": []
                 }

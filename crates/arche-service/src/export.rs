@@ -17,14 +17,14 @@ use crate::auth::permission::CurrentUser;
 use crate::error::ProblemResponse;
 
 #[derive(Serialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 struct ClientJson {
     id: Uuid,
     name: String,
 }
 
 #[derive(Serialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 struct BlueprintExport {
     id: Uuid,
     name: String,
@@ -40,7 +40,7 @@ struct BlueprintExport {
 }
 
 #[derive(Serialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 struct AffixExport {
     id: Uuid,
     name: String,
@@ -51,7 +51,7 @@ struct AffixExport {
 }
 
 #[derive(Serialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 struct GmaExport {
     id: Uuid,
     name: String,
@@ -61,7 +61,7 @@ struct GmaExport {
 }
 
 #[derive(Serialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 struct BaExport {
     id: Uuid,
     blueprint_id: Uuid,
@@ -72,7 +72,7 @@ struct BaExport {
 }
 
 #[derive(Serialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 struct ApiKeyExport {
     id: Uuid,
     name: String,
@@ -81,7 +81,7 @@ struct ApiKeyExport {
 }
 
 #[derive(Serialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 struct AuditLogExport {
     id: Uuid,
     timestamp: chrono::DateTime<chrono::Utc>,
@@ -1142,7 +1142,7 @@ mod tests {
                 serde_json::from_slice(&contents).unwrap()
             };
             assert_eq!(entries.len(), 1);
-            assert_eq!(entries[0].get("resourceType").unwrap(), "blueprint");
+            assert_eq!(entries[0].get("resource_type").unwrap(), "blueprint");
 
             cleanup_client_data(&pool, client_id).await;
         }

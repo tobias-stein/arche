@@ -76,7 +76,7 @@ export class ArcheClient {
       }
     }
     if (this.clientId) {
-      url.searchParams.set('clientId', this.clientId);
+      url.searchParams.set('client_id', this.clientId);
     }
 
     const headers: Record<string, string> = {
@@ -178,7 +178,7 @@ export class ArcheClient {
 
   // --- Affixes ---
 
-  async listAffixes(query?: { cursor?: string; limit?: number; page?: number; perPage?: number; search?: string }): Promise<PaginatedResponse<Affix>> {
+  async listAffixes(query?: { cursor?: string; limit?: number; page?: number; per_page?: number; search?: string }): Promise<PaginatedResponse<Affix>> {
     const params = query ? toQueryParams(query) : undefined;
     return this.request<PaginatedResponse<Affix>>('GET', '/api/affixes', undefined, params);
   }
@@ -211,7 +211,7 @@ export class ArcheClient {
 
   // --- Global Meta Attributes ---
 
-  async listGlobalMetaAttributes(query?: { cursor?: string; limit?: number; page?: number; perPage?: number; search?: string }): Promise<PaginatedResponse<GlobalMetaAttribute>> {
+  async listGlobalMetaAttributes(query?: { cursor?: string; limit?: number; page?: number; per_page?: number; search?: string }): Promise<PaginatedResponse<GlobalMetaAttribute>> {
     const params = query ? toQueryParams(query) : undefined;
     return this.request<PaginatedResponse<GlobalMetaAttribute>>('GET', '/api/global-meta-attributes', undefined, params);
   }
@@ -234,7 +234,7 @@ export class ArcheClient {
 
   // --- Clients ---
 
-  async listClients(query?: { cursor?: string; limit?: number; page?: number; perPage?: number }): Promise<PaginatedResponse<ClientResponse>> {
+  async listClients(query?: { cursor?: string; limit?: number; page?: number; per_page?: number }): Promise<PaginatedResponse<ClientResponse>> {
     const params = query ? toQueryParams(query) : undefined;
     return this.request<PaginatedResponse<ClientResponse>>('GET', '/api/clients', undefined, params);
   }

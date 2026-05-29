@@ -6,7 +6,7 @@ import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from ramp_up import run_ramp_up
+from ramp_up import check_stop_conditions, run_ramp_up
 
 
 class TestRunRampUp(unittest.TestCase):
@@ -41,7 +41,7 @@ class TestRunRampUp(unittest.TestCase):
         def cb(c):
             return []
 
-        final_conc, _ = run_ramp_up(cb, duration=4.5, ramp_interval=1.5)
+        final_conc, _, _ = run_ramp_up(cb, duration=4.5, ramp_interval=1.5)
 
         self.assertEqual(final_conc, 3)
 
@@ -51,7 +51,7 @@ class TestRunRampUp(unittest.TestCase):
         def cb(c):
             return []
 
-        final_conc, _ = run_ramp_up(cb, duration=1.0, ramp_interval=1.5)
+        final_conc, _, _ = run_ramp_up(cb, duration=1.0, ramp_interval=1.5)
 
         self.assertEqual(final_conc, 1)
 
@@ -61,7 +61,7 @@ class TestRunRampUp(unittest.TestCase):
         def cb(c):
             return [i * 1.0 for i in range(5)]
 
-        _, peak = run_ramp_up(cb, duration=3.0, ramp_interval=1.5, window_size=10.0)
+        _, peak, _ = run_ramp_up(cb, duration=3.0, ramp_interval=1.5, window_size=10.0)
 
         self.assertGreater(peak, 0.0)
 
@@ -75,7 +75,7 @@ class TestRunRampUp(unittest.TestCase):
                 return [0.5]
             return [1.5, 2.5, 3.5, 4.5]
 
-        _, peak = run_ramp_up(cb, duration=3.0, ramp_interval=1.5, window_size=10.0)
+        _, peak, _ = run_ramp_up(cb, duration=3.0, ramp_interval=1.5, window_size=10.0)
 
         self.assertGreater(peak, 0.0)
 
@@ -87,7 +87,7 @@ class TestRunRampUp(unittest.TestCase):
             call_count[0] += 1
             return [1.0] * (c * 10)
 
-        _, peak = run_ramp_up(cb, duration=4.5, ramp_interval=1.5, window_size=10.0)
+        _, peak, _ = run_ramp_up(cb, duration=4.5, ramp_interval=1.5, window_size=10.0)
 
         self.assertGreater(peak, 0.0)
 
@@ -97,7 +97,7 @@ class TestRunRampUp(unittest.TestCase):
         def cb(c):
             return []
 
-        _, peak = run_ramp_up(cb, duration=4.5, ramp_interval=1.5, window_size=10.0)
+        _, peak, _ = run_ramp_up(cb, duration=4.5, ramp_interval=1.5, window_size=10.0)
 
         self.assertEqual(peak, 0.0)
 
@@ -107,7 +107,7 @@ class TestRunRampUp(unittest.TestCase):
         def cb(c):
             return [0.5]
 
-        _, peak = run_ramp_up(cb, duration=3.0, ramp_interval=1.5, window_size=10.0)
+        _, peak, _ = run_ramp_up(cb, duration=3.0, ramp_interval=1.5, window_size=10.0)
 
         self.assertGreater(peak, 0.0)
 
@@ -120,7 +120,7 @@ class TestRunRampUp(unittest.TestCase):
         result = run_ramp_up(cb, duration=3.0, ramp_interval=1.5)
 
         self.assertIsInstance(result, tuple)
-        self.assertEqual(len(result), 2)
+        self.assertEqual(len(result), 3)
 
     def test_peak_is_float(self):
         """Peak throughput is a float."""
@@ -128,7 +128,7 @@ class TestRunRampUp(unittest.TestCase):
         def cb(c):
             return [0.5]
 
-        _, peak = run_ramp_up(cb, duration=3.0, ramp_interval=1.5)
+        _, peak, _ = run_ramp_up(cb, duration=3.0, ramp_interval=1.5)
 
         self.assertIsInstance(peak, float)
 
@@ -138,7 +138,7 @@ class TestRunRampUp(unittest.TestCase):
         def cb(c):
             return None
 
-        final_conc, peak = run_ramp_up(cb, duration=3.0, ramp_interval=1.5)
+        final_conc, peak, _ = run_ramp_up(cb, duration=3.0, ramp_interval=1.5)
 
         self.assertEqual(final_conc, 2)
         self.assertEqual(peak, 0.0)
@@ -149,7 +149,7 @@ class TestRunRampUp(unittest.TestCase):
         def cb(c):
             return [0.5]
 
-        final_conc, peak = run_ramp_up(cb, duration=3.0, ramp_interval=1.5, window_size=1.0)
+        final_conc, peak, _ = run_ramp_up(cb, duration=3.0, ramp_interval=1.5, window_size=1.0)
 
         self.assertEqual(final_conc, 2)
         self.assertGreaterEqual(peak, 0.0)
@@ -161,10 +161,200 @@ class TestRunRampUp(unittest.TestCase):
         def cb(c):
             return timestamps
 
-        _, peak = run_ramp_up(cb, duration=1.5, ramp_interval=1.5, window_size=5.0)
+        _, peak, _ = run_ramp_up(cb, duration=1.5, ramp_interval=1.5, window_size=5.0)
 
         all_4_in_window = peak > 0.5
         self.assertTrue(all_4_in_window)
+
+
+class TestCheckStopConditions(unittest.TestCase):
+    """Tests for check_stop_conditions in isolation."""
+
+    def test_degradation_detected(self):
+        """Throughput below 90% of peak triggers degradation stop."""
+        should_stop, reason = check_stop_conditions(
+            elapsed=25, peak_throughput=100, current_throughput=89,
+            throughput_15s_ago=100, min_duration=20,
+        )
+        self.assertTrue(should_stop)
+        self.assertEqual(reason, "degradation")
+
+    def test_degradation_not_below_threshold(self):
+        """Throughput at exactly 90% of peak does NOT trigger degradation."""
+        should_stop, reason = check_stop_conditions(
+            elapsed=25, peak_throughput=100, current_throughput=90,
+            throughput_15s_ago=100, min_duration=20,
+        )
+        self.assertFalse(should_stop)
+
+    def test_degradation_above_threshold(self):
+        """Throughput above 90% of peak does NOT trigger degradation or plateau."""
+        should_stop, reason = check_stop_conditions(
+            elapsed=25, peak_throughput=105, current_throughput=105,
+            throughput_15s_ago=90, min_duration=20,
+        )
+        self.assertFalse(should_stop)
+
+    def test_degradation_not_below_threshold(self):
+        """Throughput at exactly 90% of peak does NOT trigger degradation."""
+        should_stop, reason = check_stop_conditions(
+            elapsed=25, peak_throughput=100, current_throughput=90,
+            throughput_15s_ago=85, min_duration=20,
+        )
+        self.assertFalse(should_stop)
+
+    def test_plateau_detected(self):
+        """Growth below 3% over trailing window triggers plateau stop."""
+        should_stop, reason = check_stop_conditions(
+            elapsed=25, peak_throughput=100, current_throughput=102,
+            throughput_15s_ago=100, min_duration=20,
+        )
+        self.assertTrue(should_stop)
+        self.assertEqual(reason, "plateau")
+
+    def test_plateau_at_exact_boundary(self):
+        """Growth at exactly 3% does NOT trigger plateau (needs <3%)."""
+        should_stop, reason = check_stop_conditions(
+            elapsed=25, peak_throughput=100, current_throughput=103,
+            throughput_15s_ago=100, min_duration=20,
+        )
+        self.assertFalse(should_stop)
+
+    def test_plateau_above_threshold(self):
+        """Growth above 3% does NOT trigger plateau."""
+        should_stop, reason = check_stop_conditions(
+            elapsed=25, peak_throughput=100, current_throughput=105,
+            throughput_15s_ago=100, min_duration=20,
+        )
+        self.assertFalse(should_stop)
+
+    def test_no_stop_before_min_duration(self):
+        """Both conditions ignored when elapsed < min_duration."""
+        should_stop, reason = check_stop_conditions(
+            elapsed=15, peak_throughput=100, current_throughput=50,
+            throughput_15s_ago=100, min_duration=20,
+        )
+        self.assertFalse(should_stop)
+        self.assertIsNone(reason)
+
+    def test_no_stop_at_min_duration_boundary(self):
+        """Conditions checked when elapsed == min_duration."""
+        should_stop, reason = check_stop_conditions(
+            elapsed=20, peak_throughput=100, current_throughput=80,
+            throughput_15s_ago=100, min_duration=20,
+        )
+        self.assertTrue(should_stop)
+        self.assertEqual(reason, "degradation")
+
+    def test_plateau_with_none_past(self):
+        """Plateau not triggered when throughput_15s_ago is None."""
+        should_stop, reason = check_stop_conditions(
+            elapsed=25, peak_throughput=100, current_throughput=101,
+            throughput_15s_ago=None, min_duration=20,
+        )
+        self.assertFalse(should_stop)
+
+    def test_plateau_with_zero_past(self):
+        """Plateau not triggered when throughput_15s_ago is zero."""
+        should_stop, reason = check_stop_conditions(
+            elapsed=25, peak_throughput=100, current_throughput=101,
+            throughput_15s_ago=0, min_duration=20,
+        )
+        self.assertFalse(should_stop)
+
+    def test_degradation_with_zero_peak(self):
+        """Degradation not triggered when peak is zero."""
+        should_stop, reason = check_stop_conditions(
+            elapsed=25, peak_throughput=0, current_throughput=0,
+            throughput_15s_ago=0, min_duration=20,
+        )
+        self.assertFalse(should_stop)
+
+
+class TestRampUpStopConditions(unittest.TestCase):
+    """Integration tests for run_ramp_up with plateau/degradation detection."""
+
+    def test_plateau_stops_early(self):
+        """Constant throughput triggers plateau stop before duration."""
+        current_time = [20.0]
+
+        def cb(c):
+            ts = [current_time[0] + i * 0.1 for i in range(10)]
+            current_time[0] += 1.5
+            return ts
+
+        final_conc, peak, stop_reason = run_ramp_up(
+            cb, duration=60, ramp_interval=1.5, window_size=10.0,
+            plateau_window=15.0, min_duration=20.0,
+        )
+
+        self.assertEqual(stop_reason, "plateau")
+        self.assertIsNotNone(stop_reason)
+        self.assertLess(final_conc, 40)
+
+    def test_degradation_stops_early(self):
+        """Throughput drop triggers degradation stop before duration."""
+        call_count = [0]
+
+        def cb(c):
+            call_count[0] += 1
+            if call_count[0] <= 2:
+                return [i * 0.5 for i in range(10)]
+            return []
+
+        final_conc, peak, stop_reason = run_ramp_up(
+            cb, duration=60, ramp_interval=1.5, window_size=10.0,
+            plateau_window=15.0, min_duration=20.0,
+        )
+
+        self.assertEqual(stop_reason, "degradation")
+        self.assertLess(final_conc, 40)
+
+    def test_short_duration_no_stop(self):
+        """Run with duration < min_duration completes with stop_reason None."""
+        def cb(c):
+            return [0.5]
+
+        final_conc, peak, stop_reason = run_ramp_up(
+            cb, duration=3.0, ramp_interval=1.5, window_size=10.0,
+            plateau_window=15.0, min_duration=20.0,
+        )
+
+        self.assertIsNone(stop_reason)
+        self.assertEqual(final_conc, 2)
+
+    def test_plateau_reason_string(self):
+        """Plateau detection returns correct stop_reason string."""
+        current_time = [25.0]
+
+        def cb(c):
+            ts = [current_time[0] + i * 0.1 for i in range(10)]
+            current_time[0] += 1.5
+            return ts
+
+        _, _, stop_reason = run_ramp_up(
+            cb, duration=60, ramp_interval=1.5, window_size=10.0,
+            plateau_window=15.0, min_duration=20.0,
+        )
+
+        self.assertEqual(stop_reason, "plateau")
+
+    def test_degradation_reason_string(self):
+        """Degradation detection returns correct stop_reason string."""
+        call_count = [0]
+
+        def cb(c):
+            call_count[0] += 1
+            if call_count[0] <= 2:
+                return [i * 0.5 for i in range(10)]
+            return []
+
+        _, _, stop_reason = run_ramp_up(
+            cb, duration=60, ramp_interval=1.5, window_size=10.0,
+            plateau_window=15.0, min_duration=20.0,
+        )
+
+        self.assertEqual(stop_reason, "degradation")
 
 
 if __name__ == "__main__":

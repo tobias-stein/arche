@@ -473,7 +473,7 @@ def _run_bench(api_key, target_url, concurrency=1, duration=10,
 
             return ts
 
-        final_conc, peak = run_ramp_up(
+        final_conc, peak, _ = run_ramp_up(
             _ramp_worker, duration=duration, ramp_interval=ramp_interval,
         )
         elapsed = time.monotonic() - start

@@ -18,6 +18,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { GripVertical, Plus, Trash2 } from 'lucide-react'
 
 import {
+  isApiError,
   useAffixesList,
   useCreateBlueprint,
   useGlobalMetaAttributesList,
@@ -174,12 +175,14 @@ function getExtendedPoolData(
   source: Blueprint | undefined | null,
 ): { prefixes: AffixPoolEntry[]; suffixes: AffixPoolEntry[] } {
   const ext = source as Blueprint & {
-    prefixes?: AffixPoolEntry[]
-    suffixes?: AffixPoolEntry[]
+    affixes?: {
+      prefixes?: AffixPoolEntry[]
+      suffixes?: AffixPoolEntry[]
+    }
   }
   return {
-    prefixes: ext?.prefixes ?? [],
-    suffixes: ext?.suffixes ?? [],
+    prefixes: ext?.affixes?.prefixes ?? [],
+    suffixes: ext?.affixes?.suffixes ?? [],
   }
 }
 
@@ -878,13 +881,26 @@ export function BlueprintFormModal({
         toast({ title: 'Blueprint created' })
       }
       onOpenChange(false)
-    } catch {
-      toast({
-        title: isEdit
-          ? 'Failed to update blueprint'
-          : 'Failed to create blueprint',
-        variant: 'destructive',
-      })
+    } catch (err) {
+      const apiFieldErrors: Record<string, string> = {}
+      if (isApiError(err) && err.fieldErrors) {
+        for (const fe of err.fieldErrors) {
+          if (!apiFieldErrors[fe.path]) {
+            apiFieldErrors[fe.path] = fe.message
+          }
+        }
+      }
+      if (Object.keys(apiFieldErrors).length > 0) {
+        setErrors((prev) => ({ ...prev, ...apiFieldErrors }))
+        toast({ title: 'Please fix validation errors', variant: 'destructive' })
+      } else {
+        toast({
+          title: isEdit
+            ? 'Failed to update blueprint'
+            : 'Failed to create blueprint',
+          variant: 'destructive',
+        })
+      }
     }
   }
 
@@ -1172,9 +1188,9 @@ export function BlueprintFormModal({
                           clearErrors()
                         }}
                       />
-                      {errors['affixes.minPrefixes'] && (
+                      {errors['affixes.min_prefixes'] && (
                         <p className={errorClass}>
-                          {errors['affixes.minPrefixes']}
+                          {errors['affixes.min_prefixes']}
                         </p>
                       )}
                     </div>
@@ -1192,9 +1208,9 @@ export function BlueprintFormModal({
                           clearErrors()
                         }}
                       />
-                      {errors['affixes.maxPrefixes'] && (
+                      {errors['affixes.max_prefixes'] && (
                         <p className={errorClass}>
-                          {errors['affixes.maxPrefixes']}
+                          {errors['affixes.max_prefixes']}
                         </p>
                       )}
                     </div>
@@ -1291,6 +1307,13 @@ export function BlueprintFormModal({
                       </p>
                     </div>
                   )}
+                  {Object.entries(errors)
+                    .filter(([k]) => k.startsWith('affixes.prefixes'))
+                    .map(([k, msg]) => (
+                      <p key={k} className={errorClass}>
+                        {msg}
+                      </p>
+                    ))}
                 </div>
 
                 <div className="space-y-4">
@@ -1310,9 +1333,9 @@ export function BlueprintFormModal({
                           clearErrors()
                         }}
                       />
-                      {errors['affixes.minSuffixes'] && (
+                      {errors['affixes.min_suffixes'] && (
                         <p className={errorClass}>
-                          {errors['affixes.minSuffixes']}
+                          {errors['affixes.min_suffixes']}
                         </p>
                       )}
                     </div>
@@ -1330,9 +1353,9 @@ export function BlueprintFormModal({
                           clearErrors()
                         }}
                       />
-                      {errors['affixes.maxSuffixes'] && (
+                      {errors['affixes.max_suffixes'] && (
                         <p className={errorClass}>
-                          {errors['affixes.maxSuffixes']}
+                          {errors['affixes.max_suffixes']}
                         </p>
                       )}
                     </div>
@@ -1429,6 +1452,13 @@ export function BlueprintFormModal({
                       </p>
                     </div>
                   )}
+                  {Object.entries(errors)
+                    .filter(([k]) => k.startsWith('affixes.suffixes'))
+                    .map(([k, msg]) => (
+                      <p key={k} className={errorClass}>
+                        {msg}
+                      </p>
+                    ))}
                 </div>
               </TabsContent>
             </Tabs>

@@ -203,11 +203,23 @@ describe('BlueprintFormModal', () => {
     function createBlueprintWithPools(): Blueprint {
       const bp = createMockBlueprint()
       const extended = bp as Blueprint & {
-        prefixes?: AffixPoolEntry[]
-        suffixes?: AffixPoolEntry[]
+        affixes?: {
+          min_prefixes?: number
+          max_prefixes?: number
+          min_suffixes?: number
+          max_suffixes?: number
+          prefixes?: AffixPoolEntry[]
+          suffixes?: AffixPoolEntry[]
+        }
       }
-      extended.prefixes = [{ affix_id: 'aff-a', weight: 7 }]
-      extended.suffixes = [{ affix_id: 'aff-b', weight: 2 }]
+      extended.affixes = {
+        min_prefixes: 1,
+        max_prefixes: 2,
+        min_suffixes: 0,
+        max_suffixes: 1,
+        prefixes: [{ affix_id: 'aff-a', weight: 7 }],
+        suffixes: [{ affix_id: 'aff-b', weight: 2 }],
+      }
       return extended
     }
 

@@ -420,7 +420,7 @@ pub async fn update_blueprint(
     let updated_at = row.get("updated_at");
 
     let existing_affixes =
-        sqlx::query("SELECT affix_id, weight, location FROM blueprint_affixes WHERE blueprint_id = $1")
+        sqlx::query("SELECT affix_id, weight, location::text FROM blueprint_affixes WHERE blueprint_id = $1")
             .bind(id)
             .fetch_all(&mut *tx)
             .await
@@ -428,7 +428,7 @@ pub async fn update_blueprint(
                 tracing::error!(error = %e, "blueprints: fetch existing affixes failed");
                 ProblemResponse::unprocessable_entity("Failed to read existing affix pool")
             })?;
-
+    
     let existing_set: HashMap<(Uuid, AffixLocation), f64> = existing_affixes
         .iter()
         .map(|r| {
@@ -908,7 +908,7 @@ async fn fetch_affix_pool(
     };
 
     let affix_rows = sqlx::query(
-        "SELECT affix_id, weight, location FROM blueprint_affixes \
+        "SELECT affix_id, weight, location::text FROM blueprint_affixes \
          WHERE blueprint_id = $1 ORDER BY sort_order ASC",
     )
     .bind(blueprint_id)
@@ -1802,7 +1802,7 @@ mod tests {
                 assert_eq!(bp.name, "NewSword");
 
                 let ba_rows = sqlx::query(
-                    "SELECT affix_id, weight, location FROM blueprint_affixes \
+                    "SELECT affix_id, weight, location::text FROM blueprint_affixes \
                      WHERE blueprint_id = $1 ORDER BY sort_order ASC",
                 )
                 .bind(bp.id)

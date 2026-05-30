@@ -756,17 +756,24 @@ export default function Affixes() {
         onOpenChange={setShowEditDialog}
         onSubmit={async (data) => {
           if (!editingAffix) return
-          await updateMutation.mutateAsync({
-            id: editingAffix.id,
-            request: {
-              name: data.name,
-              type: data.location,
-              description: data.description,
-              attribute: data.attribute,
-            },
-          })
-          toast({ title: 'Affix updated' })
-          setShowEditDialog(false)
+          try {
+            await updateMutation.mutateAsync({
+              id: editingAffix.id,
+              request: {
+                name: data.name,
+                type: data.location,
+                description: data.description,
+                attribute: data.attribute,
+              },
+            })
+            toast({ title: 'Affix updated' })
+            setShowEditDialog(false)
+          } catch {
+            toast({
+              title: 'Failed to update affix',
+              variant: 'destructive',
+            })
+          }
         }}
         isPending={updateMutation.isPending}
       />
@@ -777,14 +784,21 @@ export default function Affixes() {
         open={showCreateDialog}
         onOpenChange={setShowCreateDialog}
         onSubmit={async (data) => {
-          await createMutation.mutateAsync({
-            name: data.name,
-            type: data.location,
-            description: data.description,
-            attribute: data.attribute,
-          })
-          toast({ title: 'Affix created' })
-          setShowCreateDialog(false)
+          try {
+            await createMutation.mutateAsync({
+              name: data.name,
+              type: data.location,
+              description: data.description,
+              attribute: data.attribute,
+            })
+            toast({ title: 'Affix created' })
+            setShowCreateDialog(false)
+          } catch {
+            toast({
+              title: 'Failed to create affix',
+              variant: 'destructive',
+            })
+          }
         }}
         isPending={createMutation.isPending}
       />

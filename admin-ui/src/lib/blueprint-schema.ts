@@ -31,8 +31,8 @@ export const blueprintAttributeSchema = z.union([
 ])
 
 export const affixPoolEntrySchema = z.object({
-  affixId: z.string().min(1),
-  weight: z.number().min(0),
+  affix_id: z.string().min(1, 'Affix ID is required'),
+  weight: z.number().min(0, 'Weight must be >= 0'),
 })
 
 export const blueprintAffixConfigSchema = z
@@ -52,6 +52,44 @@ export const blueprintAffixConfigSchema = z
     message: 'Max suffixes must be >= min suffixes',
     path: ['max_suffixes'],
   })
+  .refine(
+    (data) => {
+      if (data.prefixes.length > 0 && data.max_prefixes === 0) return false
+      return true
+    },
+    {
+      message:
+        'Prefixes are in the pool but min/max are 0. Set min/max prefixes to allow them to roll.',
+      path: ['max_prefixes'],
+    },
+  )
+  .refine(
+    (data) => {
+      if (data.suffixes.length > 0 && data.max_suffixes === 0) return false
+      return true
+    },
+    {
+      message:
+        'Suffixes are in the pool but min/max are 0. Set min/max suffixes to allow them to roll.',
+      path: ['max_suffixes'],
+    },
+  )
+  .refine(
+    (data) => data.min_prefixes <= data.prefixes.length,
+    {
+      message:
+        'Min prefixes exceeds pool size. Add more prefixes or reduce min prefixes.',
+      path: ['min_prefixes'],
+    },
+  )
+  .refine(
+    (data) => data.min_suffixes <= data.suffixes.length,
+    {
+      message:
+        'Min suffixes exceeds pool size. Add more suffixes or reduce min suffixes.',
+      path: ['min_suffixes'],
+    },
+  )
 
 export const createBlueprintSchema = z.object({
   name: z.string().min(1, 'Name is required'),

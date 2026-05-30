@@ -349,12 +349,14 @@ export default function BlueprintDetail() {
   }
 
   const extended = blueprint as typeof blueprint & {
-    prefixes?: AffixPoolEntry[]
-    suffixes?: AffixPoolEntry[]
+    affixes?: {
+      prefixes?: AffixPoolEntry[]
+      suffixes?: AffixPoolEntry[]
+    }
   }
 
-  const prefixes = extended.prefixes ?? []
-  const suffixes = extended.suffixes ?? []
+  const prefixes = extended.affixes?.prefixes ?? []
+  const suffixes = extended.affixes?.suffixes ?? []
 
   const sortedAttrKeys = blueprint.attribute_order.filter(
     (k) => k in (blueprint.attributes ?? {}),
@@ -376,8 +378,8 @@ export default function BlueprintDetail() {
           max_prefixes: blueprintData.max_prefixes,
           min_suffixes: blueprintData.min_suffixes,
           max_suffixes: blueprintData.max_suffixes,
-          prefixes: [],
-          suffixes: [],
+          prefixes,
+          suffixes,
         },
       })
       toast({ title: `Duplicated "${blueprintData.name}"` })

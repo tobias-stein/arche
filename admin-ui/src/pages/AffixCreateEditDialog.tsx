@@ -584,10 +584,19 @@ export function AffixCreateEditDialog({
       attribute !== null &&
       '$ref_id' in attribute)
 
+  const [errors, setErrors] = useState<Record<string, string>>({})
+
+  const clearErrors = () => setErrors({})
+
   const canSubmit = name.trim().length > 0 && attributeValid
 
   const handleSubmit = async () => {
-    if (!canSubmit || !attribute) return
+    const next: Record<string, string> = {}
+    if (!name.trim()) next.name = 'Name is required'
+    if (!attributeValid) next.attribute = 'Attribute is required'
+    setErrors(next)
+    if (Object.keys(next).length > 0) return
+    if (!attribute) return
     await onSubmit({
       name: name.trim(),
       location,
@@ -610,9 +619,22 @@ export function AffixCreateEditDialog({
             <Input
               id="affix-name"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => {
+                setName(e.target.value)
+                if (errors.name) clearErrors()
+              }}
+              onBlur={() => {
+                if (!name.trim()) {
+                  setErrors((prev) => ({ ...prev, name: 'Name is required' }))
+                }
+              }}
               placeholder="Affix name"
             />
+            {errors.name && (
+              <p className="text-[0.8rem] font-medium text-destructive">
+                {errors.name}
+              </p>
+            )}
           </div>
           <div className="space-y-2">
             <label htmlFor="affix-type" className="text-sm font-medium">
@@ -648,6 +670,11 @@ export function AffixCreateEditDialog({
               setAttribute(null)
             }}
           />
+          {errors.attribute && (
+            <p className="text-[0.8rem] font-medium text-destructive">
+              {errors.attribute}
+            </p>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>

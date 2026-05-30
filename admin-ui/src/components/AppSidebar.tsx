@@ -146,12 +146,12 @@ export function AppSidebar() {
       <SidebarContent className="p-2">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton onClick={openSearch} tooltip="Search">
-              <Search className="h-4 w-4" />
-              <span>Search</span>
-              <kbd className="ml-auto text-xs bg-sidebar-accent px-1.5 py-0.5 rounded hidden sm:inline-flex items-center gap-0.5">
-                <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg" className="size-3"><path d="M11.4669 2.02344C11.4669 1.59959 11.1222 1.25488 10.6984 1.25488C10.2745 1.25488 9.92983 1.59959 9.92983 2.02344V5.51836L6.50989 2.09841C6.13094 1.71946 5.51734 1.71946 5.13839 2.09841C4.75941 2.47739 4.75941 3.09099 5.13839 3.46994L8.66815 7.00002L5.13839 10.5301C4.75941 10.9091 4.75941 11.5227 5.13839 11.9016C5.51734 12.2806 6.13094 12.2806 6.50989 11.9016L9.92983 8.48169V11.9766C9.92983 12.4004 10.2745 12.7451 10.6984 12.7451C11.1222 12.7451 11.4669 12.4004 11.4669 11.9766V2.02344Z" fill="currentColor" fillRule="evenodd" clipRule="evenodd"></path></svg>
-                K
+            <SidebarMenuButton variant="outline" onClick={openSearch} tooltip="Search" className="h-9 shadow-none border border-input hover:bg-accent hover:text-accent-foreground">
+              <Search className="h-4 w-4 text-muted-foreground" />
+              <span className="flex-1 text-left text-muted-foreground">Search</span>
+              <kbd className="ml-auto text-xs bg-sidebar-accent px-1.5 py-0.5 rounded items-center gap-0.5 hidden sm:inline-flex">
+                <span>⌘</span>
+                <span>K</span>
               </kbd>
             </SidebarMenuButton>
           </SidebarMenuItem>

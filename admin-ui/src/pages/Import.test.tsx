@@ -47,8 +47,8 @@ function makeNonZipFile(name = 'data.json'): File {
 function makeSuccessResponse(): Record<string, unknown> {
   return {
     status: 'ok',
-    clientsCreated: 2,
-    resourcesImported: 15,
+    clients_created: 2,
+    resources_imported: 15,
   }
 }
 
@@ -58,37 +58,37 @@ function makeConflictResponse(overrides?: Record<string, unknown>): Record<strin
     title: 'Import Conflict',
     status: 409,
     detail: '3 resources have conflicts with existing data.',
-    importToken: 'import-token-abc123',
+    import_token: 'import-token-abc123',
     conflicts: [
       {
-        resourceType: 'blueprint',
-        resourceId: 'bp-1',
-        resourceName: 'Sword',
+        resource_type: 'blueprint',
+        resource_id: 'bp-1',
+        resource_name: 'Sword',
         attributes: [
           {
             key: 'damage',
-            oldValue: 50,
-            newValue: 75,
-            valueType: 'single',
+            old_value: 50,
+            new_value: 75,
+            value_type: 'single',
           },
           {
             key: 'rarity',
-            oldValue: 'common',
-            newValue: 'rare',
-            valueType: 'enum',
+            old_value: 'common',
+            new_value: 'rare',
+            value_type: 'enum',
           },
         ],
       },
       {
-        resourceType: 'affix',
-        resourceId: 'aff-2',
-        resourceName: 'Flaming',
+        resource_type: 'affix',
+        resource_id: 'aff-2',
+        resource_name: 'Flaming',
         attributes: [
           {
             key: 'element',
-            oldValue: 'fire',
-            newValue: 'ice',
-            valueType: 'string',
+            old_value: 'fire',
+            new_value: 'ice',
+            value_type: 'string',
           },
         ],
       },
@@ -410,8 +410,8 @@ describe('Import page', () => {
         json: () =>
           Promise.resolve({
             status: 'ok',
-            clientsCreated: 3,
-            resourcesImported: 42,
+            clients_created: 3,
+            resources_imported: 42,
           }),
       })
       globalThis.fetch = fetchMock as unknown as typeof fetch
@@ -551,7 +551,7 @@ describe('Import page', () => {
 
       await waitFor(() => {
         expect(mockResolveMutation.mutateAsync).toHaveBeenCalledWith({
-          importToken: 'import-token-abc123',
+          import_token: 'import-token-abc123',
           resolutions: expect.objectContaining({
             'bp-1': expect.any(Object),
             'aff-2': expect.any(Object),
@@ -648,7 +648,7 @@ describe('Import page', () => {
             title: 'Import Conflict',
             status: 409,
             detail: 'No conflicts',
-            importToken: 'tok',
+            import_token: 'tok',
             conflicts: [],
           }),
       })

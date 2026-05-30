@@ -14,7 +14,7 @@ export type AuditAction = 'created' | 'updated' | 'deleted' | 'forceDeleted' | '
 
 export type Permission = 'read' | 'write' | 'delete' | 'generate' | 'admin';
 
-export type ResolutionStrategy = 'keepOld' | 'keepNew' | 'perAttribute';
+export type ResolutionStrategy = 'keep_old' | 'keep_new' | 'per_attribute';
 
 // --- Distribution ---
 
@@ -326,8 +326,8 @@ export interface ImportSuccessResponse {
 
 export interface ConflictAttribute {
   key: string;
-  oldValue: unknown;
-  newValue: unknown;
+  old_value: unknown;
+  new_value: unknown;
   value_type: ValueType;
 }
 

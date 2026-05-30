@@ -172,7 +172,11 @@ export function AppSidebar() {
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton onClick={toggleTheme} tooltip={mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}>
+            <SidebarMenuButton
+              onClick={toggleTheme}
+              aria-label={mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+              tooltip={mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            >
               {mode === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
               <span>{mode === 'dark' ? 'Light mode' : 'Dark mode'}</span>
             </SidebarMenuButton>

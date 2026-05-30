@@ -64,13 +64,13 @@ function makeBlueprint(overrides: Record<string, unknown> = {}) {
         max: 100,
       },
     },
-    attributeOrder: ['damage', 'element', 'name', 'legendary', 'price_range'],
-    minPrefixes: 0,
-    maxPrefixes: 0,
-    minSuffixes: 0,
-    maxSuffixes: 0,
-    createdAt: '2025-01-01T00:00:00Z',
-    updatedAt: '2025-01-15T12:00:00Z',
+    attribute_order: ['damage', 'element', 'name', 'legendary', 'price_range'],
+    min_prefixes: 0,
+    max_prefixes: 0,
+    min_suffixes: 0,
+    max_suffixes: 0,
+    created_at: '2025-01-01T00:00:00Z',
+    updated_at: '2025-01-15T12:00:00Z',
     ...overrides,
   }
 }
@@ -78,7 +78,7 @@ function makeBlueprint(overrides: Record<string, unknown> = {}) {
 function makeAffix(overrides: Record<string, unknown> = {}) {
   return {
     id: `aff-${overrides.id || '1'}`,
-    clientId: 'client-1',
+    client_id: 'client-1',
     name: `Affix ${overrides.id || '1'}`,
     location: 'prefix',
     description: null,
@@ -86,8 +86,8 @@ function makeAffix(overrides: Record<string, unknown> = {}) {
       value_type: 'single',
       value: 0,
     },
-    createdAt: '2025-01-01T00:00:00Z',
-    updatedAt: '2025-01-15T12:00:00Z',
+    created_at: '2025-01-01T00:00:00Z',
+    updated_at: '2025-01-15T12:00:00Z',
     ...overrides,
   }
 }
@@ -225,10 +225,10 @@ describe('Dashboard Quick Generate', () => {
     mockGenerateMutation.mutateAsync.mockResolvedValue({
       seed: 42,
       name: 'Flaming Sword of Doom',
-      nameParts: { base: 'Sword', prefixes: ['Flaming'], suffixes: ['of Doom'] },
-      blueprintId: 'bp-1',
-      blueprintAttributes: { damage: 50, element: 'fire' },
-      affixAttributes: [],
+      name_parts: { base: 'Sword', prefixes: ['Flaming'], suffixes: ['of Doom'] },
+      blueprint_id: 'bp-1',
+      blueprint_attributes: { damage: 50, element: 'fire' },
+      affix_attributes: [],
     })
 
     renderDashboard()
@@ -312,10 +312,10 @@ describe('Dashboard Quick Generate', () => {
     mockGenerateMutation.mutateAsync.mockResolvedValue({
       seed: 12345,
       name: 'Test Item',
-      nameParts: { base: 'Item', prefixes: [], suffixes: [] },
-      blueprintId: 'bp-1',
-      blueprintAttributes: {},
-      affixAttributes: [],
+      name_parts: { base: 'Item', prefixes: [], suffixes: [] },
+      blueprint_id: 'bp-1',
+      blueprint_attributes: {},
+      affix_attributes: [],
     })
 
     renderDashboard()
@@ -345,10 +345,10 @@ describe('Dashboard Quick Generate', () => {
     mockGenerateMutation.mutateAsync.mockResolvedValue({
       seed: 9999,
       name: 'Random Item',
-      nameParts: { base: 'Item', prefixes: [], suffixes: [] },
-      blueprintId: 'bp-1',
-      blueprintAttributes: {},
-      affixAttributes: [],
+      name_parts: { base: 'Item', prefixes: [], suffixes: [] },
+      blueprint_id: 'bp-1',
+      blueprint_attributes: {},
+      affix_attributes: [],
     })
 
     renderDashboard()
@@ -376,18 +376,18 @@ describe('Dashboard Quick Generate', () => {
     mockGenerateMutation.mutateAsync.mockResolvedValue({
       seed: 42,
       name: 'Flaming Blade of Destiny',
-      nameParts: { base: 'Blade', prefixes: ['Flaming'], suffixes: ['of Destiny'] },
-      blueprintId: 'bp-1',
-      blueprintAttributes: { damage: 85, element: 'fire', durability: 100 },
-      affixAttributes: [
+      name_parts: { base: 'Blade', prefixes: ['Flaming'], suffixes: ['of Destiny'] },
+      blueprint_id: 'bp-1',
+      blueprint_attributes: { damage: 85, element: 'fire', durability: 100 },
+      affix_attributes: [
         {
-          affixId: 'aff-1',
-          affixName: 'Flaming',
-          fireDamage: 25,
+          affix_id: 'aff-1',
+          affix_name: 'Flaming',
+          fire_damage: 25,
         },
         {
-          affixId: 'aff-2',
-          affixName: 'Destiny',
+          affix_id: 'aff-2',
+          affix_name: 'Destiny',
           luck: 10,
         },
       ],
@@ -453,10 +453,10 @@ describe('Dashboard Quick Generate', () => {
     mockGenerateMutation.mutateAsync.mockResolvedValue({
       seed: 1,
       name: 'Test',
-      nameParts: { base: 'Test', prefixes: [], suffixes: [] },
-      blueprintId: 'bp-1',
-      blueprintAttributes: {},
-      affixAttributes: [],
+      name_parts: { base: 'Test', prefixes: [], suffixes: [] },
+      blueprint_id: 'bp-1',
+      blueprint_attributes: {},
+      affix_attributes: [],
     })
 
     renderDashboard()
@@ -470,8 +470,8 @@ describe('Dashboard Quick Generate', () => {
     const seedInput = screen.getByPlaceholderText('Leave empty for random')
     fireEvent.change(seedInput, { target: { value: '42' } })
 
-    const minPrefixes = screen.getByLabelText('Min Prefixes')
-    fireEvent.change(minPrefixes, { target: { value: '2' } })
+    const min_prefixes = screen.getByLabelText('Min Prefixes')
+    fireEvent.change(min_prefixes, { target: { value: '2' } })
 
     fireEvent.click(screen.getByRole('button', { name: /Generate/i }))
 
@@ -486,7 +486,7 @@ describe('Dashboard Quick Generate', () => {
     })
 
     expect(seedInput).toHaveValue('')
-    expect(minPrefixes).toHaveValue(0)
+    expect(min_prefixes).toHaveValue(0)
   })
 
   // --- Loading State During Generation ---
@@ -504,10 +504,10 @@ describe('Dashboard Quick Generate', () => {
     mockGenerateMutation.mutateAsync.mockResolvedValue({
       seed: 1,
       name: 'Test',
-      nameParts: { base: 'Test', prefixes: [], suffixes: [] },
-      blueprintId: 'bp-1',
-      blueprintAttributes: {},
-      affixAttributes: [],
+      name_parts: { base: 'Test', prefixes: [], suffixes: [] },
+      blueprint_id: 'bp-1',
+      blueprint_attributes: {},
+      affix_attributes: [],
     })
 
     renderDashboard()
@@ -542,19 +542,19 @@ describe('Dashboard Quick Generate', () => {
     mockGenerateMutation.mutateAsync.mockResolvedValue({
       seed: 1,
       name: 'Test',
-      nameParts: { base: 'Test', prefixes: [], suffixes: [] },
-      blueprintId: 'bp-1',
-      blueprintAttributes: {},
-      affixAttributes: [],
+      name_parts: { base: 'Test', prefixes: [], suffixes: [] },
+      blueprint_id: 'bp-1',
+      blueprint_attributes: {},
+      affix_attributes: [],
     })
 
     renderDashboard()
 
-    const minPrefixes = screen.getByLabelText('Min Prefixes')
-    fireEvent.change(minPrefixes, { target: { value: '1' } })
+    const min_prefixes = screen.getByLabelText('Min Prefixes')
+    fireEvent.change(min_prefixes, { target: { value: '1' } })
 
-    const maxSuffixes = screen.getByLabelText('Max Suffixes')
-    fireEvent.change(maxSuffixes, { target: { value: '2' } })
+    const max_suffixes = screen.getByLabelText('Max Suffixes')
+    fireEvent.change(max_suffixes, { target: { value: '2' } })
 
     const flamingCheckboxes = screen.getAllByRole('checkbox', { name: 'Flaming' })
     fireEvent.click(flamingCheckboxes[0])
@@ -563,8 +563,8 @@ describe('Dashboard Quick Generate', () => {
 
     await waitFor(() => {
       const call = mockGenerateMutation.mutateAsync.mock.calls[0][0]
-      expect(call.affixes.minPrefixes).toBe(1)
-      expect(call.affixes.maxSuffixes).toBe(2)
+      expect(call.affixes.min_prefixes).toBe(1)
+      expect(call.affixes.max_suffixes).toBe(2)
       expect(call.affixes.require).toContain('1')
     })
   })
@@ -621,10 +621,10 @@ describe('Dashboard Quick Generate', () => {
     mockGenerateMutation.mutateAsync.mockResolvedValue({
       seed: 1,
       name: 'Test',
-      nameParts: { base: 'Test', prefixes: [], suffixes: [] },
-      blueprintId: 'bp-1',
-      blueprintAttributes: {},
-      affixAttributes: [],
+      name_parts: { base: 'Test', prefixes: [], suffixes: [] },
+      blueprint_id: 'bp-1',
+      blueprint_attributes: {},
+      affix_attributes: [],
     })
 
     renderDashboard()
@@ -840,8 +840,8 @@ describe('Dashboard Warnings', () => {
           makeBlueprint({
             id: '1',
             name: 'NeedsPrefix',
-            minPrefixes: 2,
-            maxPrefixes: 3,
+            min_prefixes: 2,
+            max_prefixes: 3,
             prefixes: [],
             suffixes: [],
           }),
@@ -868,11 +868,11 @@ describe('Dashboard Warnings', () => {
           makeBlueprint({
             id: '1',
             name: 'NeedsSuffix',
-            minPrefixes: 0,
-            maxPrefixes: 0,
-            minSuffixes: 3,
-            maxSuffixes: 5,
-            suffixes: [{ affixId: 'aff-1', weight: 1 }],
+            min_prefixes: 0,
+            max_prefixes: 0,
+            min_suffixes: 3,
+            max_suffixes: 5,
+            suffixes: [{ affix_id: 'aff-1', weight: 1 }],
           }),
         ],
         total: 1,
@@ -897,9 +897,9 @@ describe('Dashboard Warnings', () => {
           makeBlueprint({
             id: '1',
             name: 'ZeroWeightAffix',
-            minPrefixes: 1,
-            maxPrefixes: 1,
-            prefixes: [{ affixId: 'aff-x', weight: 0 }],
+            min_prefixes: 1,
+            max_prefixes: 1,
+            prefixes: [{ affix_id: 'aff-x', weight: 0 }],
             suffixes: [],
           }),
         ],
@@ -925,7 +925,7 @@ describe('Dashboard Warnings', () => {
             attributes: {
               power: { $ref_id: 'non-existent-global' },
             },
-            attributeOrder: ['power'],
+            attribute_order: ['power'],
           }),
         ],
         total: 1,
@@ -971,7 +971,7 @@ describe('Dashboard Warnings', () => {
                 max: 10,
               },
             },
-            attributeOrder: ['damage'],
+            attribute_order: ['damage'],
           }),
         ],
         total: 1,
@@ -1002,7 +1002,7 @@ describe('Dashboard Warnings', () => {
                 values: [],
               },
             },
-            attributeOrder: ['element'],
+            attribute_order: ['element'],
           }),
         ],
         total: 1,
@@ -1034,7 +1034,7 @@ describe('Dashboard Warnings', () => {
                 distribution: { type: 'normal', stdDev: 0 },
               },
             },
-            attributeOrder: ['damage'],
+            attribute_order: ['damage'],
           }),
         ],
         total: 1,
@@ -1066,7 +1066,7 @@ describe('Dashboard Warnings', () => {
                 distribution: { type: 'exponential', rate: 0 },
               },
             },
-            attributeOrder: ['damage'],
+            attribute_order: ['damage'],
           }),
         ],
         total: 1,

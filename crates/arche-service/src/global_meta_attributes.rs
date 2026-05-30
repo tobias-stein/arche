@@ -1443,6 +1443,7 @@ mod tests {
             let result = create_global_meta_attribute(
                 axum::extract::State(state),
                 user,
+                axum::extract::Query(WriteClientQuery { client_id: None }),
                 axum::Json(req),
             )
             .await;
@@ -1492,6 +1493,7 @@ mod tests {
             let result = create_global_meta_attribute(
                 axum::extract::State(state),
                 user,
+                axum::extract::Query(WriteClientQuery { client_id: None }),
                 axum::Json(req),
             )
             .await;
@@ -1537,6 +1539,7 @@ mod tests {
             let result = create_global_meta_attribute(
                 axum::extract::State(state),
                 user,
+                axum::extract::Query(WriteClientQuery { client_id: None }),
                 axum::Json(req),
             )
             .await;
@@ -1573,6 +1576,7 @@ mod tests {
             let result = create_global_meta_attribute(
                 axum::extract::State(state),
                 user,
+                axum::extract::Query(WriteClientQuery { client_id: None }),
                 axum::Json(req),
             )
             .await;
@@ -2069,6 +2073,7 @@ mod tests {
             let result = create_global_meta_attribute(
                 axum::extract::State(state),
                 user,
+                axum::extract::Query(WriteClientQuery { client_id: None }),
                 axum::Json(req),
             )
             .await;

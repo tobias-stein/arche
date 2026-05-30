@@ -721,7 +721,7 @@ mod tests {
     fn test_batch_edit_response_serialization() {
         let resp = BatchEditResponse { updated_count: 3 };
         let value = serde_json::to_value(&resp).unwrap();
-        assert_eq!(value, json!({"updatedCount": 3}));
+        assert_eq!(value, json!({"updated_count": 3}));
     }
 
     #[test]

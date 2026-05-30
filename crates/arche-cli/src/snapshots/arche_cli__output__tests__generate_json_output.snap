@@ -1,5 +1,6 @@
 ---
 source: crates/arche-cli/src/output.rs
+assertion_line: 480
 expression: output
 ---
-"{\n  \"seed\": 12345,\n  \"name\": \"Fire Longsword of the Bear\",\n  \"nameParts\": {\n    \"base\": \"Longsword\",\n    \"prefixes\": [\n      \"Fire\"\n    ],\n    \"suffixes\": [\n      \"of the Bear\"\n    ]\n  },\n  \"blueprintId\": \"00000000-0000-0000-0000-000000000001\",\n  \"blueprintAttributes\": {\n    \"damage\": 27.3,\n    \"weight\": 3.5\n  },\n  \"affixAttributes\": [\n    {\n      \"affixId\": \"00000000-0000-0000-0000-000000000002\",\n      \"affixName\": \"Fire\",\n      \"fireDamage\": 12.7\n    }\n  ]\n}\n"
+"{\n  \"seed\": 12345,\n  \"name\": \"Fire Longsword of the Bear\",\n  \"name_parts\": {\n    \"base\": \"Longsword\",\n    \"prefixes\": [\n      \"Fire\"\n    ],\n    \"suffixes\": [\n      \"of the Bear\"\n    ]\n  },\n  \"blueprint_id\": \"00000000-0000-0000-0000-000000000001\",\n  \"blueprint_attributes\": {\n    \"damage\": 27.3,\n    \"weight\": 3.5\n  },\n  \"affix_attributes\": [\n    {\n      \"affix_id\": \"00000000-0000-0000-0000-000000000002\",\n      \"affix_name\": \"Fire\",\n      \"fireDamage\": 12.7\n    }\n  ]\n}\n"

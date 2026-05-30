@@ -244,7 +244,7 @@ export default function ImportPage() {
   }
 
   function getAttrStrategy(resourceId: string, attrKey: string): ResolutionStrategy {
-    return attributeResolutions[resourceId]?.[attrKey] ?? 'keepOld'
+    return attributeResolutions[resourceId]?.[attrKey] ?? 'keep_old'
   }
 
   async function handleResolve() {
@@ -254,7 +254,7 @@ export default function ImportPage() {
     for (const c of conflictInfo.conflicts) {
       const attrs = attributeResolutions[c.resource_id]
       if (!attrs) {
-        resolutions[c.resource_id] = { strategy: 'keepOld' }
+        resolutions[c.resource_id] = { strategy: 'keep_old' }
         continue
       }
       const strategies = new Set(Object.values(attrs))
@@ -264,7 +264,7 @@ export default function ImportPage() {
         }
       } else {
         resolutions[c.resource_id] = {
-          strategy: 'perAttribute',
+          strategy: 'per_attribute',
           attributes: attrs,
         }
       }
@@ -473,14 +473,14 @@ export default function ImportPage() {
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => applyToAllRemaining('keepOld')}
+                  onClick={() => applyToAllRemaining('keep_old')}
                 >
                   Keep Existing
                 </Button>
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => applyToAllRemaining('keepNew')}
+                  onClick={() => applyToAllRemaining('keep_new')}
                 >
                   Use Imported
                 </Button>
@@ -570,8 +570,8 @@ function ConflictRow({
               <SelectValue placeholder="Choose&hellip;" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="keepOld">Keep Existing</SelectItem>
-              <SelectItem value="keepNew">Use Imported</SelectItem>
+              <SelectItem value="keep_old">Keep Existing</SelectItem>
+              <SelectItem value="keep_new">Use Imported</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -595,10 +595,10 @@ function ConflictRow({
                       {attr.key}
                     </TableCell>
                     <TableCell className="text-xs max-w-[200px] truncate">
-                      {formatValue(attr.oldValue)}
+                      {formatValue(attr.old_value)}
                     </TableCell>
                     <TableCell className="text-xs max-w-[200px] truncate">
-                      {formatValue(attr.newValue)}
+                      {formatValue(attr.new_value)}
                     </TableCell>
                     <TableCell>
                       <Select
@@ -615,10 +615,10 @@ function ConflictRow({
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="keepOld">
+                          <SelectItem value="keep_old">
                             Keep Existing
                           </SelectItem>
-                          <SelectItem value="keepNew">
+                          <SelectItem value="keep_new">
                             Use Imported
                           </SelectItem>
                         </SelectContent>

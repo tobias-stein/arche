@@ -212,35 +212,9 @@ describe('ActivityPanel', () => {
     expect(useUi.getState().panelOpen).toBe(true)
   })
 
-  it('has a pin button when floating', () => {
+  it('does not render pin button when floating', () => {
     renderPanel()
-    expect(screen.getByLabelText('Pin panel')).toBeInTheDocument()
-  })
-
-  it('has an unpin button when docked', async () => {
-    await setStoreState({ panelDocked: true })
-    renderPanel()
-    expect(screen.getByLabelText('Unpin panel')).toBeInTheDocument()
-  })
-
-  it('pins the panel on pin button click', async () => {
-    const { useUi } = await import('@/stores/ui')
-    await setStoreState({ panelDocked: false })
-
-    renderPanel()
-
-    fireEvent.click(screen.getByLabelText('Pin panel'))
-    expect(useUi.getState().panelDocked).toBe(true)
-  })
-
-  it('unpins the panel on unpin button click', async () => {
-    const { useUi } = await import('@/stores/ui')
-    await setStoreState({ panelDocked: true })
-
-    renderPanel()
-
-    fireEvent.click(screen.getByLabelText('Unpin panel'))
-    expect(useUi.getState().panelDocked).toBe(false)
+    expect(screen.queryByLabelText('Pin panel')).not.toBeInTheDocument()
   })
 
   it('has a "View all" link', () => {

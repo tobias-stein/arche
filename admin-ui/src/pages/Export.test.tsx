@@ -258,10 +258,10 @@ describe('Export page', () => {
 
       await waitFor(() => {
         expect(mockExportMutation.mutateAsync).toHaveBeenCalledWith({
-          clientIds: [client1.id, client2.id],
-          includeApiKeys: true,
-          includeAuditLog: true,
-          inlineGlobalRefs: true,
+          client_ids: [client1.id, client2.id],
+          include_api_keys: true,
+          include_audit_log: true,
+          inline_global_refs: true,
         })
       })
 

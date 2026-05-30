@@ -1727,13 +1727,13 @@ mod import_tests {
             .await;
 
         let resolution_json = serde_json::json!({
-            "importToken": "test-import-token",
+            "import_token": "test-import-token",
             "resolutions": {
                 "00000000-0000-0000-0000-000000000001": {
-                    "strategy": "keepOld"
+                    "strategy": "keep_old"
                 },
                 "00000000-0000-0000-0000-000000000002": {
-                    "strategy": "keepNew"
+                    "strategy": "keep_new"
                 }
             }
         });
@@ -1777,16 +1777,16 @@ mod import_tests {
             .await;
 
         let resolution_json = serde_json::json!({
-            "importToken": "test-import-token",
+            "import_token": "test-import-token",
             "resolutions": {
                 "00000000-0000-0000-0000-000000000001": {
-                    "strategy": "perAttribute",
+                    "strategy": "per_attribute",
                     "attributes": {
-                        "damage": "keepOld"
+                        "damage": "keep_old"
                     }
                 },
                 "00000000-0000-0000-0000-000000000002": {
-                    "strategy": "keepNew"
+                    "strategy": "keep_new"
                 }
             }
         });
@@ -1820,10 +1820,10 @@ mod import_tests {
             .await;
 
         let resolution_json = serde_json::json!({
-            "importToken": "wrong-token",
+            "import_token": "wrong-token",
             "resolutions": {
                 "00000000-0000-0000-0000-000000000001": {
-                    "strategy": "keepOld"
+                    "strategy": "keep_old"
                 }
             }
         });
@@ -1864,10 +1864,10 @@ mod import_tests {
             .await;
 
         let resolution_json = serde_json::json!({
-            "importToken": "test-import-token",
+            "import_token": "test-import-token",
             "resolutions": {
                 "00000000-0000-0000-0000-000000000099": {
-                    "strategy": "keepOld"
+                    "strategy": "keep_old"
                 }
             }
         });
@@ -1908,10 +1908,10 @@ mod import_tests {
             .await;
 
         let resolution_json = serde_json::json!({
-            "importToken": "test-import-token",
+            "import_token": "test-import-token",
             "resolutions": {
                 "00000000-0000-0000-0000-000000000001": {
-                    "strategy": "perAttribute"
+                    "strategy": "per_attribute"
                 }
             }
         });
@@ -1955,12 +1955,12 @@ mod import_tests {
             .await;
 
         let resolution_json = serde_json::json!({
-            "importToken": "test-import-token",
+            "import_token": "test-import-token",
             "resolutions": {
                 "00000000-0000-0000-0000-000000000001": {
-                    "strategy": "perAttribute",
+                    "strategy": "per_attribute",
                     "attributes": {
-                        "nonexistent_attr": "keepOld"
+                        "nonexistent_attr": "keep_old"
                     }
                 }
             }
@@ -2122,13 +2122,13 @@ mod import_tests {
             .await;
 
         let resolution_json = serde_json::json!({
-            "importToken": "test-import-token",
+            "import_token": "test-import-token",
             "resolutions": {
                 "00000000-0000-0000-0000-000000000001": {
-                    "strategy": "keepOld"
+                    "strategy": "keep_old"
                 },
                 "00000000-0000-0000-0000-000000000002": {
-                    "strategy": "keepNew"
+                    "strategy": "keep_new"
                 }
             }
         });
@@ -2177,13 +2177,14 @@ mod import_tests {
         assert!(result.is_ok());
 
         let resolution_json = serde_json::json!({
-            "importToken": "test-import-token",
+            "import_token": "test-import-token",
             "resolutions": {
                 "00000000-0000-0000-0000-000000000001": {
-                    "strategy": "keepOld"
+                    "strategy": "keep_old"
+
                 },
                 "00000000-0000-0000-0000-000000000002": {
-                    "strategy": "keepNew"
+                    "strategy": "keep_new"
                 }
             }
         });

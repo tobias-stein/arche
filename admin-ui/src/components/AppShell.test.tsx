@@ -37,38 +37,17 @@ describe('AppShell', () => {
     useTheme.setState({ mode: 'light' })
   })
 
-  it('renders the header with app name', () => {
+  it('renders sidebar with nav links', () => {
     renderShell()
 
-    expect(screen.getByText('Arche Admin')).toBeInTheDocument()
+    expect(screen.getByText('Dashboard')).toBeInTheDocument()
+    expect(screen.getByText('Blueprints')).toBeInTheDocument()
   })
 
-  it('shows Arche Admin title for super admin', async () => {
-    const { useAuth } = await import('@/stores/auth')
-    useAuth.setState({ isAuthenticated: true, isSuperAdmin: true })
-
+  it('renders the search button', () => {
     renderShell()
 
-    expect(screen.getByText('Arche Admin')).toBeInTheDocument()
-  })
-
-  it('replaces title with client name for client-scoped keys', async () => {
-    const { useAuth } = await import('@/stores/auth')
-    useAuth.setState({
-      isAuthenticated: true,
-      isSuperAdmin: false,
-      client_id: 'client-abc',
-    })
-
-    renderShell()
-
-    expect(screen.queryByText('Arche Admin')).not.toBeInTheDocument()
-  })
-
-  it('renders the search bar placeholder', () => {
-    renderShell()
-
-    expect(screen.getByText('Search...')).toBeInTheDocument()
+    expect(screen.getByText('Search')).toBeInTheDocument()
   })
 
   it('opens search when search button is clicked', async () => {
@@ -77,7 +56,7 @@ describe('AppShell', () => {
 
     renderShell()
 
-    const searchButton = screen.getByText('Search...')
+    const searchButton = screen.getByText('Search')
     searchButton.click()
 
     expect(useUi.getState().searchOpen).toBe(true)
@@ -86,7 +65,7 @@ describe('AppShell', () => {
   it('renders the sidebar toggle button', () => {
     renderShell()
 
-    expect(screen.getByText('Toggle Sidebar')).toBeInTheDocument()
+    expect(screen.getByLabelText('Toggle sidebar')).toBeInTheDocument()
   })
 
   it('renders the activity panel toggle button', () => {

@@ -244,12 +244,13 @@ describe('BlueprintFormModal', () => {
       const user = userEvent.setup()
       renderModal(createMockBlueprint())
       await user.click(screen.getByRole('tab', { name: 'Attributes' }))
-      await user.click(screen.getByLabelText('Delete attribute damage'))
+      const deleteBtn = screen.getByLabelText('Delete attribute damage')
+      expect(deleteBtn).toBeInTheDocument()
+      await user.click(deleteBtn)
+      await user.click(screen.getByRole('button', { name: 'Delete' }))
       expect(
-        screen.getByText(
-          'Are you sure you want to delete the attribute "damage"?',
-        ),
-      ).toBeInTheDocument()
+        screen.queryByLabelText('Delete attribute damage'),
+      ).toBeNull()
     })
   })
 

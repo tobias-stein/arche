@@ -774,11 +774,6 @@ export function BlueprintFormModal({
 
   const handleDeleteAttribute = useCallback(() => {
     if (!deleteAttrKey) return
-    const existingKeys = attributeOrder.filter((k) => k in attributes)
-    if (existingKeys.length <= 1) {
-      setDeleteAttrKey(null)
-      return
-    }
 
     setAttributes((prev) => {
       const next = { ...prev }

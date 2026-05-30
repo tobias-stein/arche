@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Blocks, Tags } from 'lucide-react'
+import { useAuth } from '@/stores/auth'
 import { useUi } from '@/stores/ui'
 import { getClient } from '@/api/generated/hooks'
 import type { Affix, Blueprint, ClientResponse, PaginatedResponse } from '@/api/generated/types'
@@ -18,6 +19,7 @@ import { Badge } from '@/components/ui/badge'
 
 export function GlobalSearch() {
   const { searchOpen, openSearch, closeSearch, selectedClientId } = useUi()
+  const { isSuperAdmin } = useAuth()
   const [input, setInput] = useState('')
   const [debouncedInput, setDebouncedInput] = useState('')
   const navigate = useNavigate()
@@ -67,6 +69,7 @@ export function GlobalSearch() {
     queryKey: ['clients', 'list', 'all'],
     queryFn: () => client.listClients({ per_page: 200 }),
     staleTime: 300_000,
+    enabled: isSuperAdmin,
   })
 
   const clientNameMap = useMemo(() => {

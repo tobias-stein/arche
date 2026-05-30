@@ -41,9 +41,6 @@ pub fn required_permission(method: &Method, path: &str) -> Option<RequiredPermis
 
     match *method {
         Method::GET => {
-            if path == "/api/audit-log" || path.starts_with("/api/audit-log/") {
-                return Some(RequiredPermission::SuperAdmin);
-            }
             Some(RequiredPermission::Regular(Permission::Read))
         }
         Method::POST => {
@@ -399,18 +396,18 @@ mod tests {
     }
 
     #[test]
-    fn test_get_audit_log_requires_super_admin() {
+    fn test_get_audit_log_requires_read() {
         assert_eq!(
             required_permission(&Method::GET, "/api/audit-log"),
-            Some(RequiredPermission::SuperAdmin)
+            Some(RequiredPermission::Regular(Permission::Read))
         );
     }
 
     #[test]
-    fn test_get_audit_log_sub_path_requires_super_admin() {
+    fn test_get_audit_log_sub_path_requires_read() {
         assert_eq!(
             required_permission(&Method::GET, "/api/audit-log/123"),
-            Some(RequiredPermission::SuperAdmin)
+            Some(RequiredPermission::Regular(Permission::Read))
         );
     }
 

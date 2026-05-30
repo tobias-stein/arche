@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, Pencil, Plus, Trash2 } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
 
 import {
+  getClient,
   useAffixesList,
   useBlueprintsList,
-  useClientsList,
   useCreateGlobalMetaAttribute,
   useDeleteGlobalMetaAttribute,
   useGlobalMetaAttributesList,
@@ -39,6 +40,7 @@ import {
 } from '@/components/ui/table'
 import { useToast } from '@/hooks/use-toast'
 import { useUi } from '@/stores/ui'
+import { useAuth } from '@/stores/auth'
 
 const PER_PAGE = 20
 
@@ -866,7 +868,14 @@ export default function GlobalMetaAttributes() {
   })
 
   const { selectedClientId } = useUi()
-  const { data: clientsData } = useClientsList({ per_page: 200 })
+  const { isSuperAdmin, permissions } = useAuth()
+  const canWrite = isSuperAdmin || permissions.includes('write') || permissions.includes('admin')
+  const canDelete = isSuperAdmin || permissions.includes('delete') || permissions.includes('admin')
+  const { data: clientsData } = useQuery({
+    queryKey: ['clients', 'list', 'all'],
+    queryFn: () => getClient().listClients({ per_page: 200 }),
+    enabled: isSuperAdmin,
+  })
   const clientNameMap = useMemo(() => {
     const map = new Map<string, string>()
     for (const c of (clientsData?.data ?? []) as ClientResponse[]) {
@@ -965,10 +974,12 @@ export default function GlobalMetaAttributes() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Global Meta Attributes</h2>
-        <Button onClick={() => setShowCreateDialog(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Create Global Meta Attribute
-        </Button>
+        {canWrite && (
+          <Button onClick={() => setShowCreateDialog(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Create Global Meta Attribute
+          </Button>
+        )}
       </div>
 
       {/* Filter bar */}
@@ -1109,22 +1120,26 @@ export default function GlobalMetaAttributes() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1">
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => handleEdit(gma)}
-                              aria-label={`Edit ${gma.name}`}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => setDeletingGma(gma)}
-                              aria-label={`Delete ${gma.name}`}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            {canWrite && (
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => handleEdit(gma)}
+                                aria-label={`Edit ${gma.name}`}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {canDelete && (
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => setDeletingGma(gma)}
+                                aria-label={`Delete ${gma.name}`}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -1158,24 +1173,28 @@ export default function GlobalMetaAttributes() {
                         {gma.name}
                       </Link>
                       <div className="flex gap-1">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-8 w-8"
-                          onClick={() => handleEdit(gma)}
-                          aria-label={`Edit ${gma.name}`}
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-8 w-8"
-                          onClick={() => setDeletingGma(gma)}
-                          aria-label={`Delete ${gma.name}`}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
+                        {canWrite && (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8"
+                            onClick={() => handleEdit(gma)}
+                            aria-label={`Edit ${gma.name}`}
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                        {canDelete && (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8"
+                            onClick={() => setDeletingGma(gma)}
+                            aria-label={`Delete ${gma.name}`}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-2">

@@ -64,10 +64,13 @@ impl crate::pagination::HasId for AuditLogEntry {
 pub async fn list_audit_log(
     State(state): State<crate::AppState>,
     CurrentUser(user): CurrentUser,
-    Query(query): Query<AuditLogListQuery>,
+    Query(mut query): Query<AuditLogListQuery>,
 ) -> Result<Json<PaginatedResponse<AuditLogEntry>>, ProblemResponse> {
+    // For client-scoped keys, force filter by their own client_id
     if !user.is_super {
-        return Err(ProblemResponse::forbidden("Super admin access required"));
+        if let Some(cid) = user.client_id {
+            query.client_id = Some(cid);
+        }
     }
 
     let limit = query

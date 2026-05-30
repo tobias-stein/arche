@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, Key, Plus, Trash2 } from 'lucide-react'
 
+import { useAuth } from '@/stores/auth'
 import { useClientsList, useCreateClient, useDeleteClient } from '@/api/generated'
 import type { ClientResponse } from '@/api/generated'
 
@@ -32,10 +33,15 @@ import { toastSuccess, toastError } from '@/lib/toast-helpers'
 const DEFAULT_PER_PAGE = 25
 
 export default function Clients() {
+  const { isSuperAdmin, client_id } = useAuth()
   const [page, setPage] = useState(1)
   const [createOpen, setCreateOpen] = useState(false)
   const [newClientName, setNewClientName] = useState('')
   const [deletingClient, setDeletingClient] = useState<ClientResponse | null>(null)
+
+  if (!isSuperAdmin && client_id) {
+    return <Navigate to={`/clients/${client_id}`} replace />
+  }
 
   const { data, isLoading, isError, error } = useClientsList({ page, per_page: DEFAULT_PER_PAGE })
   const createMutation = useCreateClient()

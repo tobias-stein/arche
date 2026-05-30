@@ -38,6 +38,7 @@ import {
 } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { BlueprintFormModal } from '@/components/BlueprintFormModal'
+import { useAuth } from '@/stores/auth'
 import { useToast } from '@/hooks/use-toast'
 
 function formatDate(dateStr: string): string {
@@ -283,6 +284,8 @@ export default function BlueprintDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { toast } = useToast()
+  const { isSuperAdmin, permissions } = useAuth()
+  const canWrite = isSuperAdmin || permissions.includes('write') || permissions.includes('admin')
   const [showEditDialog, setShowEditDialog] = useState(false)
 
   const {
@@ -425,18 +428,22 @@ export default function BlueprintDetail() {
           )}
         </div>
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={handleDuplicate}
-            disabled={createMutation.isPending}
-          >
-            <Copy className="h-4 w-4" />
-            Duplicate
-          </Button>
-          <Button onClick={() => setShowEditDialog(true)}>
-            <Pencil className="h-4 w-4" />
-            Edit
-          </Button>
+          {canWrite && (
+            <Button
+              variant="outline"
+              onClick={handleDuplicate}
+              disabled={createMutation.isPending}
+            >
+              <Copy className="h-4 w-4" />
+              Duplicate
+            </Button>
+          )}
+          {canWrite && (
+            <Button onClick={() => setShowEditDialog(true)}>
+              <Pencil className="h-4 w-4" />
+              Edit
+            </Button>
+          )}
         </div>
       </div>
 

@@ -43,6 +43,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useAuth } from '@/stores/auth'
 import { useToast } from '@/hooks/use-toast'
 
 function formatDateTime(dateStr: string): string {
@@ -496,6 +497,8 @@ function EditGlobalMetaAttributeDialog({
 export default function GlobalMetaAttributeDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const { isSuperAdmin, permissions } = useAuth()
+  const canWrite = isSuperAdmin || permissions.includes('write') || permissions.includes('admin')
   const [showEditDialog, setShowEditDialog] = useState(false)
 
   const {
@@ -607,10 +610,12 @@ export default function GlobalMetaAttributeDetail() {
             <p className="text-muted-foreground mt-1">{gma.description}</p>
           )}
         </div>
-        <Button onClick={() => setShowEditDialog(true)}>
-          <Pencil className="h-4 w-4" />
-          Edit
-        </Button>
+        {canWrite && (
+          <Button onClick={() => setShowEditDialog(true)}>
+            <Pencil className="h-4 w-4" />
+            Edit
+          </Button>
+        )}
       </div>
 
       <Tabs defaultValue="definition">

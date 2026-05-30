@@ -19,10 +19,12 @@ import {
   Sun,
   Upload,
 } from 'lucide-react'
+import { useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '@/stores/auth'
 import { useUi } from '@/stores/ui'
 import { useTheme } from '@/stores/theme'
-import { useClient, useClientsList } from '@/api/generated/hooks'
+import { useClient, getClient } from '@/api/generated/hooks'
 import {
   Sidebar,
   SidebarContent,
@@ -42,28 +44,34 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Badge } from '@/components/ui/badge'
 
-const navItems = [
-  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/blueprints', icon: Box, label: 'Blueprints' },
-  { to: '/affixes', icon: Puzzle, label: 'Affixes' },
-  { to: '/global-meta-attributes', icon: Globe, label: 'Global Meta Attributes' },
-  { to: '/audit-log', icon: History, label: 'Audit Log' },
-  { to: '/import', icon: Upload, label: 'Import' },
-  { to: '/export', icon: Download, label: 'Export' },
-  { to: '/clients', icon: Key, label: 'API Keys' },
-]
-
 export function AppSidebar() {
   const location = useLocation()
   const navigate = useNavigate()
   const { toggleSidebar } = useSidebar()
-  const { isSuperAdmin, isAuthenticated, keyName, logout } = useAuth()
+  const { isSuperAdmin, isAuthenticated, keyName, logout, client_id } = useAuth()
   const { selectedClientId, setSelectedClientId, panelOpen, togglePanel, openSearch } = useUi()
   const { mode, toggle: toggleTheme } = useTheme()
-  const { data: clientsData, isLoading: clientsLoading } = useClientsList()
+  const { data: clientsData, isLoading: clientsLoading } = useQuery({
+    queryKey: ['clients', 'list'],
+    queryFn: () => getClient().listClients(),
+    enabled: isSuperAdmin,
+  })
   const { data: clientData } = useClient(
     !isSuperAdmin && selectedClientId ? selectedClientId : '',
   )
+
+  const navItems = useMemo(() => [
+    { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+    { to: '/blueprints', icon: Box, label: 'Blueprints' },
+    { to: '/affixes', icon: Puzzle, label: 'Affixes' },
+    { to: '/global-meta-attributes', icon: Globe, label: 'Global Meta Attributes' },
+    { to: '/audit-log', icon: History, label: 'Audit Log' },
+    ...(isSuperAdmin
+      ? [{ to: '/import', icon: Upload, label: 'Import' },
+         { to: '/export', icon: Download, label: 'Export' }]
+      : []),
+    { to: isSuperAdmin ? '/clients' : `/clients/${client_id}`, icon: Key, label: 'API Keys' },
+  ], [isSuperAdmin, client_id])
 
   const handleLogout = () => {
     logout()
@@ -73,11 +81,6 @@ export function AppSidebar() {
     if (to === '/dashboard') return location.pathname === to
     return location.pathname.startsWith(to)
   }
-
-  const visibleNavItems = navItems.filter((item) => {
-    if (item.to === '/import' || item.to === '/export') return isSuperAdmin
-    return true
-  })
 
   const displayName = isSuperAdmin ? 'Super Admin' : (keyName ?? 'API Key')
 
@@ -157,7 +160,7 @@ export function AppSidebar() {
           </SidebarMenuItem>
         </SidebarMenu>
         <SidebarMenu>
-          {visibleNavItems.map((item) => (
+          {navItems.map((item) => (
             <SidebarMenuItem key={item.to}>
               <SidebarMenuButton asChild isActive={isActive(item.to)} tooltip={item.label}>
                 <a href={`#${item.to}`} onClick={(e) => { e.preventDefault(); navigate(item.to) }}>

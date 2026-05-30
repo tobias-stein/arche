@@ -8,6 +8,20 @@ import { AppShell } from '@/components/AppShell'
 
 setClient(new ArcheClient({ baseUrl: 'http://localhost:3000' }))
 
+vi.mock('@/stores/auth', () => ({
+  useAuth: () => ({
+    apiKey: 'test-key',
+    isAuthenticated: true,
+    isSuperAdmin: true,
+    keyId: 'key-1',
+    keyName: 'Test Key',
+    client_id: null,
+    permissions: ['read', 'write', 'delete', 'generate', 'admin'],
+    login: vi.fn(),
+    logout: vi.fn(),
+  }),
+}))
+
 vi.mock('@/components/GlobalSearch', () => ({
   GlobalSearch: () => null,
 }))

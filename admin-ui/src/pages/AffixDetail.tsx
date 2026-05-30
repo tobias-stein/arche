@@ -25,6 +25,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useToast } from '@/hooks/use-toast'
+import { useAuth } from '@/stores/auth'
 import { AffixCreateEditDialog } from './AffixCreateEditDialog'
 
 function formatDateTime(dateStr: string): string {
@@ -177,6 +178,8 @@ export default function AffixDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { toast } = useToast()
+  const { isSuperAdmin, permissions } = useAuth()
+  const canWrite = isSuperAdmin || permissions.includes('write') || permissions.includes('admin')
   const [showEditDialog, setShowEditDialog] = useState(false)
 
   const {
@@ -269,10 +272,12 @@ export default function AffixDetail() {
             <p className="text-muted-foreground mt-1">{affix.description}</p>
           )}
         </div>
-        <Button onClick={() => setShowEditDialog(true)}>
-          <Pencil className="h-4 w-4" />
-          Edit
-        </Button>
+        {canWrite && (
+          <Button onClick={() => setShowEditDialog(true)}>
+            <Pencil className="h-4 w-4" />
+            Edit
+          </Button>
+        )}
       </div>
 
       {/* Tabs */}

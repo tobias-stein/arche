@@ -10,6 +10,7 @@ import {
   Trash2,
 } from 'lucide-react'
 
+import { useAuth } from '@/stores/auth'
 import {
   useClient,
   useApiKeys,
@@ -66,6 +67,8 @@ function permissionBadgeVariant(p: Permission) {
 export default function ClientDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const { isSuperAdmin, permissions } = useAuth()
+  const hasAdminPermission = isSuperAdmin || permissions.includes('admin')
 
   const { data: client, isLoading, isError } = useClient(id!)
   const { data: apiKeys = [], isLoading: keysLoading } = useApiKeys(id!)
@@ -205,12 +208,14 @@ export default function ClientDetail() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex justify-end">
-            <Button onClick={() => setKeyModalOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Create Key
-            </Button>
-          </div>
+          {hasAdminPermission && (
+            <div className="flex justify-end">
+              <Button onClick={() => setKeyModalOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" />
+                Create Key
+              </Button>
+            </div>
+          )}
 
           {keysLoading ? (
             <div className="space-y-3">
@@ -221,7 +226,7 @@ export default function ClientDetail() {
           ) : apiKeys.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <Key className="mx-auto h-8 w-8 mb-2 opacity-50" />
-              <p>No API keys yet. Create one to get started.</p>
+              <p>No API keys yet.</p>
             </div>
           ) : (
             <Table>
@@ -230,7 +235,7 @@ export default function ClientDetail() {
                   <TableHead>Name</TableHead>
                   <TableHead>Permissions</TableHead>
                   <TableHead>ID</TableHead>
-                  <TableHead className="w-[100px]">Actions</TableHead>
+                  {hasAdminPermission && <TableHead className="w-[100px]">Actions</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -249,16 +254,18 @@ export default function ClientDetail() {
                     <TableCell className="text-muted-foreground">
                       {key.id}
                     </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setRevokingKey({ id: key.id, name: key.name })}
-                        title="Revoke key"
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </TableCell>
+                    {hasAdminPermission && (
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setRevokingKey({ id: key.id, name: key.name })}
+                          title="Revoke key"
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>
@@ -267,24 +274,26 @@ export default function ClientDetail() {
         </CardContent>
       </Card>
 
-      <Card className="border-destructive/50">
-        <CardHeader>
-          <CardTitle className="text-destructive flex items-center gap-2">
-            <ShieldAlert className="h-5 w-5" />
-            Danger Zone
-          </CardTitle>
-          <CardDescription>
-            Deleting this client will cascade delete all associated blueprints, affixes,
-            global meta attributes, and API keys. This action cannot be undone.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button variant="destructive" onClick={() => setDeleteOpen(true)}>
-            <Trash2 className="mr-2 h-4 w-4" />
-            Delete Client
-          </Button>
-        </CardContent>
-      </Card>
+      {isSuperAdmin && (
+        <Card className="border-destructive/50">
+          <CardHeader>
+            <CardTitle className="text-destructive flex items-center gap-2">
+              <ShieldAlert className="h-5 w-5" />
+              Danger Zone
+            </CardTitle>
+            <CardDescription>
+              Deleting this client will cascade delete all associated blueprints, affixes,
+              global meta attributes, and API keys. This action cannot be undone.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button variant="destructive" onClick={() => setDeleteOpen(true)}>
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete Client
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       <Dialog open={keyModalOpen} onOpenChange={(open) => { if (!open) handleKeyModalClose() }}>
         <DialogContent className="max-w-md">

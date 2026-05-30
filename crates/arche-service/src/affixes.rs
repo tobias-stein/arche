@@ -894,8 +894,9 @@ pub async fn list_affix_references(
     );
 
     if let Some(cid) = client_id_filter {
-        query.push_str(" WHERE b.client_id = ");
+        query.push_str(" WHERE b.client_id = '");
         query.push_str(&cid.to_string());
+        query.push('\'');
     }
 
     query.push_str(" ORDER BY ba.affix_id, b.name");

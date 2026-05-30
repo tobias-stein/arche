@@ -12,14 +12,15 @@ import {
   Plus,
   Trash2,
 } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
 
 import {
+  getClient,
   useAffixesList,
   useBatchAssignBlueprints,
   useBatchDeleteBlueprints,
   useBatchEditBlueprints,
   useBlueprintsList,
-  useClientsList,
   useDeleteBlueprint,
 } from '@/api/generated'
 import type {
@@ -51,6 +52,7 @@ import {
 import { BatchEditDialog } from '@/components/BatchEditDialog'
 import { BlueprintFormModal } from '@/components/BlueprintFormModal'
 import { useUi } from '@/stores/ui'
+import { useAuth } from '@/stores/auth'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { useToast } from '@/hooks/use-toast'
 
@@ -308,7 +310,14 @@ export default function Blueprints() {
   const { data: allData } = useBlueprintsList({ per_page: 200 })
 
   const { selectedClientId } = useUi()
-  const { data: clientsData } = useClientsList({ per_page: 200 })
+  const { isSuperAdmin, permissions } = useAuth()
+  const canWrite = isSuperAdmin || permissions.includes('write') || permissions.includes('admin')
+  const canDelete = isSuperAdmin || permissions.includes('delete') || permissions.includes('admin')
+  const { data: clientsData } = useQuery({
+    queryKey: ['clients', 'list', 'all'],
+    queryFn: () => getClient().listClients({ per_page: 200 }),
+    enabled: isSuperAdmin,
+  })
   const clientNameMap = useMemo(() => {
     const map = new Map<string, string>()
     for (const c of (clientsData?.data ?? []) as ClientResponse[]) {
@@ -489,10 +498,12 @@ export default function Blueprints() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Blueprints</h2>
-        <Button onClick={() => setShowCreateModal(true)}>
-          <Plus className="h-4 w-4" />
-          Create Blueprint
-        </Button>
+        {canWrite && (
+          <Button onClick={() => setShowCreateModal(true)}>
+            <Plus className="h-4 w-4" />
+            Create Blueprint
+          </Button>
+        )}
       </div>
 
       {/* Filter bar */}
@@ -546,33 +557,39 @@ export default function Blueprints() {
             </Button>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              variant="destructive"
-              onClick={() => setShowBatchDelete(true)}
-              disabled={batchDeleteMutation.isPending}
-            >
-              <Trash2 className="h-4 w-4" />
-              Batch Delete
-            </Button>
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => {
-                setBatchAssignKey((k) => k + 1)
-                setShowBatchAssign(true)
-              }}
-            >
-              Batch Assign
-            </Button>
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => setShowBatchEdit(true)}
-              disabled={selectedCount === 0 || batchEditMutation.isPending}
-            >
-              Batch Edit
-            </Button>
+            {canDelete && (
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={() => setShowBatchDelete(true)}
+                disabled={batchDeleteMutation.isPending}
+              >
+                <Trash2 className="h-4 w-4" />
+                Batch Delete
+              </Button>
+            )}
+            {canWrite && (
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => {
+                  setBatchAssignKey((k) => k + 1)
+                  setShowBatchAssign(true)
+                }}
+              >
+                Batch Assign
+              </Button>
+            )}
+            {canWrite && (
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => setShowBatchEdit(true)}
+                disabled={selectedCount === 0 || batchEditMutation.isPending}
+              >
+                Batch Edit
+              </Button>
+            )}
           </div>
         </div>
       )}
@@ -740,30 +757,36 @@ export default function Blueprints() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={() => handleEdit(bp)}
-                            aria-label={`Edit ${bp.name}`}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={() => handleDuplicate(bp)}
-                            aria-label={`Duplicate ${bp.name}`}
-                          >
-                            <Copy className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={() => setDeletingBlueprint(bp)}
-                            aria-label={`Delete ${bp.name}`}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {canWrite && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => handleEdit(bp)}
+                              aria-label={`Edit ${bp.name}`}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {canWrite && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => handleDuplicate(bp)}
+                              aria-label={`Duplicate ${bp.name}`}
+                            >
+                              <Copy className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {canDelete && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => setDeletingBlueprint(bp)}
+                              aria-label={`Delete ${bp.name}`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -799,33 +822,39 @@ export default function Blueprints() {
                       </Link>
                     </div>
                     <div className="flex gap-1">
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-8 w-8"
-                        onClick={() => handleEdit(bp)}
-                        aria-label={`Edit ${bp.name}`}
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-8 w-8"
-                        onClick={() => handleDuplicate(bp)}
-                        aria-label={`Duplicate ${bp.name}`}
-                      >
-                        <Copy className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-8 w-8"
-                        onClick={() => setDeletingBlueprint(bp)}
-                        aria-label={`Delete ${bp.name}`}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+                      {canWrite && (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8"
+                          onClick={() => handleEdit(bp)}
+                          aria-label={`Edit ${bp.name}`}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                      {canWrite && (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8"
+                          onClick={() => handleDuplicate(bp)}
+                          aria-label={`Duplicate ${bp.name}`}
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                      {canDelete && (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8"
+                          onClick={() => setDeletingBlueprint(bp)}
+                          aria-label={`Delete ${bp.name}`}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">

@@ -31,6 +31,20 @@ vi.mock('@/stores/ui', () => ({
   useUi: () => ({ selectedClientId: null }),
 }))
 
+vi.mock('@/stores/auth', () => ({
+  useAuth: () => ({
+    apiKey: 'test-key',
+    isAuthenticated: true,
+    isSuperAdmin: true,
+    keyId: 'key-1',
+    keyName: 'Test Key',
+    client_id: null,
+    permissions: ['read', 'write', 'delete', 'generate', 'admin'],
+    login: vi.fn(),
+    logout: vi.fn(),
+  }),
+}))
+
 import Blueprints from '@/pages/Blueprints'
 
 function makeBlueprint(overrides: Record<string, unknown> = {}) {

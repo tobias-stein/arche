@@ -1643,6 +1643,7 @@ mod tests {
             let result = create_blueprint(
                 axum::extract::State(state),
                 user,
+                axum::extract::Query(WriteClientQuery { client_id: None }),
                 axum::Json(req),
             )
             .await;
@@ -1884,6 +1885,7 @@ mod tests {
                 let result = create_blueprint(
                     axum::extract::State(state),
                     user,
+                    axum::extract::Query(WriteClientQuery { client_id: None }),
                     axum::Json(req),
                 )
                 .await;
@@ -1941,6 +1943,7 @@ mod tests {
                 let result = create_blueprint(
                     axum::extract::State(state),
                     user,
+                    axum::extract::Query(WriteClientQuery { client_id: None }),
                     axum::Json(req),
                 )
                 .await;
@@ -2013,6 +2016,7 @@ mod tests {
                 let result = create_blueprint(
                     axum::extract::State(state),
                     user,
+                    axum::extract::Query(WriteClientQuery { client_id: None }),
                     axum::Json(req),
                 )
                 .await;
@@ -2065,6 +2069,7 @@ mod tests {
                 let result = create_blueprint(
                     axum::extract::State(state),
                     user,
+                    axum::extract::Query(WriteClientQuery { client_id: None }),
                     axum::Json(req),
                 )
                 .await;
@@ -2552,6 +2557,7 @@ mod tests {
             let result = create_blueprint(
                 axum::extract::State(state),
                 user,
+                axum::extract::Query(WriteClientQuery { client_id: None }),
                 axum::Json(req),
             )
             .await;
@@ -2615,6 +2621,7 @@ mod tests {
             let result = create_blueprint(
                 axum::extract::State(state),
                 user,
+                axum::extract::Query(WriteClientQuery { client_id: None }),
                 axum::Json(req),
             )
             .await;
@@ -2676,6 +2683,7 @@ mod tests {
             let result = create_blueprint(
                 axum::extract::State(state),
                 user,
+                axum::extract::Query(WriteClientQuery { client_id: None }),
                 axum::Json(req),
             )
             .await;
@@ -2728,6 +2736,7 @@ mod tests {
             let result = create_blueprint(
                 axum::extract::State(state),
                 user,
+                axum::extract::Query(WriteClientQuery { client_id: None }),
                 axum::Json(req),
             )
             .await;
@@ -2803,6 +2812,7 @@ mod tests {
             let result = create_blueprint(
                 axum::extract::State(state),
                 user,
+                axum::extract::Query(WriteClientQuery { client_id: None }),
                 axum::Json(req),
             )
             .await;
@@ -2867,6 +2877,7 @@ mod tests {
             let result = create_blueprint(
                 axum::extract::State(state),
                 user,
+                axum::extract::Query(WriteClientQuery { client_id: None }),
                 axum::Json(req),
             )
             .await;
@@ -2931,6 +2942,7 @@ mod tests {
             let result = create_blueprint(
                 axum::extract::State(state),
                 user,
+                axum::extract::Query(WriteClientQuery { client_id: None }),
                 axum::Json(req),
             )
             .await;
@@ -2983,6 +2995,7 @@ mod tests {
             let result1 = create_blueprint(
                 axum::extract::State(test_state(Arc::new(pool.clone()))),
                 test_user(client_id, Permission::Write),
+                axum::extract::Query(WriteClientQuery { client_id: None }),
                 axum::Json(req.clone()),
             )
             .await;
@@ -2992,6 +3005,7 @@ mod tests {
             let result2 = create_blueprint(
                 axum::extract::State(state),
                 user,
+                axum::extract::Query(WriteClientQuery { client_id: None }),
                 axum::Json(req),
             )
             .await;

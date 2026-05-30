@@ -1419,6 +1419,7 @@ mod tests {
             let result = create_affix(
                 axum::extract::State(state),
                 user,
+                axum::extract::Query(WriteClientQuery { client_id: None }),
                 axum::Json(serde_json::to_value(req).unwrap()),
             )
             .await;
@@ -1486,6 +1487,7 @@ mod tests {
             let result = create_affix(
                 axum::extract::State(state),
                 user,
+                axum::extract::Query(WriteClientQuery { client_id: None }),
                 axum::Json(serde_json::to_value(req).unwrap()),
             )
             .await;
@@ -1536,6 +1538,7 @@ mod tests {
             let result = create_affix(
                 axum::extract::State(state),
                 user,
+                axum::extract::Query(WriteClientQuery { client_id: None }),
                 axum::Json(serde_json::to_value(req).unwrap()),
             )
             .await;
@@ -1583,6 +1586,7 @@ mod tests {
             let result = create_affix(
                 axum::extract::State(state),
                 user,
+                axum::extract::Query(WriteClientQuery { client_id: None }),
                 axum::Json(serde_json::to_value(req).unwrap()),
             )
             .await;
@@ -1629,6 +1633,7 @@ mod tests {
             let result = create_affix(
                 axum::extract::State(state),
                 user,
+                axum::extract::Query(WriteClientQuery { client_id: None }),
                 axum::Json(serde_json::to_value(req).unwrap()),
             )
             .await;
@@ -1670,6 +1675,7 @@ mod tests {
             let result = create_affix(
                 axum::extract::State(state),
                 user,
+                axum::extract::Query(WriteClientQuery { client_id: None }),
                 axum::Json(body),
             )
             .await;
@@ -1717,6 +1723,7 @@ mod tests {
             let result = create_affix(
                 axum::extract::State(state),
                 user,
+                axum::extract::Query(WriteClientQuery { client_id: None }),
                 axum::Json(serde_json::to_value(req).unwrap()),
             )
             .await;

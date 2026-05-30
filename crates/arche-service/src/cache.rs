@@ -11,6 +11,22 @@ use uuid::Uuid;
 
 use crate::auth::AuthenticatedKey;
 
+fn inject_payload_value_type(value_type: &ValueType, payload: &serde_json::Value) -> serde_json::Value {
+    let type_str = match value_type {
+        ValueType::Single => "single",
+        ValueType::Enum => "enum",
+        ValueType::Range => "range",
+        ValueType::String => "string",
+        ValueType::Boolean => "boolean",
+    };
+    let mut obj = match payload.clone() {
+        serde_json::Value::Object(m) => m,
+        other => return other,
+    };
+    obj.insert("value_type".into(), serde_json::Value::String(type_str.into()));
+    serde_json::Value::Object(obj)
+}
+
 #[derive(Debug)]
 pub struct Cache {
     pub clients: HashMap<Uuid, Client>,
@@ -269,7 +285,8 @@ impl Cache {
                 match bp_attr {
                     BlueprintAttribute::Ref(BlueprintRefAttribute { ref_id }) => {
                         if let Some(gma) = gmas.iter().find(|g| g.id == ref_id) {
-                            if let Ok(payload) = serde_json::from_value(gma.payload.clone()) {
+                            let full_payload = inject_payload_value_type(&gma.value_type, &gma.payload);
+                            if let Ok(payload) = serde_json::from_value(full_payload) {
                                 resolved.insert(key.clone(), payload);
                             }
                         }
@@ -305,7 +322,8 @@ impl Cache {
             AffixAttribute::Inline(inline_def) => Some((inline_def.name, inline_def.payload)),
             AffixAttribute::Ref { ref_id } => {
                 let gma = gmas.iter().find(|g| g.id == ref_id)?;
-                let payload: AttributePayload = serde_json::from_value(gma.payload.clone()).ok()?;
+                let full_payload = inject_payload_value_type(&gma.value_type, &gma.payload);
+                let payload: AttributePayload = serde_json::from_value(full_payload).ok()?;
                 Some((gma.name.clone(), payload))
             }
         }

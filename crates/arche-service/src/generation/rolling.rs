@@ -107,12 +107,20 @@ mod tests {
     }
 
     fn make_global(name: &str, id: Uuid, payload: serde_json::Value) -> Arc<GlobalMetaAttribute> {
+        let value_type = match payload.get("value_type").and_then(|v| v.as_str()) {
+            Some("single") => ValueType::Single,
+            Some("enum") => ValueType::Enum,
+            Some("range") => ValueType::Range,
+            Some("string") => ValueType::String,
+            Some("boolean") => ValueType::Boolean,
+            _ => ValueType::Range,
+        };
         Arc::new(GlobalMetaAttribute {
             id,
             client_id: Uuid::nil(),
             name: name.into(),
             description: None,
-            value_type: ValueType::Range,
+            value_type,
             payload,
             created_at: ts(),
             updated_at: ts(),

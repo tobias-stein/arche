@@ -719,20 +719,27 @@ describe('Dashboard Stat Cards', () => {
       isError: false,
       error: null,
     })
+    mockGlobalMetaAttributesList.mockReturnValue({
+      data: { data: [], total: 4 },
+      isLoading: false,
+      isError: false,
+      error: null,
+    })
 
     const { container } = renderDashboard()
 
     expect(screen.getByText('Total Blueprints')).toBeInTheDocument()
     expect(screen.getByText('Total Affixes')).toBeInTheDocument()
-    expect(screen.getByText('Warnings')).toBeInTheDocument()
+    expect(screen.getByText('Global Meta Attributes')).toBeInTheDocument()
 
-    const statNumbers = container.querySelectorAll(
-      '[class*="text-2xl"][class*="font-bold"]',
-    )
-    const statValues = Array.from(statNumbers).map((el) => el.textContent?.trim())
+    const statLinks = container.querySelectorAll('a.text-2xl')
+    const statValues = Array.from(statLinks).map((el) => el.textContent?.trim())
     expect(statValues).toContain('15')
     expect(statValues).toContain('8')
-    expect(statValues).toContain('0')
+    expect(statValues).toContain('4')
+    expect(statLinks[0]).toHaveAttribute('href', '/blueprints')
+    expect(statLinks[1]).toHaveAttribute('href', '/affixes')
+    expect(statLinks[2]).toHaveAttribute('href', '/global-meta-attributes')
   })
 
   it('shows skeleton stat cards while loading', () => {
@@ -755,21 +762,9 @@ describe('Dashboard Stat Cards', () => {
     expect(skeletons.length).toBeGreaterThan(0)
   })
 
-  it('shows warning count from computed warnings', () => {
-    mockBlueprintsList.mockReturnValue({
-      data: {
-        data: [
-          makeBlueprint({ id: '1', weight: 0, name: 'ZeroWeight' }),
-          makeBlueprint({ id: '2', weight: 1, name: 'Normal' }),
-        ],
-        total: 2,
-      },
-      isLoading: false,
-      isError: false,
-      error: null,
-    })
-    mockAffixesList.mockReturnValue({
-      data: { data: [], total: 0 },
+  it('shows global meta attributes count', () => {
+    mockGlobalMetaAttributesList.mockReturnValue({
+      data: { data: [], total: 7 },
       isLoading: false,
       isError: false,
       error: null,
@@ -777,10 +772,9 @@ describe('Dashboard Stat Cards', () => {
 
     renderDashboard()
 
-    const warningTitle = screen.getByText('Warnings')
-    const warningCard = warningTitle.closest('.rounded-xl')
-    expect(warningCard).toBeInTheDocument()
-    expect(warningCard!.textContent).toContain('1')
+    const gmaLink = screen.getByText('7')
+    expect(gmaLink).toBeInTheDocument()
+    expect(gmaLink.closest('a')).toHaveAttribute('href', '/global-meta-attributes')
   })
 })
 

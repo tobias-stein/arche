@@ -1,9 +1,11 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import {
   AlertTriangle,
   Box,
   ChevronRight,
   Dices,
+  Globe,
   Loader2,
   Plus,
   Puzzle,
@@ -160,6 +162,7 @@ function AffixCheckboxList({
 export default function Dashboard() {
   const { toast } = useToast()
   const { selectedClientId } = useUi()
+  const queryClient = useQueryClient()
 
   const { data: blueprintsData, isLoading: bpLoading, isError: bpError } = useBlueprintsList({
     page: 1,
@@ -173,6 +176,12 @@ export default function Dashboard() {
     page: 1,
     per_page: 200,
   })
+
+  useEffect(() => {
+    queryClient.invalidateQueries({ queryKey: ['blueprints', 'list'] })
+    queryClient.invalidateQueries({ queryKey: ['affixes', 'list'] })
+    queryClient.invalidateQueries({ queryKey: ['globalMetaAttributes', 'list'] })
+  }, [selectedClientId, queryClient])
   const generateMutation = useGenerate()
   const [dismissedWarnings, setDismissedWarnings] = useState<Set<string>>(
     new Set(),
@@ -190,6 +199,7 @@ export default function Dashboard() {
   const warningCount = warnings.length
   const blueprintCount = blueprintsData?.total ?? 0
   const affixCount = affixesData?.total ?? 0
+  const gmaCount = gmaData?.total ?? 0
 
   const archetypes = useMemo(
     () => [...new Set(blueprints.map((b) => b.archetype).filter(Boolean))].sort(),
@@ -336,7 +346,12 @@ export default function Dashboard() {
             {bpLoading ? (
               <Skeleton className="h-8 w-16" />
             ) : (
-              <div className="text-2xl font-bold">{blueprintCount}</div>
+              <Link
+                to="/blueprints"
+                className="text-2xl font-bold hover:underline block"
+              >
+                {blueprintCount}
+              </Link>
             )}
           </CardContent>
         </Card>
@@ -349,26 +364,30 @@ export default function Dashboard() {
             {affLoading ? (
               <Skeleton className="h-8 w-16" />
             ) : (
-              <div className="text-2xl font-bold">{affixCount}</div>
+              <Link
+                to="/affixes"
+                className="text-2xl font-bold hover:underline block"
+              >
+                {affixCount}
+              </Link>
             )}
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Warnings</CardTitle>
-            <AlertTriangle
-              className={`h-4 w-4 ${
-                warningCount > 0
-                  ? 'text-amber-500'
-                  : 'text-muted-foreground'
-              }`}
-            />
+            <CardTitle className="text-sm font-medium">Global Meta Attributes</CardTitle>
+            <Globe className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             {isLoading ? (
               <Skeleton className="h-8 w-16" />
             ) : (
-              <div className="text-2xl font-bold">{warningCount}</div>
+              <Link
+                to="/global-meta-attributes"
+                className="text-2xl font-bold hover:underline block"
+              >
+                {gmaCount}
+              </Link>
             )}
           </CardContent>
         </Card>

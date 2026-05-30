@@ -944,8 +944,6 @@ export function BlueprintFormModal({
     .map((key) => ({ key, attribute: attributes[key] }))
 
   const attrSortableIds = attributeOrder.filter((key) => key in attributes)
-  const isLastAttribute = attrSortableIds.length <= 1
-
   const hasSubDialogOpen =
     showGlobalPicker ||
     showPrefixPicker ||
@@ -1486,14 +1484,9 @@ export function BlueprintFormModal({
           if (!open) setDeleteAttrKey(null)
         }}
         title="Delete Attribute"
-        description={`Are you sure you want to delete the attribute "${deleteAttrKey}"? ${
-          isLastAttribute
-            ? 'This is the last attribute and cannot be deleted.'
-            : ''
-        }`}
-        confirmLabel={isLastAttribute ? 'Cannot Delete' : 'Delete'}
+        description={`Are you sure you want to delete the attribute "${deleteAttrKey}"?`}
+        confirmLabel="Delete"
         variant="destructive"
-        disabled={isLastAttribute}
         onConfirm={handleDeleteAttribute}
       />
 

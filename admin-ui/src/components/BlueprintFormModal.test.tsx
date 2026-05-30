@@ -240,12 +240,16 @@ describe('BlueprintFormModal', () => {
   })
 
   describe('Last attribute deletion prevention', () => {
-    it('prevents deleting the last attribute', async () => {
+    it('allows deleting the last attribute', async () => {
       const user = userEvent.setup()
       renderModal(createMockBlueprint())
       await user.click(screen.getByRole('tab', { name: 'Attributes' }))
       await user.click(screen.getByLabelText('Delete attribute damage'))
-      expect(screen.getByText('Cannot Delete')).toBeInTheDocument()
+      expect(
+        screen.getByText(
+          'Are you sure you want to delete the attribute "damage"?',
+        ),
+      ).toBeInTheDocument()
     })
   })
 

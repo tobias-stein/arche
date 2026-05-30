@@ -8,6 +8,7 @@ import {
   useBatchAssignAffixes,
   useBatchDeleteAffixes,
   useBlueprintsList,
+  useClientsList,
   useCreateAffix,
   useDeleteAffix,
   useUpdateAffix,
@@ -16,6 +17,7 @@ import type {
   Affix,
   AffixAttribute,
   Blueprint,
+  ClientResponse,
 } from '@/api/generated'
 import { AffixCreateEditDialog } from './AffixCreateEditDialog'
 
@@ -42,6 +44,7 @@ import {
 } from '@/components/ui/table'
 import { formatDate } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
+import { useUi } from '@/stores/ui'
 
 const PER_PAGE = 20
 
@@ -268,6 +271,16 @@ export default function Affixes() {
     per_page: PER_PAGE,
     search: debouncedSearch || undefined,
   })
+
+  const { selectedClientId } = useUi()
+  const { data: clientsData } = useClientsList({ per_page: 200 })
+  const clientNameMap = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const c of (clientsData?.data ?? []) as ClientResponse[]) {
+      map.set(c.id, c.name)
+    }
+    return map
+  }, [clientsData])
 
   const allItems = useMemo<Affix[]>(
     () => (data?.data ?? []) as Affix[],
@@ -520,6 +533,13 @@ export default function Affixes() {
                       />
                     </TableHead>
                     <TableHead>Name</TableHead>
+                    {!selectedClientId && (
+                      <TableHead>
+                        <span className="text-xs text-muted-foreground font-medium">
+                          Client
+                        </span>
+                      </TableHead>
+                    )}
                     <TableHead>Type</TableHead>
                     <TableHead>Attribute Name</TableHead>
                     <TableHead>Value Type</TableHead>
@@ -553,6 +573,11 @@ export default function Affixes() {
                           {affix.name}
                         </Link>
                       </TableCell>
+                      {!selectedClientId && (
+                        <TableCell className="text-muted-foreground text-sm">
+                          {clientNameMap.get(affix.client_id) ?? affix.client_id.slice(0, 8)}
+                        </TableCell>
+                      )}
                       <TableCell>
                         <Badge
                           variant={
@@ -606,7 +631,7 @@ export default function Affixes() {
                   {filteredItems.length === 0 && (
                     <TableRow>
                       <TableCell
-                        colSpan={7}
+                        colSpan={selectedClientId ? 7 : 8}
                         className="text-center py-8 text-muted-foreground"
                       >
                         No {typeFilter} affixes on this page
@@ -678,6 +703,11 @@ export default function Affixes() {
                     <Badge variant="outline" className="text-xs">
                       {getValueTypeDisplay(affix.attribute)}
                     </Badge>
+                    {!selectedClientId && (
+                      <span className="text-xs text-muted-foreground">
+                        {clientNameMap.get(affix.client_id) ?? affix.client_id.slice(0, 8)}
+                      </span>
+                    )}
                     <span className="text-xs text-muted-foreground">
                       {formatDate(affix.updated_at)}
                     </span>

@@ -10,10 +10,12 @@ import { GlobalSearch } from '@/components/GlobalSearch'
 
 const mockListBlueprints = vi.fn()
 const mockListAffixes = vi.fn()
+const mockListClients = vi.fn()
 
 const mockClient = {
   listBlueprints: mockListBlueprints,
   listAffixes: mockListAffixes,
+  listClients: mockListClients,
 } as unknown as ArcheClient
 
 setClient(mockClient)
@@ -38,6 +40,7 @@ describe('GlobalSearch', () => {
     vi.clearAllMocks()
     mockListBlueprints.mockResolvedValue({ data: [], nextCursor: undefined, total: 0 })
     mockListAffixes.mockResolvedValue({ data: [], nextCursor: undefined, total: 0 })
+    mockListClients.mockResolvedValue({ data: [], nextCursor: undefined, total: 0 })
     act(() => {
       useUi.setState({ searchOpen: false })
     })
@@ -95,7 +98,7 @@ describe('GlobalSearch', () => {
   it('shows blueprints grouped under a heading', async () => {
     mockListBlueprints.mockResolvedValue({
       data: [
-        { id: '1', name: 'Sword', archetype: 'weapon', clientId: 'c1', weight: 10, description: null, attributes: {}, attributeOrder: [], minPrefixes: 0, maxPrefixes: 3, minSuffixes: 0, maxSuffixes: 2, createdAt: '', updatedAt: '' },
+        { id: '1', name: 'Sword', archetype: 'weapon', client_id: 'c1', weight: 10, description: null, attributes: {}, attribute_order: [], min_prefixes: 0, max_prefixes: 3, min_suffixes: 0, max_suffixes: 2, created_at: '', updated_at: '' },
       ],
       nextCursor: undefined,
       total: 1,
@@ -121,7 +124,7 @@ describe('GlobalSearch', () => {
     mockListBlueprints.mockResolvedValue({ data: [], nextCursor: undefined, total: 0 })
     mockListAffixes.mockResolvedValue({
       data: [
-        { id: '1', name: 'Flame', location: 'prefix', clientId: 'c1', description: null, attribute: { type: 'text', value: '' }, createdAt: '', updatedAt: '' },
+        { id: '1', name: 'Flame', location: 'prefix', client_id: 'c1', description: null, attribute: { type: 'text', value: '' }, created_at: '', updated_at: '' },
       ],
       nextCursor: undefined,
       total: 1,
@@ -145,14 +148,14 @@ describe('GlobalSearch', () => {
   it('shows both groups when both have results', async () => {
     mockListBlueprints.mockResolvedValue({
       data: [
-        { id: '1', name: 'Sword', archetype: 'weapon', clientId: 'c1', weight: 10, description: null, attributes: {}, attributeOrder: [], minPrefixes: 0, maxPrefixes: 3, minSuffixes: 0, maxSuffixes: 2, createdAt: '', updatedAt: '' },
+        { id: '1', name: 'Sword', archetype: 'weapon', client_id: 'c1', weight: 10, description: null, attributes: {}, attribute_order: [], min_prefixes: 0, max_prefixes: 3, min_suffixes: 0, max_suffixes: 2, created_at: '', updated_at: '' },
       ],
       nextCursor: undefined,
       total: 1,
     })
     mockListAffixes.mockResolvedValue({
       data: [
-        { id: '2', name: 'Flame', location: 'suffix', clientId: 'c1', description: null, attribute: { type: 'text', value: '' }, createdAt: '', updatedAt: '' },
+        { id: '2', name: 'Flame', location: 'suffix', client_id: 'c1', description: null, attribute: { type: 'text', value: '' }, created_at: '', updated_at: '' },
       ],
       nextCursor: undefined,
       total: 1,
@@ -215,7 +218,7 @@ describe('GlobalSearch', () => {
   it('closes search and navigates when a blueprint item is selected', async () => {
     mockListBlueprints.mockResolvedValue({
       data: [
-        { id: 'bp-1', name: 'Sword', archetype: 'weapon', clientId: 'c1', weight: 10, description: null, attributes: {}, attributeOrder: [], minPrefixes: 0, maxPrefixes: 3, minSuffixes: 0, maxSuffixes: 2, createdAt: '', updatedAt: '' },
+        { id: 'bp-1', name: 'Sword', archetype: 'weapon', client_id: 'c1', weight: 10, description: null, attributes: {}, attribute_order: [], min_prefixes: 0, max_prefixes: 3, min_suffixes: 0, max_suffixes: 2, created_at: '', updated_at: '' },
       ],
       nextCursor: undefined,
       total: 1,
@@ -244,7 +247,7 @@ describe('GlobalSearch', () => {
     mockListBlueprints.mockResolvedValue({ data: [], nextCursor: undefined, total: 0 })
     mockListAffixes.mockResolvedValue({
       data: [
-        { id: 'affix-1', name: 'Flame', location: 'prefix', clientId: 'c1', description: null, attribute: { type: 'text', value: '' }, createdAt: '', updatedAt: '' },
+        { id: 'affix-1', name: 'Flame', location: 'prefix', client_id: 'c1', description: null, attribute: { type: 'text', value: '' }, created_at: '', updated_at: '' },
       ],
       nextCursor: undefined,
       total: 1,

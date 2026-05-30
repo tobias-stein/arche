@@ -5,12 +5,13 @@ import { ChevronLeft, ChevronRight, Pencil, Plus, Trash2 } from 'lucide-react'
 import {
   useAffixesList,
   useBlueprintsList,
+  useClientsList,
   useCreateGlobalMetaAttribute,
   useDeleteGlobalMetaAttribute,
   useGlobalMetaAttributesList,
   useUpdateGlobalMetaAttribute,
 } from '@/api/generated'
-import type { CreateGlobalMetaAttributeRequest, GlobalMetaAttribute, UpdateGlobalMetaAttributeRequest, ValueType } from '@/api/generated'
+import type { ClientResponse, CreateGlobalMetaAttributeRequest, GlobalMetaAttribute, UpdateGlobalMetaAttributeRequest, ValueType } from '@/api/generated'
 import { getPreview, extractPayloadState, buildDistribution } from '@/lib/attribute-utils'
 
 import { Badge } from '@/components/ui/badge'
@@ -35,6 +36,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { useToast } from '@/hooks/use-toast'
+import { useUi } from '@/stores/ui'
 
 const PER_PAGE = 20
 
@@ -859,6 +861,16 @@ export default function GlobalMetaAttributes() {
     search: debouncedSearch || undefined,
   })
 
+  const { selectedClientId } = useUi()
+  const { data: clientsData } = useClientsList({ per_page: 200 })
+  const clientNameMap = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const c of (clientsData?.data ?? []) as ClientResponse[]) {
+      map.set(c.id, c.name)
+    }
+    return map
+  }, [clientsData])
+
   const allItems = useMemo<GlobalMetaAttribute[]>(
     () => (data?.data ?? []) as GlobalMetaAttribute[],
     [data?.data],
@@ -1030,6 +1042,13 @@ export default function GlobalMetaAttributes() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Name</TableHead>
+                    {!selectedClientId && (
+                      <TableHead>
+                        <span className="text-xs text-muted-foreground font-medium">
+                          Client
+                        </span>
+                      </TableHead>
+                    )}
                     <TableHead>Value Type</TableHead>
                     <TableHead>Preview</TableHead>
                     <TableHead>Usage Count</TableHead>
@@ -1049,6 +1068,11 @@ export default function GlobalMetaAttributes() {
                             {gma.name}
                           </Link>
                         </TableCell>
+                        {!selectedClientId && (
+                          <TableCell className="text-muted-foreground text-sm">
+                            {clientNameMap.get(gma.client_id) ?? gma.client_id.slice(0, 8)}
+                          </TableCell>
+                        )}
                         <TableCell>
                           <Badge variant="outline">{gma.value_type}</Badge>
                         </TableCell>
@@ -1086,7 +1110,7 @@ export default function GlobalMetaAttributes() {
                   {filteredItems.length === 0 && (
                     <TableRow>
                       <TableCell
-                        colSpan={5}
+                        colSpan={selectedClientId ? 5 : 6}
                         className="text-center py-8 text-muted-foreground"
                       >
                         No global meta attributes on this page
@@ -1135,6 +1159,11 @@ export default function GlobalMetaAttributes() {
                       <Badge variant="outline" className="text-xs">
                         {gma.value_type}
                       </Badge>
+                      {!selectedClientId && (
+                        <span className="text-xs text-muted-foreground">
+                          {clientNameMap.get(gma.client_id) ?? gma.client_id.slice(0, 8)}
+                        </span>
+                      )}
                       <span className="text-xs text-muted-foreground font-mono">
                         {getPreview(gma)}
                       </span>

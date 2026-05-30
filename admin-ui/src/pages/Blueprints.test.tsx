@@ -12,6 +12,7 @@ const mockCreateBlueprint = vi.fn()
 const mockUpdateBlueprint = vi.fn()
 const mockAffixesList = vi.fn()
 const mockGlobalMetaAttributesList = vi.fn()
+const mockClientsList = vi.fn()
 
 vi.mock('@/api/generated', () => ({
   useBlueprintsList: (query?: unknown) => mockBlueprintsList(query),
@@ -23,6 +24,11 @@ vi.mock('@/api/generated', () => ({
   useUpdateBlueprint: () => mockUpdateBlueprint(),
   useAffixesList: (query?: unknown) => mockAffixesList(query),
   useGlobalMetaAttributesList: (query?: unknown) => mockGlobalMetaAttributesList(query),
+  useClientsList: (query?: unknown) => mockClientsList(query),
+}))
+
+vi.mock('@/stores/ui', () => ({
+  useUi: () => ({ selectedClientId: null }),
 }))
 
 import Blueprints from '@/pages/Blueprints'
@@ -92,6 +98,13 @@ describe('Blueprints list page', () => {
     })
 
     mockGlobalMetaAttributesList.mockReturnValue({
+      data: { data: [], total: 0 },
+      isLoading: false,
+      isError: false,
+      error: null,
+    })
+
+    mockClientsList.mockReturnValue({
       data: { data: [], total: 0 },
       isLoading: false,
       isError: false,

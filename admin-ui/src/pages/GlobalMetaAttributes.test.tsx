@@ -95,8 +95,16 @@ vi.mock('@/api/generated', async () => {
       data: { data: [], total: 0 },
       isLoading: false,
     }),
+    useClientsList: () => ({
+      data: { data: [], total: 0 },
+      isLoading: false,
+    }),
   }
 })
+
+vi.mock('@/stores/ui', () => ({
+  useUi: () => ({ selectedClientId: null }),
+}))
 
 function renderPage() {
   const queryClient = new QueryClient({

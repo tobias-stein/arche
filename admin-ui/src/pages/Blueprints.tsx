@@ -19,11 +19,13 @@ import {
   useBatchDeleteBlueprints,
   useBatchEditBlueprints,
   useBlueprintsList,
+  useClientsList,
   useDeleteBlueprint,
 } from '@/api/generated'
 import type {
   Affix,
   Blueprint,
+  ClientResponse,
 } from '@/api/generated'
 
 import { Badge } from '@/components/ui/badge'
@@ -48,6 +50,7 @@ import {
 } from '@/components/ui/table'
 import { BatchEditDialog } from '@/components/BatchEditDialog'
 import { BlueprintFormModal } from '@/components/BlueprintFormModal'
+import { useUi } from '@/stores/ui'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { useToast } from '@/hooks/use-toast'
 
@@ -303,6 +306,16 @@ export default function Blueprints() {
   } = useBlueprintsList(listQuery)
 
   const { data: allData } = useBlueprintsList({ per_page: 200 })
+
+  const { selectedClientId } = useUi()
+  const { data: clientsData } = useClientsList({ per_page: 200 })
+  const clientNameMap = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const c of (clientsData?.data ?? []) as ClientResponse[]) {
+      map.set(c.id, c.name)
+    }
+    return map
+  }, [clientsData])
 
   const blueprints = useMemo<Blueprint[]>(
     () => (data?.data ?? []) as Blueprint[],
@@ -650,6 +663,13 @@ export default function Blueprints() {
                         <SortIcon field={sortField} currentField="name" dir={sortDir} />
                       </button>
                     </TableHead>
+                    {!selectedClientId && (
+                      <TableHead>
+                        <span className="text-xs text-muted-foreground font-medium">
+                          Client
+                        </span>
+                      </TableHead>
+                    )}
                     <TableHead>
                       <span className="text-xs text-muted-foreground font-medium">
                         Archetype
@@ -704,6 +724,11 @@ export default function Blueprints() {
                           {bp.name}
                         </Link>
                       </TableCell>
+                      {!selectedClientId && (
+                        <TableCell className="text-muted-foreground text-sm">
+                          {clientNameMap.get(bp.client_id) ?? bp.client_id.slice(0, 8)}
+                        </TableCell>
+                      )}
                       <TableCell>
                         <Badge variant="secondary">{bp.archetype}</Badge>
                       </TableCell>
@@ -810,6 +835,11 @@ export default function Blueprints() {
                     <span className="text-xs text-muted-foreground tabular-nums">
                       Weight: {bp.weight}
                     </span>
+                    {!selectedClientId && (
+                      <span className="text-xs text-muted-foreground">
+                        Client: {clientNameMap.get(bp.client_id) ?? bp.client_id.slice(0, 8)}
+                      </span>
+                    )}
                     <span className="text-xs text-muted-foreground">
                       {formatDate(bp.updated_at)}
                     </span>

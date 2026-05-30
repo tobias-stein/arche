@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Blocks, Tags } from 'lucide-react'
 import { useUi } from '@/stores/ui'
 import { getClient } from '@/api/generated/hooks'
-import type { Affix, Blueprint, PaginatedResponse } from '@/api/generated/types'
+import type { Affix, Blueprint, ClientResponse, PaginatedResponse } from '@/api/generated/types'
 import {
   Command,
   CommandEmpty,
@@ -17,7 +17,7 @@ import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 
 export function GlobalSearch() {
-  const { searchOpen, openSearch, closeSearch } = useUi()
+  const { searchOpen, openSearch, closeSearch, selectedClientId } = useUi()
   const [input, setInput] = useState('')
   const [debouncedInput, setDebouncedInput] = useState('')
   const navigate = useNavigate()
@@ -50,18 +50,32 @@ export function GlobalSearch() {
   const hasSearch = debouncedInput.length > 0
 
   const { data: bpData, isLoading: bpLoading } = useQuery<PaginatedResponse<Blueprint>>({
-    queryKey: ['blueprints', 'search', debouncedInput],
+    queryKey: ['blueprints', 'search', selectedClientId, debouncedInput],
     queryFn: () => client.listBlueprints({ search: debouncedInput, per_page: 5 }),
     enabled: hasSearch,
     staleTime: 60_000,
   })
 
   const { data: affixData, isLoading: affixLoading } = useQuery<PaginatedResponse<Affix>>({
-    queryKey: ['affixes', 'search', debouncedInput],
+    queryKey: ['affixes', 'search', selectedClientId, debouncedInput],
     queryFn: () => client.listAffixes({ search: debouncedInput, per_page: 5 }),
     enabled: hasSearch,
     staleTime: 60_000,
   })
+
+  const { data: clientsData } = useQuery<PaginatedResponse<ClientResponse>>({
+    queryKey: ['clients', 'list', 'all'],
+    queryFn: () => client.listClients({ per_page: 200 }),
+    staleTime: 300_000,
+  })
+
+  const clientNameMap = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const c of clientsData?.data ?? []) {
+      map.set(c.id, c.name)
+    }
+    return map
+  }, [clientsData])
 
   const blueprints = bpData?.data ?? []
   const affixes = affixData?.data ?? []
@@ -103,6 +117,11 @@ export function GlobalSearch() {
                   >
                     <Blocks className="h-4 w-4" />
                     <span>{bp.name}</span>
+                    {!selectedClientId && (
+                      <span className="text-xs text-muted-foreground ml-2">
+                        {clientNameMap.get(bp.client_id) ?? bp.client_id.slice(0, 8)}
+                      </span>
+                    )}
                     <Badge variant="secondary" className="ml-auto text-xs">
                       {bp.archetype}
                     </Badge>
@@ -120,6 +139,11 @@ export function GlobalSearch() {
                   >
                     <Tags className="h-4 w-4" />
                     <span>{affix.name}</span>
+                    {!selectedClientId && (
+                      <span className="text-xs text-muted-foreground ml-2">
+                        {clientNameMap.get(affix.client_id) ?? affix.client_id.slice(0, 8)}
+                      </span>
+                    )}
                     <Badge variant="secondary" className="ml-auto text-xs">
                       {affix.location}
                     </Badge>

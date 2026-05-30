@@ -1,20 +1,23 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import {
   ArrowLeft,
   ChevronDown,
   ChevronRight,
   Clock,
+  Link2,
   Pencil,
 } from 'lucide-react'
 import {
   useAffix,
   useAuditLog,
+  useGlobalMetaAttributesList,
   useUpdateAffix,
 } from '@/api/generated/hooks'
 import type {
   AffixAttribute,
   AuditLogEntry,
+  GlobalMetaAttribute,
 } from '@/api/generated/types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -38,20 +41,22 @@ function formatJson(obj: unknown): string {
   return JSON.stringify(obj, null, 2)
 }
 
-function AttributePreview({ attribute }: { attribute: AffixAttribute }) {
+function AttributePreview({ attribute, gmaMap }: { attribute: AffixAttribute; gmaMap: Map<string, { name: string; value_type: string }> }) {
   if ('$ref_id' in attribute) {
+    const gma = gmaMap.get(attribute.$ref_id)
     return (
       <div className="flex items-center gap-2">
         <Badge variant="secondary">Global</Badge>
-        <code className="text-sm font-mono bg-muted px-2 py-0.5 rounded">
-          {attribute.$ref_id}
-        </code>
-        <Link
-          to={`/global-meta-attributes/${attribute.$ref_id}`}
-          className="text-sm text-primary underline hover:no-underline"
-        >
-          View global
-        </Link>
+        <Badge variant="outline">{gma?.value_type ?? 'unknown'}</Badge>
+        <span className="inline-flex items-center gap-1">
+          <Link
+            to={`/global-meta-attributes/${attribute.$ref_id}`}
+            className="text-sm text-primary underline hover:no-underline"
+          >
+            {gma?.name ?? attribute.$ref_id}
+          </Link>
+          <Link2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+        </span>
       </div>
     )
   }
@@ -182,6 +187,15 @@ export default function AffixDetail() {
 
   const updateMutation = useUpdateAffix()
 
+  const { data: gmaData } = useGlobalMetaAttributesList({ per_page: 500 })
+  const gmaMap = useMemo(() => {
+    const map = new Map<string, { name: string; value_type: string }>()
+    for (const gma of (gmaData?.data ?? []) as GlobalMetaAttribute[]) {
+      map.set(gma.id, { name: gma.name, value_type: gma.value_type })
+    }
+    return map
+  }, [gmaData?.data])
+
   const {
     data: auditData,
     isLoading: auditLoading,
@@ -283,7 +297,7 @@ export default function AffixDetail() {
               <CardTitle className="text-base">Attribute</CardTitle>
             </CardHeader>
             <CardContent>
-              <AttributePreview attribute={affix.attribute} />
+              <AttributePreview attribute={affix.attribute} gmaMap={gmaMap} />
             </CardContent>
           </Card>
 

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { MouseEvent as ReactMouseEvent } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, Pencil, Plus, Trash2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Link2, Pencil, Plus, Trash2 } from 'lucide-react'
 
 import {
   useAffixesList,
@@ -11,6 +11,7 @@ import {
   useClientsList,
   useCreateAffix,
   useDeleteAffix,
+  useGlobalMetaAttributesList,
   useUpdateAffix,
 } from '@/api/generated'
 import type {
@@ -18,6 +19,7 @@ import type {
   AffixAttribute,
   Blueprint,
   ClientResponse,
+  GlobalMetaAttribute,
 } from '@/api/generated'
 import { AffixCreateEditDialog } from './AffixCreateEditDialog'
 
@@ -333,6 +335,17 @@ export default function Affixes() {
     return counts
   }, [affixReferenceDetails])
 
+  // Fetch GMA data to resolve $ref_id UUIDs to attribute names and value types
+  const { data: gmaData } = useGlobalMetaAttributesList({ per_page: 500 })
+
+  const gmaMap = useMemo(() => {
+    const map = new Map<string, { name: string; value_type: string }>()
+    for (const gma of (gmaData?.data ?? []) as GlobalMetaAttribute[]) {
+      map.set(gma.id, { name: gma.name, value_type: gma.value_type })
+    }
+    return map
+  }, [gmaData?.data])
+
   const selectedCount = selectedIds.size
 
   const paginationText =
@@ -626,17 +639,31 @@ export default function Affixes() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-muted-foreground">
-                        {isRefAttribute(affix.attribute) ? (
-                          <span className="font-mono text-xs">
-                            {getAttributeName(affix.attribute)}
-                          </span>
-                        ) : (
-                          getAttributeName(affix.attribute)
-                        )}
+                        {(() => {
+                          if (!isRefAttribute(affix.attribute)) return getAttributeName(affix.attribute)
+                          const refId = (affix.attribute as { $ref_id: string }).$ref_id
+                          const gma = gmaMap.get(refId)
+                          return (
+                            <span className="inline-flex items-center gap-1">
+                              <Link
+                                to={`/global-meta-attributes/${refId}`}
+                                className="text-primary hover:underline text-sm"
+                              >
+                                {gma?.name ?? refId}
+                              </Link>
+                              <Link2 className="h-3 w-3 text-muted-foreground shrink-0" />
+                            </span>
+                          )
+                        })()}
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline">
-                          {getValueTypeDisplay(affix.attribute)}
+                          {(() => {
+                            if (!isRefAttribute(affix.attribute)) return getValueTypeDisplay(affix.attribute)
+                            const refId = (affix.attribute as { $ref_id: string }).$ref_id
+                            const gma = gmaMap.get(refId)
+                            return gma?.value_type ?? 'unknown'
+                          })()}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-sm">
@@ -754,7 +781,12 @@ export default function Affixes() {
                       {affix.location}
                     </Badge>
                     <Badge variant="outline" className="text-xs">
-                      {getValueTypeDisplay(affix.attribute)}
+                      {(() => {
+                        if (!isRefAttribute(affix.attribute)) return getValueTypeDisplay(affix.attribute)
+                        const refId = (affix.attribute as { $ref_id: string }).$ref_id
+                        const gma = gmaMap.get(refId)
+                        return gma?.value_type ?? 'unknown'
+                      })()}
                     </Badge>
                     {!selectedClientId && (
                       <span className="text-xs text-muted-foreground">
@@ -766,7 +798,22 @@ export default function Affixes() {
                     </span>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    {getAttributeName(affix.attribute)}
+                    {(() => {
+                      if (!isRefAttribute(affix.attribute)) return getAttributeName(affix.attribute)
+                      const refId = (affix.attribute as { $ref_id: string }).$ref_id
+                      const gma = gmaMap.get(refId)
+                      return (
+                        <span className="inline-flex items-center gap-1">
+                          <Link
+                            to={`/global-meta-attributes/${refId}`}
+                            className="text-primary hover:underline text-xs"
+                          >
+                            {gma?.name ?? refId}
+                          </Link>
+                          <Link2 className="h-3 w-3 text-muted-foreground shrink-0" />
+                        </span>
+                      )
+                    })()}
                   </p>
                   {(() => {
                     const count = affixUsageCounts.get(affix.id) ?? 0

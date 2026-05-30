@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import {
   DndContext,
   type DragEndEvent,
@@ -713,6 +713,15 @@ export function BlueprintFormModal({
 
   const clearErrors = () => setErrors({})
 
+  const { data: gmaListData } = useGlobalMetaAttributesList({ per_page: 500 })
+  const gmaValueTypeMap = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const gma of (gmaListData?.data ?? []) as GlobalMetaAttribute[]) {
+      map.set(gma.id, gma.value_type)
+    }
+    return map
+  }, [gmaListData?.data])
+
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
@@ -1115,7 +1124,11 @@ export function BlueprintFormModal({
                                 </TableCell>
                                 <TableCell>
                                   <Badge variant="outline">
-                                    {getValueTypeDisplay(entry.attribute)}
+                                    {(() => {
+                                      if (!('$ref_id' in entry.attribute)) return getValueTypeDisplay(entry.attribute)
+                                      const refId = (entry.attribute as RefAttribute).$ref_id
+                                      return gmaValueTypeMap.get(refId) ?? 'global'
+                                    })()}
                                   </Badge>
                                 </TableCell>
                                 <TableCell className="text-muted-foreground text-sm">

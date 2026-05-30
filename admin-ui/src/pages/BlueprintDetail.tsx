@@ -9,16 +9,18 @@ import {
   Pencil,
 } from 'lucide-react'
 import {
-  useBlueprint,
-  useCreateBlueprint,
   useAffixesList,
   useAuditLog,
+  useBlueprint,
+  useCreateBlueprint,
+  useGlobalMetaAttributesList,
 } from '@/api/generated/hooks'
 import type {
   Affix,
   AffixPoolEntry,
-  BlueprintAttribute,
   AuditLogEntry,
+  BlueprintAttribute,
+  GlobalMetaAttribute,
   InlineAttributeDef,
   RefAttribute,
 } from '@/api/generated/types'
@@ -56,11 +58,6 @@ function isRefAttribute(attr: BlueprintAttribute): attr is RefAttribute {
   return '$ref_id' in attr
 }
 
-function getValueTypeDisplay(attr: BlueprintAttribute): string {
-  if (isRefAttribute(attr)) return 'global'
-  return attr.value_type
-}
-
 function getAttributePreview(attr: BlueprintAttribute): string {
   if ('$ref_id' in attr) return '\u2014'
   const inline = attr as InlineAttributeDef
@@ -84,13 +81,18 @@ function getAttributePreview(attr: BlueprintAttribute): string {
   }
 }
 
-function AttributeRow({ name, attribute }: { name: string; attribute: BlueprintAttribute }) {
+function AttributeRow({ name, attribute, gmaValueTypeMap }: { name: string; attribute: BlueprintAttribute; gmaValueTypeMap: Map<string, string> }) {
   const isGlobal = isRefAttribute(attribute)
+  function getDisplayType(): string {
+    if (!isGlobal) return attribute.value_type
+    const refId = (attribute as RefAttribute).$ref_id
+    return gmaValueTypeMap.get(refId) ?? 'global'
+  }
   return (
     <TableRow>
       <TableCell className="font-medium">{name}</TableCell>
       <TableCell>
-        <Badge variant="outline">{getValueTypeDisplay(attribute)}</Badge>
+        <Badge variant="outline">{getDisplayType()}</Badge>
       </TableCell>
       <TableCell className="text-muted-foreground">
         {isGlobal ? (
@@ -301,6 +303,16 @@ export default function BlueprintDetail() {
     }
     return map
   }, [affixData])
+
+  const { data: gmaListData } = useGlobalMetaAttributesList({ per_page: 500 })
+
+  const gmaValueTypeMap = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const gma of (gmaListData?.data ?? []) as GlobalMetaAttribute[]) {
+      map.set(gma.id, gma.value_type)
+    }
+    return map
+  }, [gmaListData?.data])
 
   const {
     data: auditData,
@@ -534,6 +546,7 @@ export default function BlueprintDetail() {
                           key={key}
                           name={key}
                           attribute={blueprint.attributes[key]}
+                          gmaValueTypeMap={gmaValueTypeMap}
                         />
                       ))}
                     </TableBody>

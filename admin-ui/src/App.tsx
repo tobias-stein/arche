@@ -50,6 +50,9 @@ setClient(archeClient)
 
 useUi.subscribe((state) => {
   archeClient.setClientId(state.selectedClientId)
+  queryClient.invalidateQueries({ queryKey: ['blueprints', 'list'] })
+  queryClient.invalidateQueries({ queryKey: ['affixes', 'list'] })
+  queryClient.invalidateQueries({ queryKey: ['globalMetaAttributes', 'list'] })
 })
 
 export default function App() {

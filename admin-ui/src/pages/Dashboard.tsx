@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import {
   AlertTriangle,
   Box,
@@ -162,7 +161,6 @@ function AffixCheckboxList({
 export default function Dashboard() {
   const { toast } = useToast()
   const { selectedClientId } = useUi()
-  const queryClient = useQueryClient()
 
   const { data: blueprintsData, isLoading: bpLoading, isError: bpError } = useBlueprintsList({
     page: 1,
@@ -176,12 +174,6 @@ export default function Dashboard() {
     page: 1,
     per_page: 200,
   })
-
-  useEffect(() => {
-    queryClient.invalidateQueries({ queryKey: ['blueprints', 'list'] })
-    queryClient.invalidateQueries({ queryKey: ['affixes', 'list'] })
-    queryClient.invalidateQueries({ queryKey: ['globalMetaAttributes', 'list'] })
-  }, [selectedClientId, queryClient])
   const generateMutation = useGenerate()
   const [dismissedWarnings, setDismissedWarnings] = useState<Set<string>>(
     new Set(),

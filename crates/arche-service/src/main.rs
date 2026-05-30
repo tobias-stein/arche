@@ -126,6 +126,7 @@ fn build_router(state: AppState) -> Router {
         .route("/api/affixes", get(affixes::list_affixes).post(affixes::create_affix))
         .route("/api/affixes/{id}", get(affixes::get_affix).put(affixes::update_affix).delete(affixes::delete_affix))
         .route("/api/affixes/batch/delete", post(batch::batch_delete_affixes))
+        .route("/api/affixes/references", get(affixes::list_affix_references))
         .route("/api/affixes/batch/assign", post(batch::batch_assign_affixes))
         .route("/api/global-meta-attributes", get(global_meta_attributes::list_global_meta_attributes).post(global_meta_attributes::create_global_meta_attribute))
         .route("/api/global-meta-attributes/{id}", get(global_meta_attributes::get_global_meta_attribute).put(global_meta_attributes::update_global_meta_attribute).delete(global_meta_attributes::delete_global_meta_attribute))

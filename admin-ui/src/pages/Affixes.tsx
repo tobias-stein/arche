@@ -43,6 +43,10 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { formatDate } from '@/lib/utils'
+import { ReferenceDialog } from '@/components/ReferenceDialog'
+import type { ReferencingBlueprint } from '@/components/ReferenceDialog'
+import { useQuery } from '@tanstack/react-query'
+import { getClient } from '@/api/generated/hooks'
 import { useToast } from '@/hooks/use-toast'
 import { useUi } from '@/stores/ui'
 
@@ -81,6 +85,7 @@ function TableSkeleton() {
           <Skeleton className="h-5 w-16 rounded-md" />
           <Skeleton className="h-4 w-24" />
           <Skeleton className="h-5 w-20 rounded-md" />
+          <Skeleton className="h-4 w-16" />
           <Skeleton className="h-4 w-28" />
           <div className="flex gap-2 ml-auto">
             <Skeleton className="h-8 w-8 rounded-md" />
@@ -253,6 +258,8 @@ export default function Affixes() {
   const [showBlueprintPicker, setShowBlueprintPicker] = useState(false)
   const [pickerKey, setPickerKey] = useState(0)
 
+  const [refDialogAffix, setRefDialogAffix] = useState<Affix | null>(null)
+
   useEffect(() => {
     const timeout = setTimeout(() => {
       setDebouncedSearch(search)
@@ -297,6 +304,34 @@ export default function Affixes() {
 
   const totalCount = data?.total ?? 0
   const totalPages = Math.max(1, Math.ceil(totalCount / PER_PAGE))
+
+  // Fetch affix reference data from dedicated endpoint
+  const { data: affixRefData } = useQuery<{
+    references: Record<string, Array<{ blueprint_id: string; blueprint_name: string }>>
+  }>({
+    queryKey: ['affixes', 'references'],
+    queryFn: () => getClient().listAffixReferences(),
+    staleTime: 60_000,
+  })
+
+  const affixReferenceDetails = useMemo(() => {
+    const refs = new Map<string, { blueprints: ReferencingBlueprint[] }>()
+    if (!affixRefData?.references) return refs
+    for (const [affixId, bpRefs] of Object.entries(affixRefData.references)) {
+      refs.set(affixId, {
+        blueprints: bpRefs.map((r) => ({ id: r.blueprint_id, name: r.blueprint_name })),
+      })
+    }
+    return refs
+  }, [affixRefData])
+
+  const affixUsageCounts = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const [id, ref] of affixReferenceDetails) {
+      counts.set(id, ref.blueprints.length)
+    }
+    return counts
+  }, [affixReferenceDetails])
 
   const selectedCount = selectedIds.size
 
@@ -543,6 +578,7 @@ export default function Affixes() {
                     <TableHead>Type</TableHead>
                     <TableHead>Attribute Name</TableHead>
                     <TableHead>Value Type</TableHead>
+                    <TableHead>Usage Count</TableHead>
                     <TableHead>Updated</TableHead>
                     <TableHead className="w-20 text-right">Actions</TableHead>
                   </TableRow>
@@ -603,6 +639,23 @@ export default function Affixes() {
                           {getValueTypeDisplay(affix.attribute)}
                         </Badge>
                       </TableCell>
+                      <TableCell className="text-sm">
+                        {(() => {
+                          const count = affixUsageCounts.get(affix.id) ?? 0
+                          return count > 0 ? (
+                            <button
+                              onClick={() => setRefDialogAffix(affix)}
+                              className="text-primary hover:underline cursor-pointer"
+                            >
+                              {count} {pluralize(count, 'reference')}
+                            </button>
+                          ) : (
+                            <span className="text-muted-foreground">
+                              {'\u2014'}
+                            </span>
+                          )
+                        })()}
+                      </TableCell>
                       <TableCell className="text-muted-foreground text-sm">
                         {formatDate(affix.updated_at)}
                       </TableCell>
@@ -631,7 +684,7 @@ export default function Affixes() {
                   {filteredItems.length === 0 && (
                     <TableRow>
                       <TableCell
-                        colSpan={selectedClientId ? 7 : 8}
+                        colSpan={selectedClientId ? 8 : 9}
                         className="text-center py-8 text-muted-foreground"
                       >
                         No {typeFilter} affixes on this page
@@ -715,6 +768,17 @@ export default function Affixes() {
                   <p className="text-sm text-muted-foreground">
                     {getAttributeName(affix.attribute)}
                   </p>
+                  {(() => {
+                    const count = affixUsageCounts.get(affix.id) ?? 0
+                    return count > 0 ? (
+                      <button
+                        onClick={() => setRefDialogAffix(affix)}
+                        className="text-xs text-primary hover:underline cursor-pointer"
+                      >
+                        {count} {pluralize(count, 'reference')}
+                      </button>
+                    ) : null
+                  })()}
                 </div>
               ))}
             </div>
@@ -759,7 +823,14 @@ export default function Affixes() {
           if (!open) setDeletingAffix(null)
         }}
         title="Delete Affix"
-        description={`Are you sure you want to delete "${deletingAffix?.name}"? This action cannot be undone.`}
+        description={
+          deletingAffix
+            ? (() => {
+                const count = affixUsageCounts.get(deletingAffix.id) ?? 0
+                return `Are you sure you want to delete "${deletingAffix.name}"? This action cannot be undone.\n\nUsed by ${count} ${pluralize(count, 'blueprint', 'blueprints')}.`
+              })()
+            : ''
+        }
         confirmLabel="Delete"
         variant="destructive"
         loading={deleteMutation.isPending}
@@ -831,6 +902,15 @@ export default function Affixes() {
           }
         }}
         isPending={createMutation.isPending}
+      />
+
+      {/* Reference dialog */}
+      <ReferenceDialog
+        open={refDialogAffix !== null}
+        onOpenChange={(open) => { if (!open) setRefDialogAffix(null) }}
+        title={`References to "${refDialogAffix?.name ?? ''}"`}
+        blueprints={refDialogAffix ? (affixReferenceDetails.get(refDialogAffix.id)?.blueprints ?? []) : []}
+        affixes={[]}
       />
 
       {/* Blueprint picker dialog */}

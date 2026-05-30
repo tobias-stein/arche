@@ -18,6 +18,8 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
+import type { ReferencingAffix, ReferencingBlueprint } from '@/components/ReferenceDialog'
+import { ReferenceDialog } from '@/components/ReferenceDialog'
 import {
   Dialog,
   DialogContent,
@@ -842,6 +844,8 @@ export default function GlobalMetaAttributes() {
   const [deletingGma, setDeletingGma] = useState<GlobalMetaAttribute | null>(null)
   const deleteMutation = useDeleteGlobalMetaAttribute()
 
+  const [refDialogGma, setRefDialogGma] = useState<GlobalMetaAttribute | null>(null)
+
   useEffect(() => {
     const timeout = setTimeout(() => {
       setDebouncedSearch(search)
@@ -900,18 +904,19 @@ export default function GlobalMetaAttributes() {
   const { data: bpData } = useBlueprintsList({ per_page: 500 })
   const { data: affData } = useAffixesList({ per_page: 500 })
 
-  const usageCounts = useMemo(() => {
-    const counts = new Map<string, number>()
-    const bpList = (bpData?.data ?? []) as { id: string; attributes: Record<string, unknown> }[]
-    const affList = (affData?.data ?? []) as { id: string; attribute: unknown }[]
+  const referenceDetails = useMemo(() => {
+    const details = new Map<string, { blueprints: ReferencingBlueprint[]; affixes: ReferencingAffix[] }>()
+    const bpList = (bpData?.data ?? []) as { id: string; name: string; attributes: Record<string, unknown> }[]
+    const affList = (affData?.data ?? []) as { id: string; name: string; attribute: unknown }[]
 
     for (const bp of bpList) {
       const attrs = bp.attributes
       if (!attrs) continue
-      for (const v of Object.values(attrs)) {
+      for (const [key, v] of Object.entries(attrs)) {
         if (typeof v === 'object' && v !== null && '$ref_id' in (v as Record<string, unknown>)) {
           const refId = (v as Record<string, unknown>).$ref_id as string
-          counts.set(refId, (counts.get(refId) ?? 0) + 1)
+          if (!details.has(refId)) details.set(refId, { blueprints: [], affixes: [] })
+          details.get(refId)!.blueprints.push({ id: bp.id, name: bp.name, key })
         }
       }
     }
@@ -919,11 +924,20 @@ export default function GlobalMetaAttributes() {
       const attr = aff.attribute
       if (typeof attr === 'object' && attr !== null && '$ref_id' in (attr as Record<string, unknown>)) {
         const refId = (attr as Record<string, unknown>).$ref_id as string
-        counts.set(refId, (counts.get(refId) ?? 0) + 1)
+        if (!details.has(refId)) details.set(refId, { blueprints: [], affixes: [] })
+        details.get(refId)!.affixes.push({ id: aff.id, name: aff.name })
       }
     }
-    return counts
+    return details
   }, [bpData?.data, affData?.data])
+
+  const usageCounts = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const [id, ref] of referenceDetails) {
+      counts.set(id, ref.blueprints.length + ref.affixes.length)
+    }
+    return counts
+  }, [referenceDetails])
 
   function handleEdit(gma: GlobalMetaAttribute) {
     setEditingGma(gma)
@@ -1079,10 +1093,19 @@ export default function GlobalMetaAttributes() {
                         <TableCell className="text-muted-foreground text-sm font-mono">
                           {getPreview(gma)}
                         </TableCell>
-                        <TableCell className="text-muted-foreground text-sm">
-                          {count > 0
-                            ? `${count} ${pluralize(count, 'reference')}`
-                            : '\u2014'}
+                        <TableCell className="text-sm">
+                          {count > 0 ? (
+                            <button
+                              onClick={() => setRefDialogGma(gma)}
+                              className="text-primary hover:underline cursor-pointer"
+                            >
+                              {count} {pluralize(count, 'reference')}
+                            </button>
+                          ) : (
+                            <span className="text-muted-foreground">
+                              {'\u2014'}
+                            </span>
+                          )}
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1">
@@ -1169,9 +1192,12 @@ export default function GlobalMetaAttributes() {
                       </span>
                     </div>
                     {count > 0 && (
-                      <p className="text-xs text-muted-foreground">
+                      <button
+                        onClick={() => setRefDialogGma(gma)}
+                        className="text-xs text-primary hover:underline cursor-pointer"
+                      >
                         {count} {pluralize(count, 'reference')}
-                      </p>
+                      </button>
                     )}
                   </div>
                 )
@@ -1237,6 +1263,15 @@ export default function GlobalMetaAttributes() {
       <CreateGlobalMetaAttributeDialog
         open={showCreateDialog}
         onOpenChange={setShowCreateDialog}
+      />
+
+      {/* Reference dialog */}
+      <ReferenceDialog
+        open={refDialogGma !== null}
+        onOpenChange={(open) => { if (!open) setRefDialogGma(null) }}
+        title={`References to "${refDialogGma?.name ?? ''}"`}
+        blueprints={refDialogGma ? (referenceDetails.get(refDialogGma.id)?.blueprints ?? []) : []}
+        affixes={refDialogGma ? (referenceDetails.get(refDialogGma.id)?.affixes ?? []) : []}
       />
     </div>
   )

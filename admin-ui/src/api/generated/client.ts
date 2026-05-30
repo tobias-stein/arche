@@ -209,6 +209,10 @@ export class ArcheClient {
     return this.request<BatchDeleteResponse>('POST', '/api/affixes/batch/assign', request);
   }
 
+  async listAffixReferences(): Promise<{ references: Record<string, Array<{ blueprint_id: string; blueprint_name: string }>> }> {
+    return this.request('GET', '/api/affixes/references');
+  }
+
   // --- Global Meta Attributes ---
 
   async listGlobalMetaAttributes(query?: { cursor?: string; limit?: number; page?: number; per_page?: number; search?: string }): Promise<PaginatedResponse<GlobalMetaAttribute>> {

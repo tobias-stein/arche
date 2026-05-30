@@ -4,7 +4,7 @@ use arche_types::crud::CreateAffixRequest;
 use arche_types::{Affix, AffixLocation};
 use axum::extract::{Path, Query, State};
 use axum::Json;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use sqlx::postgres::PgRow;
 use sqlx::{QueryBuilder, Row};
 use uuid::Uuid;
@@ -866,6 +866,63 @@ pub async fn delete_affix(
     state.reload_client_cache(affix_client_id).await;
 
     Ok(Json(serde_json::json!({"deleted": true})))
+}
+
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "snake_case")]
+pub struct AffixBlueprintRef {
+    pub blueprint_id: Uuid,
+    pub blueprint_name: String,
+}
+
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "snake_case")]
+pub struct AffixReferencesResponse {
+    pub references: std::collections::HashMap<String, Vec<AffixBlueprintRef>>,
+}
+
+pub async fn list_affix_references(
+    State(state): State<crate::AppState>,
+    CurrentUser(user): CurrentUser,
+) -> Result<Json<AffixReferencesResponse>, ProblemResponse> {
+    let client_id_filter = resolve_client_id(&user, None)?;
+
+    let mut query = String::from(
+        "SELECT ba.affix_id, ba.blueprint_id, b.name AS blueprint_name \
+         FROM blueprint_affixes ba \
+         JOIN blueprints b ON b.id = ba.blueprint_id"
+    );
+
+    if let Some(cid) = client_id_filter {
+        query.push_str(" WHERE b.client_id = ");
+        query.push_str(&cid.to_string());
+    }
+
+    query.push_str(" ORDER BY ba.affix_id, b.name");
+
+    let rows = sqlx::query(&query)
+        .fetch_all(&*state.pool)
+        .await
+        .map_err(|e| {
+            tracing::error!(error = %e, "affixes: list references query failed");
+            ProblemResponse::unprocessable_entity("Failed to list affix references")
+        })?;
+
+    let mut refs: std::collections::HashMap<String, Vec<AffixBlueprintRef>> =
+        std::collections::HashMap::new();
+
+    for row in &rows {
+        let affix_id: Uuid = row.get("affix_id");
+        let blueprint_id: Uuid = row.get("blueprint_id");
+        let blueprint_name: String = row.get("blueprint_name");
+
+        refs
+            .entry(affix_id.to_string())
+            .or_default()
+            .push(AffixBlueprintRef { blueprint_id, blueprint_name });
+    }
+
+    Ok(Json(AffixReferencesResponse { references: refs }))
 }
 
 #[cfg(test)]

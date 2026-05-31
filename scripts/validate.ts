@@ -135,7 +135,6 @@ function checkDistribution(
 
   const distribution: Record<string, number> = {}
   const subtypes = new Set<string>()
-  const archetypes = new Set<string>()
 
   for (const r of samples) {
     const attrs = r.blueprint_attributes || {}
@@ -179,10 +178,6 @@ function checkDistribution(
   console.log(`  Subtypes (${subtypes.size}): ${[...subtypes].sort().join(', ')}`)
   if (subtypes.size < 2) {
     result.failures.push(`Only ${subtypes.size} subtypes seen (need ≥2)`)
-  }
-
-  if (!isCreature && archetypes.size > 0) {
-    console.log(`  Archetypes: ${[...archetypes].sort().join(', ')}`)
   }
 
   if (result.failures.length > 0) {

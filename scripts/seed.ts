@@ -1,7 +1,7 @@
 import {
-  API_BASE, SEED_CONFIG, LEVEL_BANDS, BAND_SUBTYPES, DIFFICULTIES, RARITIES,
-  DIFFICULTY_AFFIX_MAP, AFFIX_TIERS, CREATURE_PREFIX_DEFS, CREATURE_SUFFIX_DEFS,
-  ITEM_PREFIX_DEFS, ITEM_SUFFIX_DEFS, SUBTYPE_NAMES,
+  API_BASE, SEED_CONFIG, LEVEL_BANDS, BAND_SUBTYPES, DIFFICULTIES, NON_BOSS_DIFFICULTIES, RARITIES,
+  AFFIX_COUNT_CONFIG, AFFIX_TIERS, CREATURE_PREFIX_DEFS, CREATURE_SUFFIX_DEFS,
+  ITEM_PREFIX_DEFS, ITEM_SUFFIX_DEFS, SUBTYPE_NAMES, ALL_CREATURE_SUBTYPES, capitalize,
 } from './shared'
 
 interface NamedId {
@@ -91,7 +91,7 @@ function scaleStats(bandMin: number, bandMax: number, level: number): { health: 
 function buildCreatureBlueprint(name: string, subtype: string, difficulty: string, weight: number, band: typeof LEVEL_BANDS[0]): Record<string, unknown> {
   const bandCenter = Math.round((band.min + band.max) / 2)
   const stats = scaleStats(band.min, band.max, bandCenter)
-  const affixCfg = DIFFICULTY_AFFIX_MAP[difficulty]
+  const affixCfg = AFFIX_COUNT_CONFIG[difficulty]
   return {
     name,
     archetype: 'creature',
@@ -124,7 +124,7 @@ function buildItemBlueprint(name: string, archetype: string, rarity: string, sub
     rarity: { value_type: 'enum', values: [rarity] },
   }
   const attrOrder = ['level', 'rarity']
-  const affixCfg = DIFFICULTY_AFFIX_MAP[rarity] || { prefixes: 0, suffixes: 0 }
+  const affixCfg = AFFIX_COUNT_CONFIG[rarity]
 
   switch (archetype) {
     case 'weapon': {
@@ -224,9 +224,7 @@ function buildSpellBlueprint(name: string, spellType: string): Record<string, un
 }
 
 function getTierName(baseName: string, tierIndex: number): string {
-  const tierPrefixes = ['Weak ', 'Strong ', 'Greater ', 'Mythic ']
-  if (tierIndex < 3) return `${tierPrefixes[tierIndex]}${baseName}`
-  return `Mythic ${baseName}`
+  return `${AFFIX_TIERS[tierIndex].name} ${baseName}`
 }
 
 function scaleRange(baseRange: number[], tierIndex: number): [number, number] {
@@ -270,11 +268,11 @@ async function main() {
   const gmaDefs: { name: string; description: string | null; valueType: string; payload: Record<string, unknown> }[] = [
     { name: 'rarity', description: 'Item quality tier', valueType: 'enum', payload: { values: ['common', 'uncommon', 'rare', 'legendary'] } },
     { name: 'difficulty', description: 'Creature difficulty tier', valueType: 'enum', payload: { values: ['normal', 'champion', 'elite', 'boss'] } },
-    { name: 'creature_subtype', description: 'Creature variant type', valueType: 'enum', payload: { values: ['goblin', 'skeleton', 'slime', 'bat', 'rat', 'spider', 'wolf', 'ghost', 'orc', 'troll', 'demon', 'dragon'] } },
-    { name: 'weapon_subtype', description: 'Weapon type', valueType: 'enum', payload: { values: ['sword', 'axe', 'dagger', 'bow', 'staff', 'mace', 'spear', 'crossbow', 'wand', 'halberd'] } },
-    { name: 'armor_subtype', description: 'Armor slot type', valueType: 'enum', payload: { values: ['helmet', 'chest', 'legs', 'boots', 'gloves', 'belt'] } },
-    { name: 'shield_subtype', description: 'Shield type', valueType: 'enum', payload: { values: ['shield'] } },
-    { name: 'accessory_subtype', description: 'Accessory type', valueType: 'enum', payload: { values: ['ring', 'amulet'] } },
+    { name: 'creature_subtype', description: 'Creature variant type', valueType: 'enum', payload: { values: ALL_CREATURE_SUBTYPES } },
+    { name: 'weapon_subtype', description: 'Weapon type', valueType: 'enum', payload: { values: SUBTYPE_NAMES.weapon } },
+    { name: 'armor_subtype', description: 'Armor slot type', valueType: 'enum', payload: { values: SUBTYPE_NAMES.armor } },
+    { name: 'shield_subtype', description: 'Shield type', valueType: 'enum', payload: { values: SUBTYPE_NAMES.shield } },
+    { name: 'accessory_subtype', description: 'Accessory type', valueType: 'enum', payload: { values: SUBTYPE_NAMES.accessory } },
     { name: 'potion_type', description: 'Potion effect type', valueType: 'enum', payload: { values: ['health', 'mana'] } },
     { name: 'spell_type', description: 'Spell casting type', valueType: 'enum', payload: { values: ['projectile', 'beam', 'burst', 'heal', 'shield'] } },
     { name: 'element', description: 'Elemental affinity', valueType: 'enum', payload: { values: ['fire', 'ice', 'lightning', 'arcane', 'poison', 'holy'] } },
@@ -349,8 +347,8 @@ async function main() {
     const subtypes = BAND_SUBTYPES[b] || []
 
     for (const subtype of subtypes) {
-      for (const difficulty of DIFFICULTIES.slice(0, 3)) {
-        const baseName = `${subtype.charAt(0).toUpperCase() + subtype.slice(1)} ${difficulty.charAt(0).toUpperCase() + difficulty.slice(1)} Lv${band.label}`
+      for (const difficulty of NON_BOSS_DIFFICULTIES) {
+        const baseName = `${capitalize(subtype)} ${capitalize(difficulty)} Lv${band.label}`
         creatureNames.add(baseName)
         const weight = SEED_CONFIG.creatureWeights[difficulty as keyof typeof SEED_CONFIG.creatureWeights].weight
         const bp = buildCreatureBlueprint(baseName, subtype, difficulty, weight, band)
@@ -364,7 +362,7 @@ async function main() {
     const band = LEVEL_BANDS[b]
     const subtypes = BAND_SUBTYPES[b] || []
     const firstSubtype = subtypes[0] || 'dragon'
-    const bossName = `${firstSubtype.charAt(0).toUpperCase() + firstSubtype.slice(1)} Boss Lv${band.label}`
+    const bossName = `${capitalize(firstSubtype)} Boss Lv${band.label}`
     creatureNames.add(bossName)
     const bp = buildCreatureBlueprint(bossName, firstSubtype, 'boss', SEED_CONFIG.creatureWeights.boss.weight, band)
     const result = await createBlueprint(bp, clientId, apiKey)
@@ -382,8 +380,8 @@ async function main() {
     const subtypes = [...new Set(overlappingBands.flatMap(b => BAND_SUBTYPES[b.idx] || []))].slice(0, 2)
 
     for (const subtype of subtypes) {
-      for (const difficulty of DIFFICULTIES.slice(0, 3)) {
-        const baseName = `${subtype.charAt(0).toUpperCase() + subtype.slice(1)} ${difficulty.charAt(0).toUpperCase() + difficulty.slice(1)} ${vl.suffix}`
+      for (const difficulty of NON_BOSS_DIFFICULTIES) {
+        const baseName = `${capitalize(subtype)} ${capitalize(difficulty)} ${vl.suffix}`
         creatureNames.add(baseName)
         const weight = SEED_CONFIG.creatureWeights[difficulty as keyof typeof SEED_CONFIG.creatureWeights].weight
         const bp = buildCreatureBlueprint(baseName, subtype, difficulty, weight, narrowBand)
@@ -393,7 +391,7 @@ async function main() {
     }
 
     const firstSubtype = subtypes[0] || 'dragon'
-    const bossName = `${firstSubtype.charAt(0).toUpperCase() + firstSubtype.slice(1)} Boss ${vl.suffix}`
+    const bossName = `${capitalize(firstSubtype)} Boss ${vl.suffix}`
     creatureNames.add(bossName)
     const bossBp = buildCreatureBlueprint(bossName, firstSubtype, 'boss', SEED_CONFIG.creatureWeights.boss.weight, narrowBand)
     const bossResult = await createBlueprint(bossBp, clientId, apiKey)
@@ -411,7 +409,7 @@ async function main() {
 
     for (const subtype of SUBTYPE_NAMES.weapon) {
       for (const band of itemBands) {
-        const name = `${subtype.charAt(0).toUpperCase() + subtype.slice(1)} ${rarity} Lv${band.label}`
+        const name = `${capitalize(subtype)} ${rarity} Lv${band.label}`
         const bp = buildItemBlueprint(name, 'weapon', rarity, subtype, rarityWeight, band)
         const result = await createBlueprint(bp, clientId, apiKey)
         itemBlueprintIds.push(result)
@@ -425,7 +423,7 @@ async function main() {
 
     for (const subtype of SUBTYPE_NAMES.armor) {
       for (const band of itemBands) {
-        const name = `${subtype.charAt(0).toUpperCase() + subtype.slice(1)} ${rarity} Lv${band.label}`
+        const name = `${capitalize(subtype)} ${rarity} Lv${band.label}`
         const bp = buildItemBlueprint(name, 'armor', rarity, subtype, rarityWeight, band)
         const result = await createBlueprint(bp, clientId, apiKey)
         itemBlueprintIds.push(result)
@@ -453,7 +451,7 @@ async function main() {
 
     for (const subtype of SUBTYPE_NAMES.accessory) {
       for (const band of itemBands) {
-        const name = `${subtype.charAt(0).toUpperCase() + subtype.slice(1)} ${rarity} Lv${band.label}`
+        const name = `${capitalize(subtype)} ${rarity} Lv${band.label}`
         const bp = buildItemBlueprint(name, 'accessory', rarity, subtype, rarityWeight, band)
         const result = await createBlueprint(bp, clientId, apiKey)
         itemBlueprintIds.push(result)
@@ -464,7 +462,7 @@ async function main() {
   const potionBands = [LEVEL_BANDS[0], LEVEL_BANDS[2], LEVEL_BANDS[4], LEVEL_BANDS[6]]
   for (const potionType of ['health', 'mana']) {
     for (const band of potionBands) {
-      const name = `${potionType.charAt(0).toUpperCase() + potionType.slice(1)} Potion Lv${band.label}`
+      const name = `${capitalize(potionType)} Potion Lv${band.label}`
       const bp = buildPotionBlueprint(name, potionType, band)
       const result = await createBlueprint(bp, clientId, apiKey)
       itemBlueprintIds.push(result)
@@ -493,13 +491,13 @@ async function main() {
     for (const rarity of RARITIES) {
       const rarityWeight = SEED_CONFIG.rarityWeights[rarity].weight
       for (const subtype of SUBTYPE_NAMES.weapon.slice(0, 4)) {
-        const name = `${subtype.charAt(0).toUpperCase() + subtype.slice(1)} ${rarity} ${vl.suffix}`
+        const name = `${capitalize(subtype)} ${rarity} ${vl.suffix}`
         const bp = buildItemBlueprint(name, 'weapon', rarity, subtype, rarityWeight, narrowBand)
         const result = await createBlueprint(bp, clientId, apiKey)
         itemBlueprintIds.push(result)
       }
       for (const subtype of SUBTYPE_NAMES.armor.slice(0, 2)) {
-        const name = `${subtype.charAt(0).toUpperCase() + subtype.slice(1)} ${rarity} ${vl.suffix}`
+        const name = `${capitalize(subtype)} ${rarity} ${vl.suffix}`
         const bp = buildItemBlueprint(name, 'armor', rarity, subtype, rarityWeight, narrowBand)
         const result2 = await createBlueprint(bp, clientId, apiKey)
         itemBlueprintIds.push(result2)

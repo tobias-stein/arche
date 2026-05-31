@@ -18,6 +18,7 @@ export const SEED_CONFIG = {
 
 export const DIFFICULTIES = ['normal', 'champion', 'elite', 'boss'] as const
 export const RARITIES = ['common', 'uncommon', 'rare', 'legendary'] as const
+export const NON_BOSS_DIFFICULTIES = ['normal', 'champion', 'elite'] as const
 
 export const LEVEL_BANDS = [
   { min: 1, max: 10, label: '1-10' },
@@ -43,11 +44,19 @@ export const ALL_CREATURE_SUBTYPES = ['goblin', 'skeleton', 'slime', 'bat', 'rat
 
 export const TARGET_LEVELS = [5, 25, 50, 75]
 
-export const DIFFICULTY_AFFIX_MAP: Record<string, { prefixes: number; suffixes: number }> = {
+export function capitalize(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1)
+}
+
+export const AFFIX_COUNT_CONFIG: Record<string, { prefixes: number; suffixes: number }> = {
   normal: { prefixes: 0, suffixes: 0 },
   champion: { prefixes: 1, suffixes: 0 },
   elite: { prefixes: 1, suffixes: 1 },
   boss: { prefixes: 2, suffixes: 1 },
+  common: { prefixes: 0, suffixes: 0 },
+  uncommon: { prefixes: 1, suffixes: 0 },
+  rare: { prefixes: 1, suffixes: 1 },
+  legendary: { prefixes: 2, suffixes: 1 },
 }
 
 export const AFFIX_TIERS = [

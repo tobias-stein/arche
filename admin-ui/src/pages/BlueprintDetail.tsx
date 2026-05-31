@@ -9,15 +9,16 @@ import {
   Pencil,
 } from 'lucide-react'
 import {
+  useBlueprint,
   useAffixesList,
   useAuditLog,
-  useBlueprint,
-  useCreateBlueprint,
+  useBlueprintsList,
   useGlobalMetaAttributesList,
 } from '@/api/generated/hooks'
 import type {
   Affix,
   AffixPoolEntry,
+  Blueprint,
   AuditLogEntry,
   BlueprintAttribute,
   GlobalMetaAttribute,
@@ -38,8 +39,7 @@ import {
 } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { BlueprintFormModal } from '@/components/BlueprintFormModal'
-import { useAuth } from '@/stores/auth'
-import { useToast } from '@/hooks/use-toast'
+import { getCopyName } from '@/lib/get-copy-name'
 
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('en-US', {
@@ -283,10 +283,9 @@ function PoolTable({ entries, affixMap, label }: PoolTableProps) {
 export default function BlueprintDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { toast } = useToast()
-  const { isSuperAdmin, permissions } = useAuth()
-  const canWrite = isSuperAdmin || permissions.includes('write') || permissions.includes('admin')
   const [showEditDialog, setShowEditDialog] = useState(false)
+  const [duplicatingBlueprint, setDuplicatingBlueprint] = useState<Blueprint | null>(null)
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false)
 
   const {
     data: blueprint,
@@ -294,9 +293,14 @@ export default function BlueprintDetail() {
     isError,
   } = useBlueprint(id ?? '')
 
-  const createMutation = useCreateBlueprint()
+  const { data: allBlueprintsData } = useBlueprintsList({ per_page: 200 })
 
   const { data: affixData } = useAffixesList({ per_page: 200 })
+
+  const allBlueprints = useMemo<Blueprint[]>(
+    () => (allBlueprintsData?.data ?? []) as Blueprint[],
+    [allBlueprintsData?.data],
+  )
 
   const affixMap = useMemo(() => {
     const map = new Map<string, Affix>()
@@ -377,30 +381,12 @@ export default function BlueprintDetail() {
     (k) => k in (blueprint.attributes ?? {}),
   )
 
-  const blueprintData = blueprint
+  const bp = blueprint
 
-  async function handleDuplicate() {
-    try {
-      await createMutation.mutateAsync({
-        name: `${blueprintData.name} (Copy)`,
-        archetype: blueprintData.archetype,
-        weight: blueprintData.weight,
-        description: blueprintData.description,
-        attributes: blueprintData.attributes,
-        attribute_order: blueprintData.attribute_order,
-        affixes: {
-          min_prefixes: blueprintData.min_prefixes,
-          max_prefixes: blueprintData.max_prefixes,
-          min_suffixes: blueprintData.min_suffixes,
-          max_suffixes: blueprintData.max_suffixes,
-          prefixes,
-          suffixes,
-        },
-      })
-      toast({ title: `Duplicated "${blueprintData.name}"` })
-    } catch {
-      toast({ title: 'Failed to duplicate blueprint', variant: 'destructive' })
-    }
+  function handleDuplicate() {
+    const copy: Blueprint = { ...bp, name: getCopyName(bp.name, allBlueprints) }
+    setDuplicatingBlueprint(copy)
+    setShowDuplicateModal(true)
   }
 
   return (
@@ -428,22 +414,17 @@ export default function BlueprintDetail() {
           )}
         </div>
         <div className="flex gap-2">
-          {canWrite && (
-            <Button
-              variant="outline"
-              onClick={handleDuplicate}
-              disabled={createMutation.isPending}
-            >
-              <Copy className="h-4 w-4" />
-              Duplicate
-            </Button>
-          )}
-          {canWrite && (
-            <Button onClick={() => setShowEditDialog(true)}>
-              <Pencil className="h-4 w-4" />
-              Edit
-            </Button>
-          )}
+          <Button
+            variant="outline"
+            onClick={handleDuplicate}
+          >
+            <Copy className="h-4 w-4" />
+            Duplicate
+          </Button>
+          <Button onClick={() => setShowEditDialog(true)}>
+            <Pencil className="h-4 w-4" />
+            Edit
+          </Button>
         </div>
       </div>
 
@@ -634,6 +615,14 @@ export default function BlueprintDetail() {
         open={showEditDialog}
         onOpenChange={setShowEditDialog}
         blueprint={blueprint}
+      />
+
+      {/* Duplicate dialog */}
+      <BlueprintFormModal
+        key={duplicatingBlueprint?.id ?? 'duplicate'}
+        open={showDuplicateModal}
+        onOpenChange={setShowDuplicateModal}
+        duplicateFrom={duplicatingBlueprint}
       />
     </div>
   )

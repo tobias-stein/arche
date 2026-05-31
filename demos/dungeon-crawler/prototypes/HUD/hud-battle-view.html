@@ -1,0 +1,1262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pixel Quest — Battle View</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Courier New',monospace;overflow:hidden;width:100vw;height:100vh;background:#1a3a2a;color:#d8f0e0}
+
+/* ====== Combat scene ====== */
+.combat-bg{position:absolute;inset:0;background:#0a0a0a}
+.combat-bg::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 60%,#1a1010 0%,#0a0a0a 70%)}
+.combat-floor{position:absolute;bottom:0;left:0;right:0;height:35%;background:linear-gradient(0deg,#0f0a0a 0%,transparent 100%);border-top:3px solid #3a1a1a}
+.combat-vs{position:absolute;top:36%;left:50%;transform:translate(-50%,-50%);font-size:36px;color:rgba(200,60,60,.12);letter-spacing:6px}
+
+/* ====== Player card ====== */
+#player-card{position:absolute;top:16px;left:16px;z-index:50;width:230px;background:#2d4d38;border:4px solid #4a7a58;box-shadow:4px 4px 0 rgba(0,0,0,.3),inset 0 0 0 2px #3a6a48}
+#player-card .ph{display:flex;align-items:center;gap:10px;padding:8px 12px;background:#3a6a48;border-bottom:3px solid #4a7a58}
+#player-card .pa{width:36px;height:36px;background:#4a7a58;border:3px solid #2d4d38;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px}
+#player-card .pn{color:#fff;font-size:14px;font-weight:700;text-shadow:2px 2px 0 #1a3a2a}
+#player-card .pl{color:#b8d8c8;font-size:11px;background:#1a3a2a;padding:0 8px}
+#player-card .pb{padding:6px 10px}
+#player-card .br{display:flex;align-items:center;gap:6px;margin:3px 0}
+#player-card .br .lbl{width:22px;text-align:center;font-size:12px}
+#player-card .br .bb{flex:1;height:14px;background:#1a3a2a;border:2px solid #3a6a48;position:relative}
+#player-card .br .bf{height:100%;transition:width .4s}
+#player-card .br .bf.hp{background:linear-gradient(90deg,#d04040,#ff6060);box-shadow:inset 0 2px 0 rgba(255,255,255,.25)}
+#player-card .br .bf.mp{background:linear-gradient(90deg,#4060d0,#6080ff);box-shadow:inset 0 2px 0 rgba(255,255,255,.25)}
+#player-card .br .bt{color:#b8d8c8;font-size:10px;min-width:36px;text-align:right;font-weight:700;text-shadow:1px 1px 0 #1a3a2a}
+#player-card .ps{display:flex;gap:16px;padding:6px 12px 8px;border-top:2px solid #3a6a48;background:#2a4a38;color:#d8f0e0;font-size:11px;font-weight:700;text-shadow:1px 1px 0 #1a3a2a}
+
+/* ====== Enemy card ====== */
+#enemy-card{position:fixed;bottom:16px;right:16px;z-index:50;width:230px;background:#3a2020;border:4px solid #6a3a3a;box-shadow:-4px 4px 0 rgba(0,0,0,.3),inset 0 0 0 2px #4a2a2a}
+#enemy-card .ph{display:flex;align-items:center;gap:10px;padding:8px 12px;background:#4a2a2a;border-bottom:3px solid #6a3a3a}
+#enemy-card .pa{width:36px;height:36px;background:#6a3a3a;border:3px solid #3a2020;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px}
+#enemy-card .pn{color:#ff7070;font-size:14px;font-weight:700;text-shadow:2px 2px 0 #2a1010}
+#enemy-card .pl{color:#ff9090;font-size:11px;background:#2a1010;padding:0 8px}
+#enemy-card .pb{padding:6px 10px}
+#enemy-card .br{display:flex;align-items:center;gap:6px;margin:3px 0}
+#enemy-card .br .lbl{width:22px;text-align:center;font-size:12px}
+#enemy-card .br .bb{flex:1;height:14px;background:#1a0a0a;border:2px solid #5a2a2a;position:relative}
+#enemy-card .br .bf{height:100%;transition:width .4s}
+#enemy-card .br .bf.hp{background:linear-gradient(90deg,#d04040,#ff6060);box-shadow:inset 0 2px 0 rgba(255,255,255,.25)}
+#enemy-card .br .bf.mp{background:linear-gradient(90deg,#4060d0,#6080ff);box-shadow:inset 0 2px 0 rgba(255,255,255,.25)}
+#enemy-card .br .bt{color:#ff9090;font-size:10px;min-width:36px;text-align:right;font-weight:700;text-shadow:1px 1px 0 #2a1010}
+#enemy-card .ps{display:flex;gap:16px;padding:6px 12px 8px;border-top:2px solid #5a2a2a;background:#2a1818;color:#ff9090;font-size:11px;font-weight:700;text-shadow:1px 1px 0 #2a1010}
+
+/* ====== Action menu ====== */
+#action-menu{position:absolute;top:58%;left:50%;transform:translate(-50%,-50%);z-index:50;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+#action-menu button{width:150px;height:80px;border:4px solid #4a7a58;background:#2d4d38;color:#d8f0e0;font-size:14px;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;transition:.1s;font-family:'Courier New',monospace;box-shadow:0 4px 0 #1a3a2a}
+#action-menu button:hover{transform:translateY(-2px);box-shadow:0 6px 0 #1a3a2a;background:#3a6a48;border-color:#5a9a68}
+#action-menu button:active{transform:translateY(2px);box-shadow:0 2px 0 #1a3a2a}
+#action-menu button .ai{font-size:26px}
+#action-menu button .al{font-size:12px;text-shadow:1px 1px 0 #1a3a2a}
+
+/* ====== Spell selection ====== */
+#spell-panel{z-index:200;background:#2d4d38;border:4px solid #4a7a58;box-shadow:0 8px 0 #1a3a2a;overflow:hidden;display:none;box-sizing:border-box}
+#spell-panel.visible{display:block}
+#spell-panel .sp-header{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:#3a6a48;border-bottom:3px solid #4a7a58}
+#spell-panel .sp-header h3{color:#fff;font-size:13px;text-transform:uppercase;letter-spacing:2px;text-shadow:2px 2px 0 #1a3a2a}
+#spell-panel .sp-close{width:34px;height:34px;background:0 0;border:2px solid #4a7a58;color:#88b898;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+#spell-panel .sp-close:hover{background:#4a7a58;color:#fff}
+#spell-panel .sp-list{max-height:170px;overflow-y:auto;padding:6px}
+#spell-panel .sp-list::-webkit-scrollbar{width:12px}
+#spell-panel .sp-list::-webkit-scrollbar-track{background:#1a3a2a}
+#spell-panel .sp-list::-webkit-scrollbar-thumb{background:#4a7a58;border-radius:6px}
+#spell-panel .sp-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border:2px solid #3a6a48;margin:4px 0;background:#1a3a2a;cursor:pointer;color:#b8d8c8;font-size:12px;transition:.1s}
+#spell-panel .sp-item:hover{border-color:#6a9a7a;background:#2a4a38}
+#spell-panel .sp-item .sp-icon{font-size:20px;width:28px;text-align:center}
+#spell-panel .sp-item .sp-name{flex:1;font-weight:700;text-shadow:1px 1px 0 #1a3a2a}
+#spell-panel .sp-item .sp-cost{color:#6080ff;font-size:11px;font-weight:700;min-width:42px;text-align:right}
+#spell-panel .sp-item.sp-disabled{opacity:.4;cursor:not-allowed}
+#spell-panel .sp-item.sp-disabled:hover{background:#1a3a2a;border-color:#3a6a48}
+#spell-panel .sp-item.sp-disabled .sp-cost{color:#6a4a4a}
+#spell-panel .sp-empty{color:#6a9a7a;font-size:12px;text-align:center;padding:24px 12px}
+
+/* ====== Use Item panel ====== */
+#use-item-panel{z-index:200;background:#2d4d38;border:4px solid #4a7a58;box-shadow:0 8px 0 #1a3a2a;overflow:hidden;display:none;box-sizing:border-box}
+#use-item-panel.visible{display:block}
+#use-item-panel .uip-header{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:#3a6a48;border-bottom:3px solid #4a7a58}
+#use-item-panel .uip-header h3{color:#fff;font-size:13px;text-transform:uppercase;letter-spacing:2px;text-shadow:2px 2px 0 #1a3a2a}
+#use-item-panel .uip-close{width:34px;height:34px;background:0 0;border:2px solid #4a7a58;color:#88b898;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+#use-item-panel .uip-close:hover{background:#4a7a58;color:#fff}
+#use-item-panel .uip-list{max-height:170px;overflow-y:auto;padding:6px}
+#use-item-panel .uip-list::-webkit-scrollbar{width:12px}
+#use-item-panel .uip-list::-webkit-scrollbar-track{background:#1a3a2a}
+#use-item-panel .uip-list::-webkit-scrollbar-thumb{background:#4a7a58;border-radius:6px}
+#use-item-panel .uip-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border:2px solid #3a6a48;margin:4px 0;background:#1a3a2a;cursor:pointer;color:#b8d8c8;font-size:12px;transition:.1s}
+#use-item-panel .uip-item:hover{border-color:#6a9a7a;background:#2a4a38}
+#use-item-panel .uip-item .uip-icon{font-size:20px;width:28px;text-align:center}
+#use-item-panel .uip-item .uip-name{flex:1;font-weight:700;text-shadow:1px 1px 0 #1a3a2a}
+#use-item-panel .uip-item .uip-effect{color:#88b898;font-size:10px;min-width:48px;text-align:right}
+#use-item-panel .uip-empty{color:#6a9a7a;font-size:12px;text-align:center;padding:24px 12px}
+
+/* ====== Activity Log ====== */
+#log{position:fixed;bottom:16px;left:16px;z-index:55;width:min(50vw,500px);background:#2d4d38;border:4px solid #4a7a58;box-shadow:4px 4px 0 rgba(0,0,0,.3),inset 0 0 0 2px #3a6a48;max-height:145px;transition:max-height .3s ease;display:flex;flex-direction:column;overflow:hidden}
+#log.expanded{max-height:min(45vh,500px)}
+#log .log-header{display:flex;align-items:center;gap:10px;padding:8px 12px;background:#3a6a48;border-bottom:3px solid #4a7a58;cursor:pointer;flex-shrink:0;user-select:none}
+#log .log-header:hover{background:#4a7a58}
+#log .log-title{color:#fff;font-size:12px;font-weight:700;text-transform:uppercase;text-shadow:2px 2px 0 #1a3a2a;letter-spacing:1px}
+#log .log-toggle{color:#88b898;font-size:10px;transition:transform .3s;flex-shrink:0}
+#log.expanded .log-toggle{transform:rotate(180deg)}
+#log .log-body{overflow:hidden;flex:1;min-height:0}
+#log.expanded .log-body{overflow-y:auto}
+#log .log-body::-webkit-scrollbar{width:6px}
+#log .log-body::-webkit-scrollbar-track{background:#1a3a2a}
+#log .log-body::-webkit-scrollbar-thumb{background:#4a7a58;border-radius:3px}
+#log .le{color:#b8d8c8;font-size:11px;padding:3px 12px;border-bottom:1px solid #3a6a48}
+#log .le:last-child{border-bottom:none}
+#log .log-scroll-btn{display:none;position:absolute;bottom:8px;right:8px;z-index:2;width:28px;height:28px;align-items:center;justify-content:center;background:#3a6a48;border:2px solid #4a7a58;color:#d8f0e0;font-size:13px;cursor:pointer;border-radius:4px;transition:opacity .2s}
+#log .log-scroll-btn.visible{display:flex}
+#log .log-scroll-btn:hover{background:#4a7a58}
+
+/* ====== Combat flash ====== */
+#combat-flash{position:fixed;inset:0;z-index:140;background:#000;opacity:0;pointer-events:none;transition:opacity .4s}
+#combat-flash.active{opacity:1;pointer-events:auto}
+
+/* ====== Encounter ====== */
+#encounter{position:fixed;inset:0;z-index:150;background:rgba(10,25,15,.85);display:none;align-items:center;justify-content:center}
+#encounter.visible{display:flex}
+#encounter .ec{background:#2d4d38;border:4px solid #4a7a58;padding:24px 32px;text-align:center;max-width:380px;box-shadow:0 8px 0 #1a3a2a}
+#encounter .ec h3{color:#ff7070;font-size:18px;font-weight:700;text-shadow:2px 2px 0 #2a1a1a}
+#encounter .ec .ec-card{background:#3a2020;border:4px solid #6a3a3a;margin:12px -16px;box-shadow:inset 0 0 0 2px #4a2a2a;text-align:left}
+#encounter .ec .ec-card .ph{display:flex;align-items:center;gap:10px;padding:8px 12px;background:#4a2a2a;border-bottom:3px solid #6a3a3a}
+#encounter .ec .ec-card .pa{width:36px;height:36px;background:#6a3a3a;border:3px solid #3a2020;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px}
+#encounter .ec .ec-card .pn{color:#ff7070;font-size:14px;font-weight:700;text-shadow:2px 2px 0 #2a1010}
+#encounter .ec .ec-card .pl{color:#ff9090;font-size:11px;background:#2a1010;padding:0 8px}
+#encounter .ec .ec-card .pb{padding:6px 10px}
+#encounter .ec .ec-card .br{display:flex;align-items:center;gap:6px;margin:3px 0}
+#encounter .ec .ec-card .br .lbl{width:22px;text-align:center;font-size:12px}
+#encounter .ec .ec-card .br .bb{flex:1;height:14px;background:#1a0a0a;border:2px solid #5a2a2a;position:relative}
+#encounter .ec .ec-card .br .bf{height:100%;transition:width .4s}
+#encounter .ec .ec-card .br .bf.hp{background:linear-gradient(90deg,#d04040,#ff6060);box-shadow:inset 0 2px 0 rgba(255,255,255,.25)}
+#encounter .ec .ec-card .br .bf.mp{background:linear-gradient(90deg,#4060d0,#6080ff);box-shadow:inset 0 2px 0 rgba(255,255,255,.25)}
+#encounter .ec .ec-card .br .bt{color:#ff9090;font-size:10px;min-width:36px;text-align:right;font-weight:700;text-shadow:1px 1px 0 #2a1010}
+#encounter .ec .ec-card .ps{display:flex;gap:16px;padding:6px 12px 8px;border-top:2px solid #5a2a2a;background:#2a1818;color:#ff9090;font-size:11px;font-weight:700;text-shadow:1px 1px 0 #2a1010}
+#encounter .ec .ea{display:flex;gap:10px;justify-content:center;margin-top:14px}
+#encounter .ec .ea button{padding:8px 24px;border:3px solid #4a7a58;background:#2a4a38;color:#d8f0e0;font-weight:700;font-size:13px;cursor:pointer;font-family:'Courier New',monospace;box-shadow:0 3px 0 #1a3a2a}
+#encounter .ec .ea button:hover{transform:translateY(-1px);box-shadow:0 4px 0 #1a3a2a}
+#encounter .ec .ea button.eng{background:#4a1a1a;border-color:#6a2a2a;color:#ff9090}
+#encounter .ec .ea button.eng:hover{background:#5a2a2a}
+
+/* ====== Loot Dialog ====== */
+#loot-dialog{position:fixed;z-index:260;left:calc(50% - 384px);top:50%;transform:translateY(-50%);width:280px;background:#2d4d38;border:4px solid #4a7a58;box-shadow:0 8px 0 #1a3a2a;display:none;flex-direction:column;max-height:85vh}
+#loot-dialog.visible{display:flex}
+#loot-dialog .ld-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:#3a6a48;border-bottom:3px solid #4a7a58;flex-shrink:0}
+#loot-dialog .ld-header h3{color:#fff;font-size:13px;text-transform:uppercase;letter-spacing:2px;text-shadow:2px 2px 0 #1a3a2a}
+#loot-dialog .ld-header span{color:#e0e060;font-size:11px}
+#loot-dialog .ld-label{color:#88b898;font-size:10px;text-transform:uppercase;letter-spacing:1px;padding:8px 14px 4px;flex-shrink:0}
+#loot-dialog .ld-items{flex:1;overflow-y:auto;padding:4px 8px 8px;min-height:0;display:grid;grid-template-columns:repeat(4,1fr);gap:4px;align-content:start}
+#loot-dialog .ld-items::-webkit-scrollbar{width:6px}
+#loot-dialog .ld-items::-webkit-scrollbar-track{background:#1a3a2a}
+#loot-dialog .ld-items::-webkit-scrollbar-thumb{background:#4a7a58;border-radius:3px}
+#loot-dialog .ld-items .el{position:relative;aspect-ratio:1;border:2px solid #4a7a58;background:#2d4d38;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:10px;color:#d8f0e0;cursor:grab;min-height:44px;padding:2px}
+#loot-dialog .ld-items .el:hover{border-color:#6a9a7a;background:#3a6a48}
+#loot-dialog .ld-items .el .ei{font-size:18px}
+#loot-dialog .ld-items .el .en{font-size:8px;color:#a8c8b8;text-align:center;line-height:1.1;overflow:hidden;text-overflow:ellipsis;max-width:100%;word-break:break-word}
+#loot-dialog .ld-items .el[data-equip-slot]::before{content:attr(data-equip-slot);position:absolute;top:-1px;left:-1px;right:-1px;font-size:7px;color:#88b898;background:rgba(26,58,42,.85);text-transform:uppercase;letter-spacing:1px;line-height:14px;text-align:center;pointer-events:none;border-bottom:1px solid #3a6a48;z-index:1}
+#loot-dialog .ld-items .el.has[data-rarity]::after{content:'';position:absolute;bottom:0;right:0;width:0;height:0;border-style:solid;border-width:0 0 12px 12px;border-color:transparent transparent #888 transparent;pointer-events:none;z-index:1}
+#loot-dialog .ld-items .el.has[data-rarity="uncommon"]::after{border-color:transparent transparent #4488ff transparent}
+#loot-dialog .ld-items .el.has[data-rarity="rare"]::after{border-color:transparent transparent #44cc66 transparent}
+#loot-dialog .ld-items .el.has[data-rarity="legendary"]::after{border-color:transparent transparent #aa44ff transparent}
+#loot-dialog .ld-items .el.dragging{opacity:.35}
+#loot-dialog .ld-items .el.drag-valid{border-color:#6aaa7a;background:#2a5a3a;box-shadow:0 0 8px rgba(80,220,100,.25)}
+#loot-dialog .ld-items .el.drag-invalid{border-color:#6a3a3a;background:#3a2020;cursor:no-drop}
+#loot-dialog .ld-actions{display:flex;gap:6px;padding:8px 10px;border-top:2px solid #3a6a48;flex-shrink:0}
+#loot-dialog .ld-actions button{flex:1;padding:7px 10px;border:3px solid #4a7a58;background:#3a6a48;color:#d8f0e0;font-size:11px;font-weight:700;cursor:pointer;font-family:'Courier New',monospace;box-shadow:0 3px 0 #1a3a2a;transition:.1s}
+#loot-dialog .ld-actions button:hover{transform:translateY(-1px);box-shadow:0 4px 0 #1a3a2a;background:#4a8a58}
+
+/* ====== Victory background overlay ====== */
+#victory-bg{position:fixed;inset:0;z-index:250;background:rgba(10,25,15,.5);display:none}
+#victory-bg.visible{display:block}
+
+/* ====== Flee panel ====== */
+#flee-panel{z-index:200;background:#3a2020;border:4px solid #6a3a3a;box-shadow:0 8px 0 #1a3a2a;overflow:hidden;display:none;box-sizing:border-box}
+#flee-panel.visible{display:flex;flex-direction:column}
+#flee-panel .fp-header{flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:#4a2a2a;border-bottom:3px solid #6a3a3a}
+#flee-panel .fp-header h3{color:#ff9090;font-size:13px;text-transform:uppercase;letter-spacing:2px;text-shadow:2px 2px 0 #2a1010}
+#flee-panel .fp-close{width:34px;height:34px;background:0 0;border:2px solid #6a3a3a;color:#ff9090;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+#flee-panel .fp-close:hover{background:#5a2a2a;color:#fff}
+#flee-panel .fp-body{padding:16px 14px;display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;min-height:0}
+#flee-panel .fp-sub{color:#ff9090;font-size:12px;text-align:center;margin-bottom:14px;text-shadow:1px 1px 0 #2a1010}
+#flee-panel .fp-actions{display:flex;gap:10px;justify-content:center}
+#flee-panel .fp-actions button{padding:8px 20px;border:3px solid #6a3a3a;background:#3a2020;color:#ff9090;font-size:12px;font-weight:700;cursor:pointer;font-family:'Courier New',monospace;box-shadow:0 3px 0 #1a3a2a;transition:.1s;flex:1}
+#flee-panel .fp-actions button:hover{transform:translateY(-1px);box-shadow:0 4px 0 #1a3a2a}
+#flee-panel .fp-actions .fp-yes{background:#5a1a1a;border-color:#7a2a2a;color:#ff6060}
+#flee-panel .fp-actions .fp-yes:hover{background:#6a2a2a}
+#flee-panel .fp-actions .fp-no{background:#2a4a38;border-color:#4a7a58;color:#d8f0e0}
+#flee-panel .fp-actions .fp-no:hover{background:#3a6a48}
+
+/* ====== Equipment dialog ====== */
+#equipment-dialog{position:fixed;inset:0;z-index:250;background:rgba(10,25,15,.95);display:none;align-items:center;justify-content:center}
+#equipment-dialog.visible{display:flex}
+#equipment-dialog .ed{background:#2d4d38;border:4px solid #4a7a58;padding:20px 24px;width:480px;max-width:92vw;max-height:92vh;overflow-y:auto;box-shadow:0 8px 0 #1a3a2a;position:relative}
+#equipment-dialog .ed h2{color:#fff;font-size:14px;text-transform:uppercase;text-shadow:2px 2px 0 #1a3a2a;margin-bottom:14px;text-align:center;letter-spacing:2px}
+#equipment-dialog .ed .es-title{color:#88b898;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin:8px 0 4px}
+#equipment-dialog .ed .es-title:first-of-type{margin-top:0}
+#equipment-dialog .ed .eg{display:grid;gap:4px;margin-bottom:8px}
+#equipment-dialog .ed .eg.eq-grid{grid-template-columns:repeat(5,1fr)}
+#equipment-dialog .ed .eg.inv-grid{grid-template-columns:repeat(6,1fr)}
+#equipment-dialog .ed .eg.spell-grid{grid-template-columns:repeat(6,1fr)}
+#equipment-dialog .ed .el{position:relative;aspect-ratio:1;border:2px solid #3a6a48;background:#1a3a2a;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:10px;color:#6a9a7a;cursor:pointer;min-height:44px;padding:2px}
+#equipment-dialog .ed .el:hover{border-color:#6a9a7a;background:#2a4a38}
+#equipment-dialog .ed .el.has{color:#d8f0e0;border-color:#4a7a58;background:#2d4d38}
+#equipment-dialog .ed .el.has .ei{font-size:18px}
+#equipment-dialog .ed .el.has .en{font-size:8px;color:#a8c8b8;text-align:center;line-height:1.1;overflow:hidden;text-overflow:ellipsis;max-width:100%;word-break:break-word}
+#equipment-dialog .ed .el[data-equip-slot]::before{content:attr(data-equip-slot);position:absolute;top:-1px;left:-1px;right:-1px;font-size:7px;color:#88b898;background:rgba(26,58,42,.85);text-transform:uppercase;letter-spacing:1px;line-height:14px;text-align:center;pointer-events:none;border-bottom:1px solid #3a6a48;z-index:1}
+
+/* Rarity triangle */
+#equipment-dialog .ed .el.has[data-rarity]::after{content:'';position:absolute;bottom:0;right:0;width:0;height:0;border-style:solid;border-width:0 0 12px 12px;border-color:transparent transparent #888 transparent;pointer-events:none;z-index:1}
+#equipment-dialog .ed .el.has[data-rarity="uncommon"]::after{border-color:transparent transparent #4488ff transparent}
+#equipment-dialog .ed .el.has[data-rarity="rare"]::after{border-color:transparent transparent #44cc66 transparent}
+#equipment-dialog .ed .el.has[data-rarity="legendary"]::after{border-color:transparent transparent #aa44ff transparent}
+
+/* Drag and drop states */
+.drag-float{position:fixed;z-index:999;pointer-events:none;background:#2d4d38;border:3px solid #ffd700;box-shadow:0 4px 12px rgba(0,0,0,.5);display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:10px;color:#d8f0e0;padding:2px;will-change:left,top,width,height}
+.drag-float .ei{font-size:18px}
+.drag-float .en{font-size:8px;color:#a8c8b8;text-align:center;line-height:1.1;overflow:hidden;text-overflow:ellipsis;max-width:100%;word-break:break-word}
+.drag-float [data-equip-slot]::before,.drag-float [data-equip-slot]::after{display:none}
+#equipment-dialog .ed .el.dragging{opacity:.35}
+#equipment-dialog .ed .el.drag-valid{border-color:#6aaa7a;background:#2a5a3a;box-shadow:0 0 8px rgba(80,220,100,.25)}
+#equipment-dialog .ed .el.drag-invalid{border-color:#6a3a3a;background:#3a2020;cursor:no-drop}
+#equipment-dialog .ed .eh{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;position:relative}
+#equipment-dialog .ed .eh h2{margin-bottom:0}
+#equipment-dialog .ed .eh .eb{display:flex;gap:6px}
+#equipment-dialog .ed .ec{position:static;width:34px;height:34px;background:0 0;border:2px solid #4a7a58;color:#88b898;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+#equipment-dialog .ed .ec:hover{background:#3a6a48;color:#fff}
+
+/* Drop zone bar */
+#equipment-dialog .ed .et{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:10px;height:0;overflow:hidden;border:2px dashed rgba(74,122,88,0);color:transparent;font-size:11px;text-transform:uppercase;letter-spacing:2px;cursor:default;transition:height .2s,border-color .2s,color .2s,background .2s}
+#equipment-dialog .ed .et.et-active{height:48px;border-color:#4a7a58;color:#88b898;cursor:pointer;background:rgba(26,58,42,.4)}
+#equipment-dialog .ed .et.et-active:hover{background:rgba(26,58,42,.7);border-color:#6aaa7a}
+#equipment-dialog .ed .et.drag-over-trash{border-color:#e04040;background:rgba(74,26,26,.7);color:#ff6060;box-shadow:0 0 12px rgba(200,60,60,.3)}
+#equipment-dialog .ed .et .eti{font-size:18px}
+
+/* ====== Abandon confirm dialog ====== */
+#abandon-dialog{position:fixed;inset:0;z-index:260;background:rgba(10,25,15,.9);display:none;align-items:center;justify-content:center}
+#abandon-dialog.visible{display:flex}
+#abandon-dialog .ad{background:#2d4d38;border:4px solid #6a3a3a;padding:24px 28px;text-align:center;max-width:320px;box-shadow:0 8px 0 #1a3a2a}
+#abandon-dialog .ad p{color:#d8f0e0;font-size:14px;text-shadow:1px 1px 0 #1a3a2a;margin-bottom:4px}
+#abandon-dialog .ad .ad-sub{color:#8a9a8a;font-size:11px;margin:4px 0 14px}
+#abandon-dialog .ad strong{color:#ff7070}
+#abandon-dialog .ad .ab{display:flex;gap:10px;justify-content:center}
+#abandon-dialog .ad .ab button{padding:8px 20px;border:3px solid #4a7a58;background:#2a4a38;color:#d8f0e0;font-size:12px;font-weight:700;cursor:pointer;font-family:'Courier New',monospace;box-shadow:0 3px 0 #1a3a2a}
+#abandon-dialog .ad .ab button:hover{transform:translateY(-1px);box-shadow:0 4px 0 #1a3a2a}
+#abandon-dialog .ad .ab .ad-yes{background:#4a1a1a;border-color:#6a2a2a;color:#ff9090}
+#abandon-dialog .ad .ab .ad-yes:hover{background:#5a2a2a}
+#abandon-dialog .ad-item{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;margin:10px auto 14px;padding:8px;background:#1a3a2a;border:2px solid #4a7a58;width:64px;aspect-ratio:1}
+#abandon-dialog .ad-item .ai{font-size:32px;line-height:1}
+#abandon-dialog .ad-item .al{color:#b8d8c8;font-size:12px;text-shadow:1px 1px 0 #1a3a2a}
+
+/* Equipment dialog in loot mode */
+#equipment-dialog.loot-mode{position:fixed;z-index:260;left:calc(50% - 96px);top:50%;transform:translateY(-50%);width:480px;background:rgba(10,25,15,0);align-items:flex-start;justify-content:center}
+#equipment-dialog.loot-mode .ed{max-height:82vh;overflow-y:auto}
+#equipment-dialog.loot-mode .ed::-webkit-scrollbar{width:8px}
+#equipment-dialog.loot-mode .ed::-webkit-scrollbar-track{background:#1a3a2a}
+#equipment-dialog.loot-mode .ed::-webkit-scrollbar-thumb{background:#4a7a58;border-radius:4px}
+
+.auto-equip-float{position:fixed;z-index:999;pointer-events:none;display:flex;align-items:center;justify-content:center;background:#2d4d38;border:3px solid #ffd700;box-shadow:0 4px 12px rgba(0,0,0,.5);padding:4px 10px;will-change:left,top,width,height;font-size:10px;color:#d8f0e0;gap:8px;border-radius:4px}
+.auto-equip-float .ei{font-size:20px}
+.auto-equip-float .en{font-size:10px;color:#a8c8b8}
+
+
+</style>
+</head>
+<body>
+
+<!-- ====== Combat background (always visible) ====== -->
+<div class="combat-bg">
+  <div class="combat-floor"></div>
+  <div class="combat-vs"><i class="fa-solid fa-crosshairs"></i> VS <i class="fa-solid fa-crosshairs"></i></div>
+</div>
+
+<!-- ====== Combat flash ====== -->
+<div id="combat-flash"></div>
+
+<!-- ====== Player card ====== -->
+<div id="player-card">
+  <div class="ph">
+    <div class="pa"><i class="fa-solid fa-user"></i></div>
+    <div><div class="pn">Hero</div><div class="pl">LV 7</div></div>
+  </div>
+  <div class="pb">
+    <div class="br"><span class="lbl"><i class="fa-solid fa-heart"></i></span><div class="bb"><div class="bf hp" style="width:78%"></div></div><span class="bt">78/100</span></div>
+    <div class="br"><span class="lbl"><i class="fa-solid fa-star"></i></span><div class="bb"><div class="bf mp" style="width:45%"></div></div><span class="bt">14/30</span></div>
+  </div>
+  <div class="ps"><span><i class="fa-solid fa-crosshairs"></i> ATK 18</span><span><i class="fa-solid fa-shield-halved"></i> DEF 12</span></div>
+</div>
+
+<!-- ====== Enemy card ====== -->
+<div id="enemy-card">
+  <div class="ph">
+    <div class="pa"><i class="fa-solid fa-dragon"></i></div>
+    <div><div class="pn">Goblin Champion</div><div class="pl">LV 9 · CHAMPION</div></div>
+  </div>
+  <div class="pb">
+    <div class="br"><span class="lbl"><i class="fa-solid fa-heart"></i></span><div class="bb"><div class="bf hp" style="width:100%"></div></div><span class="bt">42/42</span></div>
+    <div class="br"><span class="lbl"><i class="fa-solid fa-star"></i></span><div class="bb"><div class="bf mp" style="width:30%"></div></div><span class="bt">6/20</span></div>
+  </div>
+  <div class="ps"><span><i class="fa-solid fa-crosshairs"></i> ATK 12</span><span><i class="fa-solid fa-shield-halved"></i> DEF 6</span></div>
+</div>
+
+<!-- ====== Action menu ====== -->
+<div id="action-menu">
+  <button onclick="doCombatAction()"><span class="ai"><i class="fa-solid fa-crosshairs"></i></span><span class="al">Attack</span></button>
+  <button onclick="openSpellPanel()"><span class="ai"><i class="fa-solid fa-wand-sparkles"></i></span><span class="al">Cast Spell</span></button>
+  <button onclick="openUseItemPanel()"><span class="ai"><i class="fa-solid fa-flask"></i></span><span class="al">Use Item</span></button>
+  <button onclick="openFleePanel()"><span class="ai"><i class="fa-solid fa-person-running"></i></span><span class="al">Flee</span></button>
+</div>
+
+<!-- ====== Spell selection ====== -->
+<div id="spell-panel">
+  <div class="sp-header">
+    <h3>Select Spell</h3>
+    <button class="sp-close" onclick="closeSpellPanel()"><i class="fa-solid fa-xmark"></i></button>
+  </div>
+  <div class="sp-list" id="spell-list"></div>
+</div>
+
+<!-- ====== Use Item panel ====== -->
+<div id="use-item-panel">
+  <div class="uip-header">
+    <h3>Use Item</h3>
+    <button class="uip-close" onclick="closeUseItemPanel()"><i class="fa-solid fa-xmark"></i></button>
+  </div>
+  <div class="uip-list" id="use-item-list"></div>
+</div>
+
+<!-- ====== Flee panel ====== -->
+<div id="flee-panel">
+  <div class="fp-header">
+    <h3>Flee from combat?</h3>
+    <button class="fp-close" onclick="closeFleePanel()"><i class="fa-solid fa-xmark"></i></button>
+  </div>
+  <div class="fp-body">
+    <p class="fp-sub">Cowardice has its rewards.</p>
+    <div class="fp-actions">
+      <button onclick="doFleeFromPanel()" class="fp-yes">Yes, Flee</button>
+      <button onclick="closeFleePanel()" class="fp-no">Stay & Fight</button>
+    </div>
+  </div>
+</div>
+
+<!-- ====== Activity Log ====== -->
+<div id="log">
+  <div class="log-header" onclick="toggleLog()">
+    <span><i class="fa-solid fa-scroll"></i></span>
+    <span class="log-title">Activity Log</span>
+    <span class="log-toggle"><i class="fa-solid fa-chevron-down"></i></span>
+  </div>
+  <div class="log-body" id="log-body"></div>
+  <div class="log-scroll-btn" id="log-scroll-btn" onclick="scrollLogToTop()"><i class="fa-solid fa-arrow-up"></i></div>
+</div>
+
+<!-- ====== Loot Dialog ====== -->
+<div id="loot-dialog">
+  <div class="ld-header">
+    <h3><i class="fa-solid fa-crosshairs"></i> Victory! <span id="ld-xp">+35 XP</span></h3>
+  </div>
+  <div class="ld-label">LOOT</div>
+  <div class="ld-items" id="ld-items"></div>
+  <div class="ld-actions">
+    <button onclick="lootTakeAll()"><i class="fa-solid fa-box-open"></i> Take All</button>
+  </div>
+</div>
+
+<!-- ====== Victory background ====== -->
+<div id="victory-bg"></div>
+
+<!-- ====== Equipment dialog ====== -->
+<div id="equipment-dialog">
+  <div class="ed">
+    <div class="eh">
+      <h2>INVENTORY &amp; EQUIPMENT</h2>
+      <div class="eb">
+        <button class="ec" onclick="closeEquipment()"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+    </div>
+
+    <div class="es-title">Equipment</div>
+    <div class="eg eq-grid">
+      <div class="el has" draggable="true" data-slot-type="equipment" data-equip-slot="weapon" data-item-type="equipment" data-item-name="Iron Sword" data-item-icon="<i class='fa-solid fa-crosshairs'></i>" data-item-id="eq-0" data-rarity="common"><span class="ei"><i class="fa-solid fa-crosshairs"></i></span><span class="en">Iron Sword</span></div>
+      <div class="el has" draggable="true" data-slot-type="equipment" data-equip-slot="head" data-item-type="equipment" data-item-name="Steel Helm" data-item-icon="<i class='fa-solid fa-helmet-safety'></i>" data-item-id="eq-1" data-rarity="common"><span class="ei"><i class="fa-solid fa-helmet-safety"></i></span><span class="en">Steel Helm</span></div>
+      <div class="el has" draggable="true" data-slot-type="equipment" data-equip-slot="chest" data-item-type="equipment" data-item-name="Chain Mail" data-item-icon="<i class='fa-solid fa-shirt'></i>" data-item-id="eq-2" data-rarity="common"><span class="ei"><i class="fa-solid fa-shirt"></i></span><span class="en">Chain Mail</span></div>
+      <div class="el has" draggable="true" data-slot-type="equipment" data-equip-slot="legs" data-item-type="equipment" data-item-name="Plate Legs" data-item-icon="<i class='fa-solid fa-chevron-down'></i>" data-item-id="eq-3" data-rarity="uncommon"><span class="ei"><i class="fa-solid fa-chevron-down"></i></span><span class="en">Plate Legs</span></div>
+      <div class="el has" draggable="true" data-slot-type="equipment" data-equip-slot="feet" data-item-type="equipment" data-item-name="Leather Boots" data-item-icon="<i class='fa-solid fa-boot'></i>" data-item-id="eq-4" data-rarity="common"><span class="ei"><i class="fa-solid fa-boot"></i></span><span class="en">Leather Boots</span></div>
+      <div class="el has" draggable="true" data-slot-type="equipment" data-equip-slot="hands" data-item-type="equipment" data-item-name="Iron Gauntlets" data-item-icon="<i class='fa-solid fa-hand-back-fist'></i>" data-item-id="eq-5" data-rarity="common"><span class="ei"><i class="fa-solid fa-hand-back-fist"></i></span><span class="en">Iron Gauntlets</span></div>
+      <div class="el has" draggable="true" data-slot-type="equipment" data-equip-slot="belt" data-item-type="equipment" data-item-name="Iron Belt" data-item-icon="<i class='fa-solid fa-link'></i>" data-item-id="eq-6" data-rarity="common"><span class="ei"><i class="fa-solid fa-link"></i></span><span class="en">Iron Belt</span></div>
+      <div class="el has" draggable="true" data-slot-type="equipment" data-equip-slot="ring" data-item-type="equipment" data-item-name="Ruby Ring" data-item-icon="<i class='fa-regular fa-gem'></i>" data-item-id="eq-7" data-rarity="rare"><span class="ei"><i class="fa-regular fa-gem"></i></span><span class="en">Ruby Ring</span></div>
+      <div class="el has" draggable="true" data-slot-type="equipment" data-equip-slot="neck" data-item-type="equipment" data-item-name="Silver Amulet" data-item-icon="<i class='fa-solid fa-star'></i>" data-item-id="eq-8" data-rarity="legendary"><span class="ei"><i class="fa-regular fa-star"></i></span><span class="en">Silver Amulet</span></div>
+      <div class="el has" draggable="true" data-slot-type="equipment" data-equip-slot="offhand" data-item-type="equipment" data-item-name="Wood Shield" data-item-icon="<i class='fa-solid fa-shield-halved'></i>" data-item-id="eq-9" data-rarity="uncommon"><span class="ei"><i class="fa-solid fa-shield-halved"></i></span><span class="en">Wood Shield</span></div>
+    </div>
+
+    <div class="es-title">Inventory</div>
+    <div class="eg inv-grid">
+      <div class="el has" draggable="true" data-slot-type="inventory" data-slot-idx="0" data-item-type="consumable" data-item-name="Health Potion" data-item-icon="<i class='fa-solid fa-flask'></i>" data-item-id="inv-0" data-rarity="common"><span class="ei"><i class="fa-solid fa-flask"></i></span><span class="en">Health Potion</span></div>
+      <div class="el has" draggable="true" data-slot-type="inventory" data-slot-idx="1" data-item-type="consumable" data-item-name="Health Potion" data-item-icon="<i class='fa-solid fa-flask'></i>" data-item-id="inv-1" data-rarity="common"><span class="ei"><i class="fa-solid fa-flask"></i></span><span class="en">Health Potion</span></div>
+      <div class="el has" draggable="true" data-slot-type="inventory" data-slot-idx="2" data-item-type="consumable" data-item-name="Mana Potion" data-item-icon="<i class='fa-solid fa-gem'></i>" data-item-id="inv-2" data-rarity="common"><span class="ei"><i class="fa-solid fa-gem"></i></span><span class="en">Mana Potion</span></div>
+      <div class="el has" draggable="true" data-slot-type="inventory" data-slot-idx="3" data-item-type="consumable" data-item-name="Health Potion" data-item-icon="<i class='fa-solid fa-flask'></i>" data-item-id="inv-3" data-rarity="common"><span class="ei"><i class="fa-solid fa-flask"></i></span><span class="en">Health Potion</span></div>
+      <div class="el has" draggable="true" data-slot-type="inventory" data-slot-idx="4" data-item-type="consumable" data-item-name="Mana Potion" data-item-icon="<i class='fa-solid fa-gem'></i>" data-item-id="inv-4" data-rarity="common"><span class="ei"><i class="fa-solid fa-gem"></i></span><span class="en">Mana Potion</span></div>
+      <div class="el has" draggable="true" data-slot-type="inventory" data-slot-idx="5" data-item-type="consumable" data-item-name="Health Potion" data-item-icon="<i class='fa-solid fa-flask'></i>" data-item-id="inv-5" data-rarity="common"><span class="ei"><i class="fa-solid fa-flask"></i></span><span class="en">Health Potion</span></div>
+      <div class="el has" draggable="true" data-slot-type="inventory" data-slot-idx="6" data-item-type="consumable" data-item-name="Stamina Tonic" data-item-icon="<i class='fa-solid fa-tint'></i>" data-item-id="inv-6" data-rarity="common"><span class="ei"><i class="fa-solid fa-tint"></i></span><span class="en">Stamina Tonic</span></div>
+      <div class="el has" draggable="true" data-slot-type="inventory" data-slot-idx="7" data-item-type="consumable" data-item-name="Antidote" data-item-icon="<i class='fa-solid fa-pills'></i>" data-item-id="inv-7" data-rarity="common"><span class="ei"><i class="fa-solid fa-pills"></i></span><span class="en">Antidote</span></div>
+      <div class="el has" draggable="true" data-slot-type="inventory" data-slot-idx="8" data-item-type="consumable" data-item-name="Health Potion" data-item-icon="<i class='fa-solid fa-flask'></i>" data-item-id="inv-8" data-rarity="common"><span class="ei"><i class="fa-solid fa-flask"></i></span><span class="en">Health Potion</span></div>
+      <div class="el has" draggable="true" data-slot-type="inventory" data-slot-idx="9" data-item-type="consumable" data-item-name="Mana Potion" data-item-icon="<i class='fa-solid fa-gem'></i>" data-item-id="inv-9" data-rarity="common"><span class="ei"><i class="fa-solid fa-gem"></i></span><span class="en">Mana Potion</span></div>
+      <div class="el has" draggable="true" data-slot-type="inventory" data-slot-idx="10" data-item-type="equipment" data-item-name="Bronze Dagger" data-item-icon="<i class='fa-solid fa-crosshairs'></i>" data-item-id="inv-10" data-equip-slot="weapon" data-rarity="uncommon"><span class="ei"><i class="fa-solid fa-crosshairs"></i></span><span class="en">Bronze Dagger</span></div>
+      <div class="el" data-slot-type="inventory" data-slot-idx="11"></div>
+      <div class="el" data-slot-type="inventory" data-slot-idx="12"></div>
+      <div class="el" data-slot-type="inventory" data-slot-idx="13"></div>
+      <div class="el" data-slot-type="inventory" data-slot-idx="14"></div>
+      <div class="el" data-slot-type="inventory" data-slot-idx="15"></div>
+      <div class="el" data-slot-type="inventory" data-slot-idx="16"></div>
+      <div class="el" data-slot-type="inventory" data-slot-idx="17"></div>
+    </div>
+
+    <div class="es-title">Spells</div>
+    <div class="eg spell-grid">
+      <div class="el has" draggable="true" data-slot-type="spell" data-slot-idx="0" data-item-type="spell" data-item-name="Fire Bolt" data-item-icon="<i class='fa-solid fa-fire'></i>" data-item-id="sp-0" data-rarity="rare" data-mana-cost="5"><span class="ei"><i class="fa-solid fa-fire"></i></span><span class="en">Fire Bolt</span></div>
+      <div class="el has" draggable="true" data-slot-type="spell" data-slot-idx="1" data-item-type="spell" data-item-name="Ice Shard" data-item-icon="<i class='fa-regular fa-snowflake'></i>" data-item-id="sp-1" data-rarity="uncommon" data-mana-cost="8"><span class="ei"><i class="fa-regular fa-snowflake"></i></span><span class="en">Ice Shard</span></div>
+      <div class="el has" draggable="true" data-slot-type="spell" data-slot-idx="2" data-item-type="spell" data-item-name="Lightning" data-item-icon="<i class='fa-solid fa-bolt'></i>" data-item-id="sp-2" data-rarity="legendary" data-mana-cost="15"><span class="ei"><i class="fa-solid fa-bolt"></i></span><span class="en">Lightning</span></div>
+      <div class="el has" draggable="true" data-slot-type="spell" data-slot-idx="3" data-item-type="spell" data-item-name="Heal" data-item-icon="<i class='fa-solid fa-heart'></i>" data-item-id="sp-3" data-rarity="rare" data-mana-cost="10"><span class="ei"><i class="fa-solid fa-heart"></i></span><span class="en">Heal</span></div>
+      <div class="el has" draggable="true" data-slot-type="spell" data-slot-idx="4" data-item-type="spell" data-item-name="Poison Cloud" data-item-icon="<i class='fa-solid fa-cloud'></i>" data-item-id="sp-4" data-rarity="uncommon" data-mana-cost="7"><span class="ei"><i class="fa-solid fa-cloud"></i></span><span class="en">Poison Cloud</span></div>
+      <div class="el has" draggable="true" data-slot-type="spell" data-slot-idx="5" data-item-type="spell" data-item-name="Arcane Blast" data-item-icon="<i class='fa-solid fa-compact-disc'></i>" data-item-id="sp-5" data-rarity="legendary" data-mana-cost="20"><span class="ei"><i class="fa-solid fa-compact-disc"></i></span><span class="en">Arcane Blast</span></div>
+    </div>
+    <div class="et"><span class="eti"><i class="fa-solid fa-hand"></i></span>DROP<span class="eti"><i class="fa-solid fa-trash-can"></i></span></div>
+  </div>
+</div>
+
+<!-- ====== Abandon confirm dialog ====== -->
+<div id="abandon-dialog">
+  <div class="ad">
+    <p>Abandon <strong id="ad-name"></strong>?</p>
+    <p class="ad-sub">This item will be destroyed.</p>
+    <div class="ad-item">
+      <span class="ai" id="ad-icon"></span>
+      <span class="al" id="ad-label"></span>
+    </div>
+    <div class="ab">
+      <button onclick="confirmAbandon()" class="ad-yes">Yes, Delete</button>
+      <button onclick="closeAbandon()" class="ad-no">Cancel</button>
+    </div>
+  </div>
+</div>
+
+
+
+<script>
+/* === Equipment dialog === */
+function toggleEquipment() {
+  if (document.getElementById('loot-dialog').classList.contains('visible')) { lootLeave(); return; }
+  const d = document.getElementById('equipment-dialog');
+  d.classList.toggle('visible');
+  if (!d.classList.contains('visible')) { closeAbandon(); cleanDrag(); }
+}
+function closeEquipment() {
+  if (document.getElementById('loot-dialog').classList.contains('visible')) { lootLeave(); return; }
+  document.getElementById('equipment-dialog').classList.remove('visible'); closeAbandon(); cleanDrag();
+}
+document.getElementById('player-card').addEventListener('click', toggleEquipment)
+
+/* === Drag and drop === */
+let dragSource = null;
+let dragHandled = false;
+let dragFloat = null, dragOffX = 0, dragOffY = 0;
+let dragX = 0, dragY = 0;
+let pendingAbandonSource = null;
+
+document.addEventListener('dragover', (e) => {
+  dragX = e.clientX; dragY = e.clientY;
+  if (dragFloat) {
+    dragFloat.style.left = (e.clientX - dragOffX) + 'px';
+    dragFloat.style.top = (e.clientY - dragOffY) + 'px';
+  }
+  if (dragSource && !pendingAbandonSource) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  }
+});
+
+function cleanDrag() {
+  document.querySelectorAll('.dragging,.drag-valid,.drag-invalid,.drag-over-trash').forEach(el => el.classList.remove('dragging','drag-valid','drag-invalid','drag-over-trash'));
+  document.querySelectorAll('.et-active').forEach(el => el.classList.remove('et-active'));
+  if (dragFloat) { dragFloat.remove(); dragFloat = null; }
+  dragSource = null; dragHandled = false;
+}
+
+function getItemData(el) {
+  if (!el.classList.contains('has')) return null;
+  return { html: el.innerHTML, itemType: el.dataset.itemType, itemName: el.dataset.itemName, itemIcon: el.dataset.itemIcon, equipSlot: el.dataset.equipSlot, itemId: el.dataset.itemId, rarity: el.dataset.rarity };
+}
+
+function setItemData(el, data) {
+  if (data) {
+    el.innerHTML = data.html; el.dataset.itemType = data.itemType; el.dataset.itemName = data.itemName; el.dataset.itemIcon = data.itemIcon;
+    if (data.equipSlot) el.dataset.equipSlot = data.equipSlot;
+    if (data.itemId) el.dataset.itemId = data.itemId;
+    if (data.rarity) el.dataset.rarity = data.rarity;
+    el.classList.add('has'); el.draggable = true;
+  } else {
+    el.innerHTML = '';
+    delete el.dataset.itemType; delete el.dataset.itemName; delete el.dataset.itemIcon; delete el.dataset.rarity; delete el.dataset.itemId;
+    if (el.dataset.slotType !== 'equipment') delete el.dataset.equipSlot;
+    el.classList.remove('has'); el.draggable = false;
+  }
+}
+
+function isValidDrop(source, target) {
+  if(!source||!target) return false;
+  const st=source.dataset.itemType, tt=target.dataset.slotType, se=source.dataset.equipSlot, te=target.dataset.equipSlot;
+  let forward=false;
+  if(st==='spell') forward=tt==='spell';
+  else if(st==='consumable') forward=tt==='inventory';
+  else if(st==='equipment') {
+    if(tt==='inventory') forward=true;
+    else if(tt==='equipment') forward=se===te;
+  }
+  if(st==='loot') {
+    if(tt==='inventory') forward=true;
+    else if(tt==='equipment'&&se) forward=se===te;
+    else if(tt==='spell'&&st==='spell') forward=true;
+  }
+  if(!forward) return false;
+  if(target.classList.contains('has')){
+    const td=getItemData(target);
+    if(!td) return true;
+    const ss=source.dataset.slotType;
+    if(ss==='inventory') return true;
+    if(ss==='spell') return td.itemType==='spell';
+    if(ss==='equipment') return td.itemType==='equipment'&&td.equipSlot===source.dataset.equipSlot;
+  }
+  return true;
+}
+
+function performItemSwap(source, target) {
+  const sd=getItemData(source), td=getItemData(target);
+  setItemData(target,sd); setItemData(source,td);
+}
+
+function showAbandonConfirm(source) {
+  if(!source||!source.classList.contains('has')) return;
+  pendingAbandonSource=source;
+  const name=source.dataset.itemName||'this item';
+  const icon=source.dataset.itemIcon||'<i class="fa-solid fa-circle-question"></i>';
+  document.getElementById('ad-name').textContent=name;
+  document.getElementById('ad-icon').innerHTML=icon;
+  document.getElementById('ad-label').textContent=name;
+  document.getElementById('abandon-dialog').classList.add('visible');
+  if(dragFloat) dragFloat.style.display='none';
+}
+
+function closeAbandon() {
+  if(pendingAbandonSource&&dragFloat){
+    const ps=pendingAbandonSource;
+    const ad=document.querySelector('#abandon-dialog .ad');
+    const adr=ad.getBoundingClientRect();
+    const sr=ps.getBoundingClientRect();
+    const cx=adr.left+adr.width/2, cy=adr.top+adr.height/2;
+    document.getElementById('abandon-dialog').classList.remove('visible');
+    dragFloat.style.display='';
+    dragFloat.style.transition='none';
+    dragFloat.style.left=(cx-32)+'px'; dragFloat.style.top=(cy-32)+'px';
+    dragFloat.style.width='64px'; dragFloat.style.height='64px';
+    void dragFloat.offsetHeight;
+    dragFloat.style.transition='left .25s,top .25s,width .25s,height .25s';
+    dragFloat.style.left=sr.left+'px'; dragFloat.style.top=sr.top+'px';
+    dragFloat.style.width=sr.width+'px'; dragFloat.style.height=sr.height+'px';
+    pendingAbandonSource=null;
+    setTimeout(()=>{
+      ps.style.opacity='';
+      cleanDrag();
+    },280);
+  } else {
+    document.getElementById('abandon-dialog').classList.remove('visible');
+    if(pendingAbandonSource) pendingAbandonSource.style.opacity='';
+    pendingAbandonSource=null;
+    cleanDrag();
+  }
+}
+
+function confirmAbandon() {
+  if(pendingAbandonSource){ pendingAbandonSource.style.opacity=''; setItemData(pendingAbandonSource,null); }
+  pendingAbandonSource=null;
+  document.getElementById('abandon-dialog').classList.remove('visible');
+  cleanDrag();
+}
+
+/* === DnD event handlers (delegated on dialog) === */
+(function(){
+  const d=document.getElementById('equipment-dialog');
+  d.addEventListener('dragstart',(e)=>{
+    const s=e.target.closest('.el');
+    if(!s||!s.classList.contains('has')) return;
+    dragSource=s; dragHandled=false;
+    const fl=s.cloneNode(true); fl.className='drag-float';
+    const sr=s.getBoundingClientRect();
+    dragOffX=e.clientX-sr.left; dragOffY=e.clientY-sr.top;
+    fl.style.left=(e.clientX-dragOffX)+'px'; fl.style.top=(e.clientY-dragOffY)+'px';
+    fl.style.width=sr.width+'px'; fl.style.height=sr.height+'px';
+    document.body.appendChild(fl); dragFloat=fl;
+    s.style.opacity='0.15';
+    const img=new Image(); img.src='data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+    e.dataTransfer.setDragImage(img,0,0);
+    e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/plain',s.dataset.itemId||'');
+    d.querySelector('.et').classList.add('et-active');
+  });
+  d.addEventListener('dragover',(e)=>{
+    document.querySelectorAll('.drag-valid,.drag-invalid').forEach(el=>el.classList.remove('drag-valid','drag-invalid'));
+    const t=e.target.closest('.et');
+    if(t&&dragSource){e.preventDefault();e.dataTransfer.dropEffect='move';t.classList.add('drag-over-trash');return;}
+    const tg=e.target.closest('.el');
+    if(tg&&dragSource&&tg!==dragSource){
+      if(isValidDrop(dragSource,tg)){e.preventDefault();e.dataTransfer.dropEffect='move';tg.classList.add('drag-valid');}
+      else{e.dataTransfer.dropEffect='none';tg.classList.add('drag-invalid');}
+      return;
+    }
+    if(dragSource){e.preventDefault();e.dataTransfer.dropEffect='none';}
+  });
+  d.addEventListener('drop',(e)=>{
+    document.querySelectorAll('.drag-valid,.drag-invalid,.drag-over-trash').forEach(el=>el.classList.remove('drag-valid','drag-invalid','drag-over-trash'));
+    const t=e.target.closest('.et');
+    if(t&&dragSource){e.preventDefault();e.stopPropagation();showAbandonConfirm(dragSource);return;}
+    const tg=e.target.closest('.el');
+    if(tg&&dragSource&&tg!==dragSource&&isValidDrop(dragSource,tg)){
+      e.preventDefault();e.stopPropagation();dragHandled=true;
+      if(dragSource.dataset.slotType==='loot'){
+        var itemData=getItemData(dragSource);
+        if(itemData){
+          if(tg.classList.contains('has')){
+            var existing=getItemData(tg);
+            setItemData(tg,itemData);
+            var emptyInv=document.querySelector('#equipment-dialog .inv-grid .el:not(.has)');
+            if(emptyInv&&existing) setItemData(emptyInv,existing);
+          } else {
+            setItemData(tg,itemData);
+          }
+          removeLootItem(dragSource);
+          addLogEntry('<i class="fa-solid fa-box-open"></i>','Took '+itemData.itemName+'!');
+        }
+      } else {
+        performItemSwap(dragSource,tg);
+      }
+      cleanDrag();
+      return;
+    }
+    if(dragSource){
+      e.preventDefault();e.stopPropagation();
+    }
+  });
+  d.addEventListener('dragend',()=>{
+    if(!pendingAbandonSource){
+      if(dragSource) dragSource.style.opacity='';
+      cleanDrag();
+    }
+  });
+})();
+
+/* === Loot Dialog === */
+const currentLoot = [];
+
+function getSampleLoot() {
+  return [
+    { id:'loot-0', itemType:'equipment', equipSlot:'belt',    name:'Iron Belt',      icon:'<i class="fa-solid fa-link"></i>', rarity:'uncommon' },
+    { id:'loot-1', itemType:'equipment', equipSlot:'weapon',  name:'Bronze Dagger',  icon:'<i class="fa-solid fa-crosshairs"></i>',  rarity:'uncommon' },
+    { id:'loot-2', itemType:'equipment', equipSlot:'head',    name:'Steel Helm',     icon:'<i class="fa-solid fa-helmet-safety"></i>', rarity:'common' },
+    { id:'loot-3', itemType:'equipment', equipSlot:'chest',   name:'Scale Mail',     icon:'<i class="fa-solid fa-shirt"></i>', rarity:'rare' },
+    { id:'loot-4', itemType:'equipment', equipSlot:'legs',    name:'Plate Leggings', icon:'<i class="fa-solid fa-chevron-down"></i>', rarity:'uncommon' },
+    { id:'loot-5', itemType:'equipment', equipSlot:'feet',    name:'Leather Boots',  icon:'<i class="fa-solid fa-boot"></i>', rarity:'common' },
+    { id:'loot-6', itemType:'consumable', name:'Health Potion',  icon:'<i class="fa-solid fa-flask"></i>', rarity:'common' },
+    { id:'loot-7', itemType:'consumable', name:'Mana Potion',    icon:'<i class="fa-solid fa-gem"></i>', rarity:'common' },
+    { id:'loot-8', itemType:'consumable', name:'Stamina Tonic',  icon:'<i class="fa-solid fa-tint"></i>', rarity:'uncommon' },
+  ];
+}
+
+function openLootDialog() {
+  const list = document.getElementById('ld-items');
+  list.innerHTML = '';
+  currentLoot.length = 0;
+  currentLoot.push(...getSampleLoot());
+
+  currentLoot.forEach(function(item) {
+    const el = document.createElement('div');
+    el.className = 'el has';
+    el.draggable = true;
+    el.dataset.slotType = 'loot';
+    el.dataset.itemType = item.itemType;
+    el.dataset.itemName = item.name;
+    el.dataset.itemIcon = item.icon;
+    el.dataset.itemId = item.id;
+    el.dataset.rarity = item.rarity;
+    if (item.equipSlot) el.dataset.equipSlot = item.equipSlot;
+    el.innerHTML = '<span class="ei">' + item.icon + '</span><span class="en">' + item.name + '</span>';
+    list.appendChild(el);
+  });
+
+  document.getElementById('victory-bg').classList.add('visible');
+  document.getElementById('loot-dialog').classList.add('visible');
+  var eq = document.getElementById('equipment-dialog');
+  eq.classList.add('visible', 'loot-mode');
+
+  setTimeout(function(){ autoEquipLoot(); }, 200);
+}
+
+function closeLootDialog() {
+  document.getElementById('loot-dialog').classList.remove('visible');
+  var eq = document.getElementById('equipment-dialog');
+  eq.classList.remove('visible', 'loot-mode');
+  document.getElementById('victory-bg').classList.remove('visible');
+  cleanDrag();
+}
+
+function removeLootItem(el) {
+  if (el && el.parentNode) el.parentNode.removeChild(el);
+  var id = el && el.dataset.itemId;
+  if (id) {
+    for (var i = 0; i < currentLoot.length; i++) {
+      if (currentLoot[i].id === id) { currentLoot.splice(i, 1); break; }
+    }
+  }
+}
+
+function getEmptySlotInGrid(grid) {
+  if (!grid) return null;
+  var slots = grid.querySelectorAll('.el');
+  for (var i = 0; i < slots.length; i++) {
+    if (!slots[i].classList.contains('has')) return slots[i];
+  }
+  return null;
+}
+
+function animateItemToSlot(itemData, targetEl, callback) {
+  var float = document.createElement('div');
+  float.className = 'auto-equip-float';
+  var lootEl = document.getElementById('loot-dialog') || targetEl;
+  var lr = lootEl.getBoundingClientRect();
+  var startX = lr.left + lr.width / 2 - 40;
+  var startY = lr.top + 60;
+  float.innerHTML = '<span class="ei">' + itemData.itemIcon + '</span><span class="en">' + itemData.itemName + '</span>';
+  float.style.left = startX + 'px';
+  float.style.top = startY + 'px';
+  float.style.width = '80px';
+  float.style.height = '32px';
+  document.body.appendChild(float);
+  var tr = targetEl.getBoundingClientRect();
+  void float.offsetHeight;
+  float.style.transition = 'left .35s cubic-bezier(.2,.9,.4,1), top .35s cubic-bezier(.2,.9,.4,1), width .35s cubic-bezier(.2,.9,.4,1), height .35s cubic-bezier(.2,.9,.4,1)';
+  float.style.left = tr.left + 'px';
+  float.style.top = tr.top + 'px';
+  float.style.width = tr.width + 'px';
+  float.style.height = tr.height + 'px';
+  setTimeout(function(){ float.remove(); if (callback) callback(); }, 380);
+}
+
+function autoEquipLoot() {
+  var lootItems = document.querySelectorAll('#ld-items .el.has');
+  var toRemove = [];
+  for (var i = 0; i < lootItems.length; i++) {
+    var el = lootItems[i];
+    if (el.dataset.itemType === 'equipment' && el.dataset.equipSlot) {
+      var eqGrid = document.querySelector('#equipment-dialog .eq-grid');
+      if (!eqGrid) continue;
+      var slots = eqGrid.querySelectorAll('.el[data-equip-slot="' + el.dataset.equipSlot + '"]');
+      for (var j = 0; j < slots.length; j++) {
+        if (!slots[j].classList.contains('has')) {
+          var itemData = getItemData(el);
+          if (itemData) {
+            toRemove.push(el);
+            animateItemToSlot(itemData, slots[j], (function(td, tg) {
+              return function(){ setItemData(tg, td); addLogEntry('<i class="fa-solid fa-box-open"></i>', 'Auto-equipped ' + td.itemName + '!'); };
+            })(itemData, slots[j]));
+          }
+          break;
+        }
+      }
+    }
+  }
+  for (var k = 0; k < toRemove.length; k++) { removeLootItem(toRemove[k]); }
+}
+
+function lootTakeAll() {
+  var lootItems = document.querySelectorAll('#ld-items .el.has');
+  var taken = [];
+  for (var i = 0; i < lootItems.length; i++) {
+    var el = lootItems[i];
+    var itemData = getItemData(el);
+    if (!itemData) continue;
+    var target = null;
+    if (itemData.itemType === 'equipment' && itemData.equipSlot) {
+      var eqGrid = document.querySelector('#equipment-dialog .eq-grid');
+      if (eqGrid) {
+        var eqSlots = eqGrid.querySelectorAll('.el[data-equip-slot="' + itemData.equipSlot + '"]');
+        for (var j = 0; j < eqSlots.length; j++) {
+          if (!eqSlots[j].classList.contains('has')) { target = eqSlots[j]; break; }
+        }
+      }
+    }
+    if (!target && (itemData.itemType === 'equipment' || itemData.itemType === 'consumable')) {
+      target = getEmptySlotInGrid(document.querySelector('#equipment-dialog .inv-grid'));
+    }
+    if (!target && itemData.itemType === 'spell') {
+      target = getEmptySlotInGrid(document.querySelector('#equipment-dialog .spell-grid'));
+    }
+    if (target) {
+      setItemData(target, itemData);
+      var label = target.dataset.equipSlot ? ' (' + target.dataset.equipSlot + ')' : '';
+      addLogEntry('<i class="fa-solid fa-box-open"></i>', 'Took ' + itemData.itemName + label);
+      taken.push(el);
+    }
+  }
+  for (var k = 0; k < taken.length; k++) { removeLootItem(taken[k]); }
+  var remaining = document.querySelectorAll('#ld-items .el.has');
+  if (remaining.length === 0) { lootLeave(); }
+}
+
+function lootLeave() {
+  closeLootDialog();
+}
+
+/* === DnD handlers for loot dialog === */
+(function(){
+  var d = document.getElementById('loot-dialog');
+  if (!d) return;
+  d.addEventListener('dragstart', function(e) {
+    var s = e.target.closest('.el');
+    if (!s || !s.classList.contains('has')) return;
+    dragSource = s; dragHandled = false;
+    var fl = s.cloneNode(true); fl.className = 'drag-float';
+    var sr = s.getBoundingClientRect();
+    dragOffX = e.clientX - sr.left; dragOffY = e.clientY - sr.top;
+    fl.style.left = (e.clientX - dragOffX) + 'px'; fl.style.top = (e.clientY - dragOffY) + 'px';
+    fl.style.width = sr.width + 'px'; fl.style.height = sr.height + 'px';
+    document.body.appendChild(fl); dragFloat = fl;
+    s.style.opacity = '0.15';
+    var img = new Image(); img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+    e.dataTransfer.setDragImage(img, 0, 0);
+    e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', s.dataset.itemId || '');
+  });
+  d.addEventListener('dragover', function(e) {
+    document.querySelectorAll('.drag-valid,.drag-invalid,.drag-over-trash').forEach(function(el){ el.classList.remove('drag-valid','drag-invalid','drag-over-trash'); });
+    if (dragSource) e.preventDefault();
+  });
+  d.addEventListener('drop', function(e) {
+    document.querySelectorAll('.drag-valid,.drag-invalid,.drag-over-trash').forEach(function(el){ el.classList.remove('drag-valid','drag-invalid','drag-over-trash'); });
+    if (dragSource) e.preventDefault();
+  });
+  d.addEventListener('dragend', function() {
+    if (!pendingAbandonSource) {
+      if (dragSource && dragSource.dataset.slotType === 'loot') dragSource.style.opacity = '';
+      cleanDrag();
+    }
+  });
+  d.addEventListener('click', function(e) {
+    var el = e.target.closest('.el.has');
+    if (!el || el.dataset.slotType !== 'loot') return;
+    var itemData = getItemData(el);
+    if (!itemData) return;
+    var target = null;
+    if (itemData.itemType === 'equipment' && itemData.equipSlot) {
+      var eqSlots = document.querySelectorAll('#equipment-dialog .eq-grid .el[data-equip-slot="' + itemData.equipSlot + '"]');
+      for (var i = 0; i < eqSlots.length; i++) {
+        if (!eqSlots[i].classList.contains('has')) { target = eqSlots[i]; break; }
+      }
+    }
+    if (!target && (itemData.itemType === 'equipment' || itemData.itemType === 'consumable')) {
+      target = getEmptySlotInGrid(document.querySelector('#equipment-dialog .inv-grid'));
+    }
+    if (!target && itemData.itemType === 'spell') {
+      target = getEmptySlotInGrid(document.querySelector('#equipment-dialog .spell-grid'));
+    }
+    if (target) {
+      setItemData(target, itemData);
+      removeLootItem(el);
+      var label = target.dataset.equipSlot ? ' (' + target.dataset.equipSlot + ')' : '';
+      addLogEntry('<i class="fa-solid fa-box-open"></i>', 'Took ' + itemData.itemName + label);
+      var remaining = document.querySelectorAll('#ld-items .el.has');
+      if (remaining.length === 0) { lootLeave(); }
+    }
+  });
+})();
+
+/* === Activity Log === */
+const logBuffer = [];
+const MAX_LOG = 1000;
+let autoScroll = true;
+let programmaticScroll = false;
+
+function addLogEntry(icon, message) {
+  const now = new Date();
+  const ts = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+  logBuffer.push({ timestamp: ts, icon, message });
+  if (logBuffer.length > MAX_LOG) logBuffer.shift();
+  renderLog();
+}
+
+function renderLog() {
+  const body = document.getElementById('log-body');
+  const log = document.getElementById('log');
+  const expanded = log.classList.contains('expanded');
+  const entries = expanded ? logBuffer : logBuffer.slice(-5);
+  const reversed = entries.slice().reverse();
+  body.innerHTML = reversed.map(e =>
+    '<div class="le">[' + e.timestamp + '] ' + e.icon + ' ' + e.message + '</div>'
+  ).join('');
+  if (autoScroll && expanded) {
+    programmaticScroll = true;
+    body.scrollTop = 0;
+  }
+  updateScrollBtn();
+}
+
+function toggleLog() {
+  const log = document.getElementById('log');
+  const body = document.getElementById('log-body');
+  const expanded = log.classList.contains('expanded');
+
+  if (expanded) {
+    log.classList.remove('expanded');
+    updateScrollBtn();
+    setTimeout(() => {
+      const entries = logBuffer.slice(-5);
+      const reversed = entries.slice().reverse();
+      body.innerHTML = reversed.map(e =>
+        '<div class="le">[' + e.timestamp + '] ' + e.icon + ' ' + e.message + '</div>'
+      ).join('');
+    }, 300);
+  } else {
+    const reversed = logBuffer.slice().reverse();
+    body.innerHTML = reversed.map(e =>
+      '<div class="le">[' + e.timestamp + '] ' + e.icon + ' ' + e.message + '</div>'
+    ).join('');
+    log.classList.add('expanded');
+    if (autoScroll) {
+      programmaticScroll = true;
+      body.scrollTop = 0;
+    }
+    updateScrollBtn();
+  }
+}
+
+function updateScrollBtn() {
+  const btn = document.getElementById('log-scroll-btn');
+  const log = document.getElementById('log');
+  btn.classList.toggle('visible', log.classList.contains('expanded') && !autoScroll);
+}
+
+function scrollLogToTop() {
+  autoScroll = true;
+  programmaticScroll = true;
+  document.getElementById('log-body').scrollTop = 0;
+  updateScrollBtn();
+}
+
+document.getElementById('log-body').addEventListener('scroll', function() {
+  if (programmaticScroll) { programmaticScroll = false; return; }
+  if (this.scrollTop > 0 && autoScroll) { autoScroll = false; updateScrollBtn(); }
+  if (this.scrollTop === 0 && !autoScroll) { autoScroll = true; updateScrollBtn(); }
+});
+
+(function() {
+  const icons = ['<i class="fa-solid fa-crosshairs"></i>','<i class="fa-solid fa-skull"></i>','<i class="fa-solid fa-box-open"></i>','<i class="fa-solid fa-flask"></i>','<i class="fa-solid fa-door-open"></i>','<i class="fa-solid fa-wand-sparkles"></i>','<i class="fa-solid fa-person-running"></i>','<i class="fa-solid fa-coins"></i>','<i class="fa-solid fa-star"></i>','<i class="fa-solid fa-bell"></i>'];
+  const msgs = [
+    ['Hit Goblin Champion for 12.','Goblin struck back for 5.','Critical hit! 28 damage.','Attack missed!'],
+    ['Goblin Champion slain! +35 XP','Slime dissolved! +12 XP','Skeleton crumbles! +45 XP'],
+    ['Iron Sword (uncommon) picked up.','Health Potion added to inventory.','Leather Boots looted.'],
+    ['Health Potion consumed. +15 HP','Mana Potion consumed. +20 MP'],
+    ['Entered Ancient Chamber.','Entered Dark Hallway.','Entered Treasury Room.'],
+    ['Fire Bolt cast! 22 damage.','Ice Shard deals 18 damage.'],
+    ['You fled from combat!','Failed to escape!'],
+    ['+15 gold coins found.','+25 gold coins found.'],
+    ['Level up! You are now level 8!'],
+    ['Boss room detected nearby!']
+  ];
+  for (let i = 0; i < 1000; i++) {
+    const g = icons[i % icons.length];
+    const list = msgs[i % msgs.length];
+    const h = String(Math.floor(Math.random() * 24)).padStart(2, '0');
+    const m = String(Math.floor(Math.random() * 60)).padStart(2, '0');
+    logBuffer.push({ timestamp: h + ':' + m, icon: g, message: list[i % list.length] });
+  }
+  renderLog();
+})();
+
+/* === Combat === */
+function doCombatAction() {
+  closeAllActionPanels();
+  document.getElementById('action-menu').style.display = 'none';
+  document.getElementById('enemy-card').style.display = 'none';
+  addLogEntry('<i class="fa-solid fa-crosshairs"></i>', 'Goblin Champion slain! +35 XP');
+  openLootDialog();
+}
+
+/* === Close any open action panel instantly === */
+function closeAllActionPanels() {
+  ['spell-panel', 'use-item-panel', 'flee-panel'].forEach(function(id) {
+    var panel = document.getElementById(id);
+    panel.classList.remove('visible');
+    panel.style.transition = '';
+  });
+}
+
+/* === Flee panel === */
+const fleeState = { btnRect: null };
+function openFleePanel() {
+  closeAllActionPanels();
+  const btn = document.querySelector('#action-menu button:nth-child(4)');
+  const rect = btn.getBoundingClientRect();
+  fleeState.btnRect = rect;
+  const panel = document.getElementById('flee-panel');
+  panel.style.cssText = '';
+  panel.style.position = 'fixed';
+  panel.style.left = rect.left + 'px';
+  panel.style.top = rect.top + 'px';
+  panel.style.width = rect.width + 'px';
+  panel.style.height = rect.height + 'px';
+  panel.style.zIndex = '200';
+  panel.style.background = '#3a2020';
+  panel.style.border = '4px solid #6a3a3a';
+  panel.style.boxShadow = '0 8px 0 #1a3a2a';
+  panel.style.overflow = 'hidden';
+  panel.style.boxSizing = 'border-box';
+  panel.classList.add('visible');
+  void panel.offsetHeight;
+  panel.style.transition = 'width .2s ease-out, height .2s ease-out';
+  panel.style.width = '320px';
+  panel.style.height = '240px';
+}
+function closeFleePanel() {
+  const panel = document.getElementById('flee-panel');
+  const rect = fleeState.btnRect;
+  if (rect) {
+    panel.style.transition = 'width .12s ease-in, height .12s ease-in';
+    panel.style.width = rect.width + 'px';
+    panel.style.height = rect.height + 'px';
+    function onEnd() {
+      panel.removeEventListener('transitionend', onEnd);
+      panel.classList.remove('visible');
+      panel.style.transition = '';
+    }
+    panel.addEventListener('transitionend', onEnd);
+  } else {
+    panel.classList.remove('visible');
+    panel.style.transition = '';
+  }
+}
+function doFleeFromPanel() {
+  const panel = document.getElementById('flee-panel');
+  const rect = fleeState.btnRect;
+  panel.style.transition = 'width .12s ease-in, height .12s ease-in';
+  panel.style.width = rect.width + 'px';
+  panel.style.height = rect.height + 'px';
+  function onEnd() {
+    panel.removeEventListener('transitionend', onEnd);
+    panel.classList.remove('visible');
+    panel.style.transition = '';
+    document.getElementById('action-menu').style.display = 'none';
+    document.getElementById('enemy-card').style.display = 'none';
+    addLogEntry('<i class="fa-solid fa-person-running"></i>', 'Fled from combat!');
+  }
+  panel.addEventListener('transitionend', onEnd);
+}
+
+/* === Spell selection === */
+const spellState = { btnRect: null };
+function getCurrentMana() {
+  const el = document.querySelector('#player-card .br:nth-child(2) .bt');
+  if (!el) return 0;
+  return parseInt(el.textContent.trim().split('/')[0], 10) || 0;
+}
+function populateSpells() {
+  const list = document.getElementById('spell-list');
+  const slots = document.querySelectorAll('#equipment-dialog .eg.spell-grid .el.has');
+  const mana = getCurrentMana();
+  list.innerHTML = '';
+  if (slots.length === 0) {
+    list.innerHTML = '<div class="sp-empty">No spells available</div>';
+    return;
+  }
+  slots.forEach(slot => {
+    const name = slot.dataset.itemName || 'Unknown';
+    const icon = slot.dataset.itemIcon || '<i class="fa-solid fa-circle-question"></i>';
+    const cost = parseInt(slot.dataset.manaCost || '0', 10);
+    const canCast = mana >= cost;
+    const item = document.createElement('div');
+    item.className = 'sp-item' + (canCast ? '' : ' sp-disabled');
+    if (canCast) {
+      item.addEventListener('click', function() { castSpell(name, cost) });
+    }
+    item.innerHTML = '<span class="sp-icon">' + icon + '</span><span class="sp-name">' + name + '</span><span class="sp-cost">' + cost + ' MP</span>';
+    list.appendChild(item);
+  });
+}
+function openSpellPanel() {
+  closeAllActionPanels();
+  const btn = document.querySelector('#action-menu button:nth-child(2)');
+  const rect = btn.getBoundingClientRect();
+  spellState.btnRect = rect;
+  const panel = document.getElementById('spell-panel');
+  populateSpells();
+  panel.style.cssText = '';
+  panel.style.position = 'fixed';
+  panel.style.left = rect.left + 'px';
+  panel.style.bottom = (window.innerHeight - rect.bottom) + 'px';
+  panel.style.width = rect.width + 'px';
+  panel.style.height = rect.height + 'px';
+  panel.style.zIndex = '200';
+  panel.style.background = '#2d4d38';
+  panel.style.border = '4px solid #4a7a58';
+  panel.style.boxShadow = '0 8px 0 #1a3a2a';
+  panel.style.overflow = 'hidden';
+  panel.style.boxSizing = 'border-box';
+  panel.classList.add('visible');
+  void panel.offsetHeight;
+  panel.style.transition = 'width .2s ease-out, height .2s ease-out';
+  panel.style.width = '320px';
+  panel.style.height = '240px';
+  function onOpenEnd() {
+    panel.removeEventListener('transitionend', onOpenEnd);
+    panel.style.overflow = '';
+  }
+  panel.addEventListener('transitionend', onOpenEnd);
+}
+function closeSpellPanel() {
+  const panel = document.getElementById('spell-panel');
+  const rect = spellState.btnRect;
+  if (rect) {
+    panel.style.transition = 'width .12s ease-in, height .12s ease-in';
+    panel.style.width = rect.width + 'px';
+    panel.style.height = rect.height + 'px';
+    function onEnd() {
+      panel.removeEventListener('transitionend', onEnd);
+      panel.classList.remove('visible');
+      panel.style.transition = '';
+    }
+    panel.addEventListener('transitionend', onEnd);
+  } else {
+    panel.classList.remove('visible');
+    panel.style.transition = '';
+  }
+}
+function castSpell(name, cost) {
+  addLogEntry('<i class="fa-solid fa-wand-sparkles"></i>', 'Cast ' + name + '!');
+  const manaBt = document.querySelector('#player-card .br:nth-child(2) .bt');
+  if (manaBt) {
+    const parts = manaBt.textContent.trim().split('/');
+    const current = parseInt(parts[0], 10) || 0;
+    const max = parseInt(parts[1], 10) || 30;
+    const newMana = Math.max(0, current - cost);
+    manaBt.textContent = newMana + '/' + max;
+    const bar = document.querySelector('#player-card .br:nth-child(2) .bf.mp');
+    if (bar) bar.style.width = Math.round((newMana / max) * 100) + '%';
+  }
+  closeSpellPanel();
+  doCombatAction();
+}
+
+/* === Use Item panel === */
+const useItemState = { btnRect: null };
+function populateUsableItems() {
+  const list = document.getElementById('use-item-list');
+  const slots = document.querySelectorAll('#equipment-dialog .eg.inv-grid .el.has[data-item-type="consumable"]');
+  list.innerHTML = '';
+  if (slots.length === 0) {
+    list.innerHTML = '<div class="uip-empty">No usable items</div>';
+    return;
+  }
+  slots.forEach(function(slot) {
+    const name = slot.dataset.itemName || 'Unknown';
+    const icon = slot.dataset.itemIcon || '<i class="fa-solid fa-circle-question"></i>';
+    const item = document.createElement('div');
+    item.className = 'uip-item';
+    item.addEventListener('click', function() { useItem(name, icon, slot) });
+    var effect = '';
+    if (name.toLowerCase().indexOf('health') !== -1) { effect = '+HP'; }
+    else if (name.toLowerCase().indexOf('mana') !== -1) { effect = '+MP'; }
+    else { effect = 'Use'; }
+    item.innerHTML = '<span class="uip-icon">' + icon + '</span><span class="uip-name">' + name + '</span><span class="uip-effect">' + effect + '</span>';
+    list.appendChild(item);
+  });
+}
+function openUseItemPanel() {
+  closeAllActionPanels();
+  const btn = document.querySelector('#action-menu button:nth-child(3)');
+  const rect = btn.getBoundingClientRect();
+  useItemState.btnRect = rect;
+  const panel = document.getElementById('use-item-panel');
+  populateUsableItems();
+  panel.style.cssText = '';
+  panel.style.position = 'fixed';
+  panel.style.top = rect.top + 'px';
+  panel.style.right = (window.innerWidth - rect.right) + 'px';
+  panel.style.width = rect.width + 'px';
+  panel.style.height = rect.height + 'px';
+  panel.style.zIndex = '200';
+  panel.style.background = '#2d4d38';
+  panel.style.border = '4px solid #4a7a58';
+  panel.style.boxShadow = '0 8px 0 #1a3a2a';
+  panel.style.overflow = 'hidden';
+  panel.style.boxSizing = 'border-box';
+  panel.classList.add('visible');
+  void panel.offsetHeight;
+  panel.style.transition = 'width .2s ease-out, height .2s ease-out';
+  panel.style.width = '320px';
+  panel.style.height = '240px';
+  function onOpenEnd() {
+    panel.removeEventListener('transitionend', onOpenEnd);
+    panel.style.overflow = '';
+  }
+  panel.addEventListener('transitionend', onOpenEnd);
+}
+function closeUseItemPanel() {
+  const panel = document.getElementById('use-item-panel');
+  const rect = useItemState.btnRect;
+  if (rect) {
+    panel.style.transition = 'width .12s ease-in, height .12s ease-in';
+    panel.style.width = rect.width + 'px';
+    panel.style.height = rect.height + 'px';
+    function onEnd() {
+      panel.removeEventListener('transitionend', onEnd);
+      panel.classList.remove('visible');
+      panel.style.transition = '';
+    }
+    panel.addEventListener('transitionend', onEnd);
+  } else {
+    panel.classList.remove('visible');
+    panel.style.transition = '';
+  }
+}
+function useItem(name, icon, slot) {
+  if (name.toLowerCase().indexOf('health') !== -1) {
+    const hpBt = document.querySelector('#player-card .br:nth-child(1) .bt');
+    if (hpBt) {
+      const parts = hpBt.textContent.trim().split('/');
+      const current = parseInt(parts[0], 10) || 0;
+      const max = parseInt(parts[1], 10) || 100;
+      const newHp = Math.min(max, current + 15);
+      hpBt.textContent = newHp + '/' + max;
+      const bar = document.querySelector('#player-card .br:nth-child(1) .bf.hp');
+      if (bar) bar.style.width = Math.round((newHp / max) * 100) + '%';
+    }
+  } else if (name.toLowerCase().indexOf('mana') !== -1) {
+    const mpBt = document.querySelector('#player-card .br:nth-child(2) .bt');
+    if (mpBt) {
+      const parts = mpBt.textContent.trim().split('/');
+      const current = parseInt(parts[0], 10) || 0;
+      const max = parseInt(parts[1], 10) || 30;
+      const newMp = Math.min(max, current + 20);
+      mpBt.textContent = newMp + '/' + max;
+      const bar = document.querySelector('#player-card .br:nth-child(2) .bf.mp');
+      if (bar) bar.style.width = Math.round((newMp / max) * 100) + '%';
+    }
+  }
+  setItemData(slot, null);
+  addLogEntry('<i class="fa-solid fa-flask"></i>', 'Used ' + name + '!');
+  closeUseItemPanel();
+  doCombatAction();
+}
+
+
+</script>
+</body>
+</html>

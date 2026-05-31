@@ -1,0 +1,1051 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dungeon Crawler - Prototype</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:monospace}
+canvas{display:block;image-rendering:pixelated}
+#game{position:absolute;top:0;left:0;width:100%;height:100%}
+#hud{position:fixed;bottom:12px;left:50%;transform:translateX(-50%);color:#888;font-size:13px;pointer-events:none;text-align:center;z-index:5}
+#hud kbd{background:#222;color:#ddd;padding:2px 6px;border-radius:3px;border:1px solid #444}
+#minimap-wrap{position:fixed;top:50%;left:50%;transform:translate(-50%, -50%);background:rgba(0,0,0,.92);border:2px solid #555;border-radius:8px;padding:16px;display:none;z-index:10;flex-direction:column;align-items:center;width:85vw;height:85vh}
+#minimap-wrap.active{display:flex}
+#minimap-wrap .map-scroll{overflow:auto;width:100%;flex:1;min-height:0;cursor:grab;display:flex}
+#minimap-wrap .map-scroll.panning{cursor:grabbing;user-select:none}
+#minimap-wrap .map-scroll canvas{margin:auto;flex-shrink:0}
+#minimap-wrap .label{color:#aaa;font-size:12px;margin-top:6px}
+.minimap-zoom{display:flex;align-items:center;gap:10px;margin-top:8px;width:100%;justify-content:center}
+.minimap-zoom input[type=range]{width:160px;accent-color:#ffd700;cursor:pointer}
+.minimap-zoom .level{color:#aaa;font-size:12px;min-width:36px;text-align:center}
+#minimap-close{position:absolute;top:6px;right:10px;background:none;border:none;color:#888;font-size:22px;cursor:pointer;line-height:1;padding:2px 6px;z-index:11}
+#minimap-close:hover{color:#fff}
+#minimap-small{position:fixed;top:60px;right:12px;z-index:5;background:rgba(0,0,0,.85);border:1px solid #555;border-radius:6px;padding:4px;cursor:pointer}
+#minimap-small canvas{display:block}
+#minimap-small.hidden{display:none}
+#status{position:fixed;top:12px;left:12px;color:#aaa;font-size:14px;pointer-events:none;z-index:5;line-height:1.6}
+#status .room-name{color:#ffd700;font-weight:bold}
+#status .room-info{color:#888}
+#transition-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:#000;pointer-events:none;z-index:20;opacity:0;transition:opacity .3s}
+#transition-overlay.fade{opacity:1}
+#controls{position:fixed;top:12px;right:12px;display:flex;align-items:center;gap:8px;z-index:5;background:rgba(0,0,0,.7);border:1px solid #444;border-radius:6px;padding:8px 12px}
+#controls label{color:#aaa;font-size:13px}
+#controls input{width:50px;background:#222;color:#ddd;border:1px solid #555;border-radius:4px;padding:4px 6px;font-family:monospace;font-size:14px;text-align:center}
+#controls input:focus{outline:none;border-color:#ffd700}
+#controls button{background:#444;color:#fff;border:1px solid #666;border-radius:4px;padding:4px 10px;font-family:monospace;font-size:13px;cursor:pointer}
+#controls button:hover{background:#555}
+#controls button:active{background:#333}
+</style>
+</head>
+<body>
+<div id="game"><canvas id="gc"></canvas></div>
+<div id="status">
+  <div><span class="room-name" id="roomName">Dungeon</span></div>
+  <div class="room-info" id="roomInfo">Room 1 / 1</div>
+</div>
+<div id="controls">
+  <label>Grid: <input type="number" id="gridSize" value="64" min="3" max="64"></label>
+  <button id="generateBtn">Generate</button>
+</div>
+<div id="minimap-small">
+  <canvas id="mcs"></canvas>
+</div>
+<div id="minimap-wrap">
+  <div class="map-scroll">
+    <canvas id="mc"></canvas>
+  </div>
+  <div class="minimap-zoom">
+    <input type="range" id="zoomSlider" min="25" max="500" step="25" value="100">
+    <span class="level" id="zoomLevel">1×</span>
+  </div>
+  <div class="label">Scroll to zoom · <kbd>M</kbd> close</div>
+  <button id="minimap-close" aria-label="Close minimap">&times;</button>
+</div>
+<div id="transition-overlay"></div>
+<div id="hud">
+  <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / <kbd>&uarr;</kbd><kbd>&larr;</kbd><kbd>&darr;</kbd><kbd>&rarr;</kbd> Hold to move &nbsp;·&nbsp; Click tile to walk &nbsp;·&nbsp; <kbd>M</kbd> Map &nbsp;·&nbsp; <kbd>Enter</kbd> Generate
+</div>
+<script>
+// ──────────────────────────────────────────────
+//  Configuration
+// ──────────────────────────────────────────────
+const CONFIG = {
+  gridSize: 64,
+  roomW: 15,
+  roomH: 11,
+  targetRoomRatio: 0.55,
+  extraEdgeRatio: 0.20,
+  transitionMs: 350,
+  walkSpeed: 120,
+};
+
+const TILE = { WALL: 0, FLOOR: 1, DOOR_N: 2, DOOR_S: 3, DOOR_E: 4, DOOR_W: 5 };
+
+// ──────────────────────────────────────────────
+//  Canvas setup
+// ──────────────────────────────────────────────
+const gc = document.getElementById('gc');
+const gcx = gc.getContext('2d');
+const mc = document.getElementById('mc');
+const mcx = mc.getContext('2d');
+const mcs = document.getElementById('mcs');
+const mcsx = mcs.getContext('2d');
+
+let W, H, tileSize;
+const MAP_GAP = 3;
+let minimapZoom = 1;
+const ZOOM_MIN = 0.25;
+const ZOOM_MAX = 5;
+
+function getScrollContainerSize() {
+  const el = document.querySelector('.map-scroll');
+  if (el.clientWidth > 0 && el.clientHeight > 0) {
+    return { w: el.clientWidth, h: el.clientHeight };
+  }
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  return {
+    w: Math.floor(vw * 0.85 - 32),
+    h: Math.floor(vh * 0.85 - 90),
+  };
+}
+
+function resizeMinimap() {
+  const gs = CONFIG.gridSize;
+  const container = getScrollContainerSize();
+  const cellForW = Math.floor((container.w - 16 - (gs - 1) * MAP_GAP) / gs);
+  const cellForH = Math.floor((container.h - 16 - (gs - 1) * MAP_GAP) / gs);
+  const base = Math.max(2, Math.min(28, Math.min(cellForW, cellForH)));
+  const cell = Math.max(2, Math.round(base * minimapZoom));
+  mc.width = gs * cell + (gs - 1) * MAP_GAP + 16;
+  mc.height = gs * cell + (gs - 1) * MAP_GAP + 16;
+}
+
+function resize() {
+  W = window.innerWidth;
+  H = window.innerHeight;
+  gc.width = W;
+  gc.height = H;
+  tileSize = Math.min(Math.floor(W / CONFIG.roomW), Math.floor(H / CONFIG.roomH));
+  resizeMinimap();
+}
+resize();
+window.addEventListener('resize', resize);
+
+function computeFillZoom() {
+  const gs = CONFIG.gridSize;
+  const c = getScrollContainerSize();
+  const fillCell = (Math.min(c.w, c.h) - 16 - (gs - 1) * MAP_GAP) / gs;
+  const baseCell = Math.max(2, Math.min(28, Math.floor(fillCell)));
+  return Math.max(1, Math.min(ZOOM_MAX, Math.ceil(fillCell) / baseCell));
+}
+
+function scrollToPlayer() {
+  const el = document.querySelector('.map-scroll');
+  if (el.clientWidth === 0) return;
+  const room = state.dungeon.rooms[state.currentRoom];
+  const gs = CONFIG.gridSize;
+  const cell = (mc.width - 16 - (gs - 1) * MAP_GAP) / gs;
+  const gap = MAP_GAP;
+  const pad = 8;
+  const px = pad + room.x * (cell + gap) + cell / 2;
+  const py = pad + room.y * (cell + gap) + cell / 2;
+  el.scrollLeft = Math.max(0, px - el.clientWidth / 2);
+  el.scrollTop = Math.max(0, py - el.clientHeight / 2);
+}
+
+// ──────────────────────────────────────────────
+//  Utilities
+// ──────────────────────────────────────────────
+function rand(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function lerp(a, b, t) { return a + (b - a) * t; }
+
+const DIRS = [[0, -1], [0, 1], [-1, 0], [1, 0]];
+
+function oppositeDir(d) { return d ^ 1; }
+
+// ──────────────────────────────────────────────
+//  Dungeon Generation
+// ──────────────────────────────────────────────
+class Dungeon {
+  constructor() {
+    this.rooms = [];
+    this.grid = [];
+    this.treeEdges = [];
+    this.extraEdges = [];
+    this.adj = [];
+    this.bossRoom = -1;
+    this.entranceRoom = 0;
+    this.generate();
+  }
+
+  generate() {
+    const gs = CONFIG.gridSize;
+    this.grid = Array.from({ length: gs }, () => Array(gs).fill(-1));
+
+    const startX = rand(1, Math.max(1, gs - 2));
+    const startY = rand(1, Math.max(1, gs - 2));
+
+    this.rooms.push({ x: startX, y: startY, id: 0 });
+    this.grid[startY][startX] = 0;
+
+    const targetCount = Math.floor(gs * gs * CONFIG.targetRoomRatio);
+
+    const frontierSet = new Set();
+    const frontier = [];
+
+    const addFrontier = (x, y, fx, fy) => {
+      if (x < 0 || x >= gs || y < 0 || y >= gs) return;
+      if (this.grid[y][x] !== -1) return;
+      const key = `${x},${y}`;
+      if (frontierSet.has(key)) return;
+      frontierSet.add(key);
+      frontier.push({ x, y, fromX: fx, fromY: fy });
+    };
+
+    for (const [dx, dy] of DIRS) {
+      addFrontier(startX + dx, startY + dy, startX, startY);
+    }
+
+    while (this.rooms.length < targetCount && frontier.length > 0) {
+      const idx = Math.floor(Math.random() * frontier.length);
+      const cell = frontier[idx];
+      frontier[idx] = frontier[frontier.length - 1];
+      frontier.pop();
+      frontierSet.delete(`${cell.x},${cell.y}`);
+
+      if (this.grid[cell.y][cell.x] !== -1) continue;
+
+      const newId = this.rooms.length;
+      this.rooms.push({ x: cell.x, y: cell.y, id: newId });
+      this.grid[cell.y][cell.x] = newId;
+      const fromId = this.grid[cell.fromY][cell.fromX];
+      this.treeEdges.push({ from: fromId, to: newId });
+
+      for (const [dx, dy] of DIRS) {
+        addFrontier(cell.x + dx, cell.y + dy, cell.x, cell.y);
+      }
+    }
+
+    const n = this.rooms.length;
+    this.adj = Array.from({ length: n }, () => new Set());
+
+    const roomPosMap = new Map();
+    for (let i = 0; i < n; i++) {
+      roomPosMap.set(`${this.rooms[i].x},${this.rooms[i].y}`, i);
+    }
+    for (let i = 0; i < n; i++) {
+      const r = this.rooms[i];
+      for (const [dx, dy] of DIRS) {
+        const nb = roomPosMap.get(`${r.x + dx},${r.y + dy}`);
+        if (nb !== undefined) {
+          this.adj[i].add(nb);
+        }
+      }
+    }
+
+    const treeSet = new Set();
+    for (const e of this.treeEdges) {
+      treeSet.add(`${e.from},${e.to}`);
+      treeSet.add(`${e.to},${e.from}`);
+    }
+
+    const nonTreeEdges = [];
+    for (let i = 0; i < n; i++) {
+      for (const j of this.adj[i]) {
+        if (j > i && !treeSet.has(`${i},${j}`)) {
+          nonTreeEdges.push({ from: i, to: j });
+        }
+      }
+    }
+
+    shuffle(nonTreeEdges);
+    const extraCount = Math.floor(nonTreeEdges.length * CONFIG.extraEdgeRatio);
+    this.extraEdges = nonTreeEdges.slice(0, extraCount);
+
+    this.connectionSet = new Set();
+    for (const e of this.treeEdges) {
+      this.connectionSet.add(`${e.from},${e.to}`);
+      this.connectionSet.add(`${e.to},${e.from}`);
+    }
+    for (const e of this.extraEdges) {
+      this.connectionSet.add(`${e.from},${e.to}`);
+      this.connectionSet.add(`${e.to},${e.from}`);
+    }
+
+    const dist = Array(n).fill(-1);
+    const q = [0];
+    dist[0] = 0;
+    for (let qi = 0; qi < q.length; qi++) {
+      const cur = q[qi];
+      for (const nb of this.adj[cur]) {
+        if (dist[nb] === -1 && this.connectionSet.has(`${cur},${nb}`)) {
+          dist[nb] = dist[cur] + 1;
+          q.push(nb);
+        }
+      }
+    }
+    let maxDist = -1;
+    for (let i = 0; i < n; i++) {
+      if (dist[i] > maxDist) {
+        maxDist = dist[i];
+        this.bossRoom = i;
+      }
+    }
+    this.entranceRoom = 0;
+  }
+
+  getNeighbor(roomId, dir) {
+    const r = this.rooms[roomId];
+    const [dx, dy] = DIRS[dir];
+    const nx = r.x + dx;
+    const ny = r.y + dy;
+    if (nx >= 0 && nx < CONFIG.gridSize && ny >= 0 && ny < CONFIG.gridSize) {
+      const nb = this.grid[ny][nx];
+      if (nb !== -1) return nb;
+    }
+    return -1;
+  }
+
+  hasDoor(roomId, dir) {
+    const nb = this.getNeighbor(roomId, dir);
+    return nb !== -1 && this.connectionSet.has(`${roomId},${nb}`);
+  }
+}
+
+// ──────────────────────────────────────────────
+//  Room Tilemap
+// ──────────────────────────────────────────────
+function generateRoomTiles(dungeon, roomId) {
+  const rw = CONFIG.roomW, rh = CONFIG.roomH;
+  const tiles = Array.from({ length: rh }, () => Array(rw).fill(TILE.FLOOR));
+
+  for (let x = 0; x < rw; x++) { tiles[0][x] = TILE.WALL; tiles[rh - 1][x] = TILE.WALL; }
+  for (let y = 0; y < rh; y++) { tiles[y][0] = TILE.WALL; tiles[y][rw - 1] = TILE.WALL; }
+
+  const cx = Math.floor(rw / 2);
+  const cy = Math.floor(rh / 2);
+
+  if (dungeon.hasDoor(roomId, 0)) tiles[0][cx] = TILE.DOOR_N;
+  if (dungeon.hasDoor(roomId, 1)) tiles[rh - 1][cx] = TILE.DOOR_S;
+  if (dungeon.hasDoor(roomId, 2)) tiles[cy][0] = TILE.DOOR_W;
+  if (dungeon.hasDoor(roomId, 3)) tiles[cy][rw - 1] = TILE.DOOR_E;
+
+  return tiles;
+}
+
+function getPlayerSpawn() {
+  return { x: Math.floor(CONFIG.roomW / 2), y: Math.floor(CONFIG.roomH / 2) };
+}
+
+function getDoorPos(dir) {
+  const cx = Math.floor(CONFIG.roomW / 2);
+  const cy = Math.floor(CONFIG.roomH / 2);
+  switch (dir) {
+    case 0: return { x: cx, y: 1 };
+    case 1: return { x: cx, y: CONFIG.roomH - 2 };
+    case 2: return { x: 1, y: cy };
+    case 3: return { x: CONFIG.roomW - 2, y: cy };
+  }
+}
+
+// ──────────────────────────────────────────────
+//  Pathfinding (BFS within current room)
+// ──────────────────────────────────────────────
+const DIRS_TILE = [[0, -1], [0, 1], [-1, 0], [1, 0]];
+
+function bfsPathfind(tiles, fx, fy, tx, ty) {
+  const rw = CONFIG.roomW, rh = CONFIG.roomH;
+  if (tx < 0 || tx >= rw || ty < 0 || ty >= rh) return null;
+  if (tiles[ty][tx] === TILE.WALL) return null;
+  if (fx === tx && fy === ty) return [];
+
+  const dist = Array.from({ length: rh }, () => Array(rw).fill(-1));
+  const prev = Array.from({ length: rh }, () => Array(rw).fill(null));
+  const q = [{ x: fx, y: fy }];
+  dist[fy][fx] = 0;
+
+  for (let qi = 0; qi < q.length; qi++) {
+    const cur = q[qi];
+    if (cur.x === tx && cur.y === ty) break;
+
+    for (const [dx, dy] of DIRS_TILE) {
+      const nx = cur.x + dx, ny = cur.y + dy;
+      if (nx < 0 || nx >= rw || ny < 0 || ny >= rh) continue;
+      if (dist[ny][nx] !== -1) continue;
+      if (tiles[ny][nx] === TILE.WALL) continue;
+
+      dist[ny][nx] = dist[cur.y][cur.x] + 1;
+      prev[ny][nx] = { x: cur.x, y: cur.y };
+      q.push({ x: nx, y: ny });
+    }
+  }
+
+  if (dist[ty][tx] === -1) return null;
+
+  const path = [];
+  let c = { x: tx, y: ty };
+  while (c.x !== fx || c.y !== fy) {
+    path.unshift(c);
+    c = prev[c.y][c.x];
+  }
+  return path;
+}
+
+function getDirFromDelta(dx, dy) {
+  if (dx === 0 && dy === -1) return 0;
+  if (dx === 0 && dy === 1) return 1;
+  if (dx === -1 && dy === 0) return 2;
+  if (dx === 1 && dy === 0) return 3;
+  return -1;
+}
+
+// ──────────────────────────────────────────────
+//  Game State
+// ──────────────────────────────────────────────
+const state = {
+  dungeon: null,
+  currentRoom: 0,
+  playerX: 0,
+  playerY: 0,
+  tiles: null,
+  transitioning: false,
+  visited: new Set(),
+  time: 0,
+
+  moving: false,
+  moveFromX: 0,
+  moveFromY: 0,
+  moveToX: 0,
+  moveToY: 0,
+  moveStartTime: 0,
+  renderX: 0,
+  renderY: 0,
+
+  autoPath: null,
+};
+
+// ──────────────────────────────────────────────
+//  Input
+// ──────────────────────────────────────────────
+const heldDirs = new Set();
+let moveCooldown = 0;
+const MOVE_INTERVAL = 110;
+
+// ──────────────────────────────────────────────
+//  Game functions
+// ──────────────────────────────────────────────
+function startGame() {
+  state.dungeon = new Dungeon();
+  state.currentRoom = state.dungeon.entranceRoom;
+  state.tiles = generateRoomTiles(state.dungeon, state.currentRoom);
+  const spawn = getPlayerSpawn();
+  state.playerX = spawn.x;
+  state.playerY = spawn.y;
+  state.renderX = state.playerX;
+  state.renderY = state.playerY;
+  state.visited = new Set([state.currentRoom]);
+  state.transitioning = false;
+  state.moving = false;
+  state.autoPath = null;
+  updateRoomUI();
+  const fill = computeFillZoom();
+  setZoom(fill);
+  requestAnimationFrame(() => scrollToPlayer());
+}
+
+function updateRoomUI() {
+  document.getElementById('roomName').textContent =
+    state.currentRoom === state.dungeon.bossRoom ? '⚔ BOSS ROOM' : 'Dungeon Corridor';
+  document.getElementById('roomInfo').textContent =
+    `Room ${state.currentRoom + 1} / ${state.dungeon.rooms.length}  ·  Grid ${CONFIG.gridSize}×${CONFIG.gridSize}`;
+}
+
+function tryMovePlayer(dir) {
+  if (state.transitioning || state.moving) return;
+
+  const nx = state.playerX + DIRS[dir][0];
+  const ny = state.playerY + DIRS[dir][1];
+  if (nx < 0 || nx >= CONFIG.roomW || ny < 0 || ny >= CONFIG.roomH) return;
+
+  const tile = state.tiles[ny][nx];
+  if (tile === TILE.WALL) return;
+
+  if (tile === TILE.DOOR_N || tile === TILE.DOOR_S || tile === TILE.DOOR_E || tile === TILE.DOOR_W) {
+    const nextRoom = state.dungeon.getNeighbor(state.currentRoom, dir);
+    if (nextRoom !== -1) {
+      transitionToRoom(nextRoom, dir);
+    }
+    return;
+  }
+
+  startMove(nx, ny);
+}
+
+function startMove(tx, ty) {
+  state.moving = true;
+  state.moveFromX = state.playerX;
+  state.moveFromY = state.playerY;
+  state.moveToX = tx;
+  state.moveToY = ty;
+  state.moveStartTime = performance.now();
+  state.playerX = tx;
+  state.playerY = ty;
+}
+
+function transitionToRoom(nextRoom, enterDir) {
+  if (state.transitioning) return;
+  state.transitioning = true;
+  state.autoPath = null;
+
+  const overlay = document.getElementById('transition-overlay');
+  overlay.classList.add('fade');
+
+  setTimeout(() => {
+    state.currentRoom = nextRoom;
+    state.tiles = generateRoomTiles(state.dungeon, state.currentRoom);
+    state.visited.add(nextRoom);
+
+    const pos = getDoorPos(oppositeDir(enterDir));
+    state.playerX = pos.x;
+    state.playerY = pos.y;
+    state.renderX = state.playerX;
+    state.renderY = state.playerY;
+
+    updateRoomUI();
+    overlay.classList.remove('fade');
+    state.transitioning = false;
+    scrollToPlayer();
+  }, CONFIG.transitionMs);
+}
+
+// ──────────────────────────────────────────────
+//  Input processing (called each frame)
+// ──────────────────────────────────────────────
+function processInput(now) {
+  // Auto-path (click to navigate)
+  if (state.autoPath && state.autoPath.length > 0 && !state.moving && !state.transitioning) {
+    const next = state.autoPath[0];
+    const dir = getDirFromDelta(next.x - state.playerX, next.y - state.playerY);
+    if (dir !== -1) {
+      // peek ahead: if the tile is a door, we need to check the room transition
+      const tile = state.tiles[next.y][next.x];
+      if (tile === TILE.DOOR_N || tile === TILE.DOOR_S || tile === TILE.DOOR_E || tile === TILE.DOOR_W) {
+        // path ends at the door — player will auto-transition, stop path
+        state.autoPath = null;
+        tryMovePlayer(dir);
+        return;
+      }
+      tryMovePlayer(dir);
+      if (state.moving) {
+        state.autoPath.shift();
+      }
+    } else {
+      state.autoPath = null;
+    }
+    return;
+  }
+
+  // Held-key movement
+  if (heldDirs.size > 0 && !state.moving && !state.transitioning) {
+    if (now >= moveCooldown) {
+      const dir = [...heldDirs][heldDirs.size - 1];
+      state.autoPath = null;
+      tryMovePlayer(dir);
+      moveCooldown = now + MOVE_INTERVAL;
+    }
+  }
+}
+
+// ──────────────────────────────────────────────
+//  Rendering
+// ──────────────────────────────────────────────
+function drawRoom(tiles) {
+  const rw = CONFIG.roomW, rh = CONFIG.roomH;
+  const ts = tileSize;
+
+  gcx.fillStyle = '#0a0a0a';
+  gcx.fillRect(0, 0, W, H);
+
+  const ox = Math.floor((W - rw * ts) / 2);
+  const oy = Math.floor((H - rh * ts) / 2);
+
+  for (let y = 0; y < rh; y++) {
+    for (let x = 0; x < rw; x++) {
+      const px = ox + x * ts;
+      const py = oy + y * ts;
+      const t = tiles[y][x];
+
+      switch (t) {
+        case TILE.WALL:
+          gcx.fillStyle = '#2a2a2e';
+          gcx.fillRect(px, py, ts, ts);
+          gcx.fillStyle = '#3a3a40';
+          gcx.fillRect(px, py, ts, 3);
+          gcx.fillRect(px, py, 3, ts);
+          gcx.fillStyle = '#1a1a1e';
+          gcx.fillRect(px + ts - 2, py, 2, ts);
+          gcx.fillRect(px, py + ts - 2, ts, 2);
+          gcx.strokeStyle = '#222';
+          gcx.lineWidth = 0.5;
+          gcx.strokeRect(px, py, ts, ts);
+          break;
+
+        case TILE.FLOOR:
+          gcx.fillStyle = (x + y) % 2 === 0 ? '#3a3528' : '#4a4435';
+          gcx.fillRect(px, py, ts, ts);
+          gcx.strokeStyle = 'rgba(0,0,0,0.15)';
+          gcx.lineWidth = 0.5;
+          gcx.strokeRect(px, py, ts, ts);
+          break;
+
+        case TILE.DOOR_N: case TILE.DOOR_S: case TILE.DOOR_E: case TILE.DOOR_W: {
+          const glow = 0.5 + 0.5 * Math.sin(state.time * 0.003);
+          gcx.fillStyle = '#1a1a1e';
+          gcx.fillRect(px, py, ts, ts);
+          const g = Math.floor(lerp(80, 200, glow));
+          const isNS = t === TILE.DOOR_N || t === TILE.DOOR_S;
+          gcx.fillStyle = `rgb(${g + 40}, ${g}, 0)`;
+          gcx.fillRect(px + 4, py + (isNS ? 2 : 0), ts - 8, ts - (isNS ? 4 : 0));
+          gcx.fillStyle = `rgb(${Math.min(255, g + 80)}, ${Math.min(255, g + 40)}, 40)`;
+          gcx.fillRect(px + 8, py + 4, ts - 16, ts - 8);
+          if (glow > 0.7) {
+            gcx.fillStyle = `rgba(255, 220, 100, ${(glow - 0.7) * 0.5})`;
+            for (let i = 0; i < 3; i++) {
+              const px2 = px + 4 + ((x * 7 + i * 13) % (ts - 8));
+              const py2 = py + 4 + ((y * 11 + i * 17) % (ts - 8));
+              gcx.beginPath();
+              gcx.arc(px2, py2, 2, 0, Math.PI * 2);
+              gcx.fill();
+            }
+          }
+          break;
+        }
+      }
+    }
+  }
+
+  // Player
+  const px = ox + state.renderX * ts;
+  const py = oy + state.renderY * ts;
+  const pad = Math.floor(ts * 0.15);
+  const psize = ts - pad * 2;
+
+  gcx.fillStyle = '#4fc3f7';
+  gcx.shadowColor = '#4fc3f7';
+  gcx.shadowBlur = 12;
+  roundRect(gcx, px + pad, py + pad, psize, psize, 4);
+  gcx.fill();
+  gcx.shadowBlur = 0;
+
+  const inner = Math.floor(ts * 0.25);
+  gcx.fillStyle = '#81d4fa';
+  roundRect(gcx, px + pad + inner, py + pad + inner, psize - inner * 2, psize - inner * 2, 3);
+  gcx.fill();
+
+  gcx.fillStyle = '#fff';
+  gcx.fillRect(px + pad + inner + 2, py + pad + inner + 2, 5, 5);
+  gcx.fillRect(px + pad + inner + psize - inner * 2 - 7, py + pad + inner + 2, 5, 5);
+  gcx.fillStyle = '#1a237e';
+  gcx.fillRect(px + pad + inner + 4, py + pad + inner + 3, 3, 3);
+  gcx.fillRect(px + pad + inner + psize - inner * 2 - 5, py + pad + inner + 3, 3, 3);
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+function drawMinimap() {
+  const dun = state.dungeon;
+  const gs = CONFIG.gridSize;
+  const pad = 8;
+  const gap = MAP_GAP;
+  const cell = (mc.width - 16 - (gs - 1) * gap) / gs;
+
+  mcx.fillStyle = '#111';
+  mcx.fillRect(0, 0, mc.width, mc.height);
+
+  // edges: only draw if both rooms visited
+  mcx.lineWidth = Math.max(1, cell * 0.08);
+  const allEdges = [...dun.treeEdges, ...dun.extraEdges];
+  for (const e of allEdges) {
+    if (!state.visited.has(e.from) || !state.visited.has(e.to)) continue;
+    const a = dun.rooms[e.from];
+    const b = dun.rooms[e.to];
+    const highlight = e.from === state.currentRoom || e.to === state.currentRoom;
+    mcx.strokeStyle = highlight ? '#ffd700' : (cell > 6 ? '#666' : '#555');
+    const ax = pad + a.x * (cell + gap) + cell / 2;
+    const ay = pad + a.y * (cell + gap) + cell / 2;
+    const bx = pad + b.x * (cell + gap) + cell / 2;
+    const by = pad + b.y * (cell + gap) + cell / 2;
+    mcx.beginPath();
+    mcx.moveTo(ax, ay);
+    mcx.lineTo(bx, by);
+    mcx.stroke();
+  }
+
+  // rooms: draw if visited, plus always show boss room
+  for (let i = 0; i < dun.rooms.length; i++) {
+    const isUnvisited = !state.visited.has(i);
+    if (isUnvisited && i !== dun.bossRoom) continue;
+    const r = dun.rooms[i];
+    const rx = pad + r.x * (cell + gap);
+    const ry = pad + r.y * (cell + gap);
+
+    if (isUnvisited) {
+      mcx.fillStyle = '#1a1a1e';
+      mcx.fillRect(rx, ry, cell, cell);
+      mcx.strokeStyle = '#900';
+      mcx.lineWidth = Math.max(1, cell * 0.12);
+      mcx.strokeRect(rx, ry, cell, cell);
+      if (cell >= 8) {
+        mcx.fillStyle = '#c33';
+        mcx.font = `bold ${Math.min(cell - 2, 14)}px sans-serif`;
+        mcx.textAlign = 'center';
+        mcx.textBaseline = 'middle';
+        mcx.fillText('?', rx + cell / 2, ry + cell / 2 + 1);
+      }
+    } else if (i === state.currentRoom) {
+      mcx.fillStyle = '#ffd700';
+      mcx.fillRect(rx, ry, cell, cell);
+      mcx.strokeStyle = cell > 6 ? '#fff' : '#ffd700';
+      mcx.lineWidth = i === state.currentRoom ? Math.max(1, cell * 0.1) : 1;
+      mcx.strokeRect(rx, ry, cell, cell);
+    } else {
+      mcx.fillStyle = i === dun.bossRoom ? '#e53935' : (cell > 6 ? '#5a5a6a' : '#444');
+      mcx.fillRect(rx, ry, cell, cell);
+      mcx.strokeStyle = cell > 6 ? '#333' : '#222';
+      mcx.lineWidth = 1;
+      mcx.strokeRect(rx, ry, cell, cell);
+    }
+
+    if (i === dun.bossRoom && !isUnvisited && cell >= 8) {
+      mcx.fillStyle = '#fff';
+      mcx.font = `${Math.min(cell - 2, 16)}px sans-serif`;
+      mcx.textAlign = 'center';
+      mcx.textBaseline = 'middle';
+      mcx.fillText('☠', rx + cell / 2, ry + cell / 2 + 1);
+    }
+
+    if (i === dun.entranceRoom && state.visited.has(i) && cell >= 6) {
+      mcx.fillStyle = '#66bb6a';
+      mcx.fillRect(rx + 2, ry + 2, 4, 4);
+    }
+  }
+
+  if (cell >= 8) {
+    mcx.fillStyle = '#888';
+    mcx.font = '9px monospace';
+    mcx.textAlign = 'left';
+    mcx.textBaseline = 'bottom';
+    mcx.fillText('★ Entrance   ☠ Boss   ? Uncharted   ■ Current', pad, mc.height - 3);
+  }
+}
+
+// ──────────────────────────────────────────────
+//  Small Minimap (always‑visible corner)
+// ──────────────────────────────────────────────
+const SM_HALF = 3;
+
+function drawMinimapSmall() {
+  const dun = state.dungeon;
+  if (!dun) return;
+  const gs = CONFIG.gridSize;
+  const pr = dun.rooms[state.currentRoom];
+  const cell = 18;
+  const gap = 2;
+  const pad = 4;
+  const dim = (SM_HALF * 2 + 1);
+  const w = dim * cell + (dim - 1) * gap + pad * 2;
+  const h = dim * cell + (dim - 1) * gap + pad * 2;
+  mcs.width = w;
+  mcs.height = h;
+
+  mcsx.fillStyle = '#0a0a0a';
+  mcsx.fillRect(0, 0, w, h);
+
+  for (let dy = -SM_HALF; dy <= SM_HALF; dy++) {
+    for (let dx = -SM_HALF; dx <= SM_HALF; dx++) {
+      const gx = pr.x + dx, gy = pr.y + dy;
+      if (gx < 0 || gx >= gs || gy < 0 || gy >= gs) continue;
+      const rid = dun.grid[gy][gx];
+      if (rid === -1) continue;
+      if (!state.visited.has(rid) && rid !== dun.bossRoom) continue;
+
+      const rx = pad + (dx + SM_HALF) * (cell + gap);
+      const ry = pad + (dy + SM_HALF) * (cell + gap);
+
+      if (rid === state.currentRoom) {
+        mcsx.fillStyle = '#ffd700';
+      } else if (rid === dun.bossRoom) {
+        mcsx.fillStyle = state.visited.has(rid) ? '#e53935' : '#2a1515';
+      } else {
+        mcsx.fillStyle = '#5a5a6a';
+      }
+      mcsx.fillRect(rx, ry, cell, cell);
+
+      if (rid === state.currentRoom) {
+        mcsx.fillStyle = '#4fc3f7';
+        const s = Math.floor(cell * 0.4);
+        mcsx.fillRect(rx + (cell - s) / 2, ry + (cell - s) / 2, s, s);
+      }
+
+      mcsx.strokeStyle = rid === state.currentRoom ? '#fff' : '#333';
+      mcsx.lineWidth = rid === state.currentRoom ? 2 : 0.5;
+      mcsx.strokeRect(rx, ry, cell, cell);
+
+      if (rid === dun.bossRoom && !state.visited.has(rid) && cell >= 6) {
+        mcsx.fillStyle = '#c33';
+        mcsx.font = `bold ${Math.min(cell - 2, 10)}px sans-serif`;
+        mcsx.textAlign = 'center';
+        mcsx.textBaseline = 'middle';
+        mcsx.fillText('?', rx + cell / 2, ry + cell / 2 + 1);
+      }
+    }
+  }
+}
+
+// ──────────────────────────────────────────────
+//  Game Loop
+// ──────────────────────────────────────────────
+let lastTime = 0;
+
+function updateMovement(now) {
+  if (!state.moving) return;
+
+  const elapsed = now - state.moveStartTime;
+  const t = Math.min(1, elapsed / CONFIG.walkSpeed);
+
+  state.renderX = lerp(state.moveFromX, state.moveToX, t);
+  state.renderY = lerp(state.moveFromY, state.moveToY, t);
+
+  if (t >= 1) {
+    state.renderX = state.moveToX;
+    state.renderY = state.moveToY;
+    state.moving = false;
+  }
+}
+
+function tick(now) {
+  const dt = now - lastTime;
+  lastTime = now;
+  state.time += dt;
+
+  processInput(now);
+  updateMovement(now);
+  drawRoom(state.tiles);
+
+  drawMinimapSmall();
+
+  if (document.getElementById('minimap-wrap').classList.contains('active')) {
+    drawMinimap();
+  }
+
+  requestAnimationFrame(tick);
+}
+
+// ──────────────────────────────────────────────
+//  Regeneration
+// ──────────────────────────────────────────────
+function regenerateDungeon() {
+  const input = document.getElementById('gridSize');
+  let val = parseInt(input.value, 10);
+  if (isNaN(val) || val < 3) val = 3;
+  if (val > 64) val = 64;
+  input.value = val;
+  CONFIG.gridSize = val;
+
+  document.getElementById('minimap-wrap').classList.remove('active');
+  resize();
+  startGame();
+}
+
+// ──────────────────────────────────────────────
+//  Events — Keyboard
+// ──────────────────────────────────────────────
+const KEY_MAP = {
+  'w': 0, 'W': 0, 'ArrowUp': 0,
+  's': 1, 'S': 1, 'ArrowDown': 1,
+  'a': 2, 'A': 2, 'ArrowLeft': 2,
+  'd': 3, 'D': 3, 'ArrowRight': 3,
+};
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    if (document.activeElement !== document.getElementById('gridSize')) {
+      e.preventDefault();
+      regenerateDungeon();
+      return;
+    }
+  }
+
+  if (e.key === 'm' || e.key === 'M') {
+    e.preventDefault();
+    const wrap = document.getElementById('minimap-wrap');
+    if (wrap.classList.contains('active')) {
+      closeMinimapOverlay();
+    } else {
+      wrap.classList.add('active');
+      document.getElementById('minimap-small').classList.add('hidden');
+      const fill = computeFillZoom();
+      setZoom(fill);
+      requestAnimationFrame(() => scrollToPlayer());
+    }
+    return;
+  }
+
+  const dir = KEY_MAP[e.key];
+  if (dir !== undefined) {
+    e.preventDefault();
+    heldDirs.add(dir);
+    // immediate first step
+    if (!state.moving && !state.transitioning) {
+      state.autoPath = null;
+      tryMovePlayer(dir);
+      moveCooldown = performance.now() + MOVE_INTERVAL;
+    }
+  }
+});
+
+document.addEventListener('keyup', (e) => {
+  const dir = KEY_MAP[e.key];
+  if (dir !== undefined) {
+    heldDirs.delete(dir);
+  }
+});
+
+document.getElementById('gridSize').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    regenerateDungeon();
+  }
+});
+
+document.getElementById('generateBtn').addEventListener('click', regenerateDungeon);
+
+// ──────────────────────────────────────────────
+//  Events — Click to navigate
+// ──────────────────────────────────────────────
+gc.addEventListener('click', (e) => {
+  if (state.transitioning) return;
+
+  const rect = gc.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+
+  const ts = tileSize;
+  const ox = Math.floor((W - CONFIG.roomW * ts) / 2);
+  const oy = Math.floor((H - CONFIG.roomH * ts) / 2);
+
+  const tileX = Math.floor((mx - ox) / ts);
+  const tileY = Math.floor((my - oy) / ts);
+
+  if (tileX < 0 || tileX >= CONFIG.roomW || tileY < 0 || tileY >= CONFIG.roomH) return;
+  if (tileX === state.playerX && tileY === state.playerY) return;
+
+  const tile = state.tiles[tileY][tileX];
+  if (tile === TILE.WALL) return;
+
+  // pathfind
+  const path = bfsPathfind(state.tiles, state.playerX, state.playerY, tileX, tileY);
+  if (path) {
+    state.autoPath = path;
+    heldDirs.clear();
+  }
+});
+
+// ──────────────────────────────────────────────
+//  Events — Minimap zoom
+// ──────────────────────────────────────────────
+function setZoom(level) {
+  minimapZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, level));
+  const label = minimapZoom < 1 ? minimapZoom.toFixed(2).replace(/\.?0+$/, '') : (minimapZoom % 1 === 0 ? minimapZoom.toFixed(0) : minimapZoom.toFixed(2).replace(/\.?0+$/, ''));
+  document.getElementById('zoomLevel').textContent = `${label}×`;
+  document.getElementById('zoomSlider').value = Math.round(minimapZoom * 100);
+  resizeMinimap();
+}
+
+function closeMinimapOverlay() {
+  const wrap = document.getElementById('minimap-wrap');
+  wrap.classList.remove('active');
+  document.getElementById('minimap-small').classList.remove('hidden');
+}
+
+document.getElementById('minimap-small').addEventListener('click', () => {
+  const wrap = document.getElementById('minimap-wrap');
+  if (wrap.classList.contains('active')) return;
+  wrap.classList.add('active');
+  document.getElementById('minimap-small').classList.add('hidden');
+  const fill = computeFillZoom();
+  setZoom(fill);
+  requestAnimationFrame(() => scrollToPlayer());
+});
+
+document.getElementById('minimap-close').addEventListener('click', closeMinimapOverlay);
+
+document.getElementById('zoomSlider').addEventListener('input', (e) => {
+  setZoom(parseInt(e.target.value, 10) / 100);
+});
+
+const mcScroll = document.querySelector('.map-scroll');
+mcScroll.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  const delta = e.deltaY > 0 ? -0.25 : 0.25;
+  setZoom(minimapZoom + delta);
+}, { passive: false });
+
+// Mouse drag to pan
+let panning = false, panStartX, panStartY, panScrollLeft, panScrollTop;
+
+mcScroll.addEventListener('mousedown', (e) => {
+  if (e.button !== 0) return;
+  panning = true;
+  panStartX = e.clientX;
+  panStartY = e.clientY;
+  panScrollLeft = mcScroll.scrollLeft;
+  panScrollTop = mcScroll.scrollTop;
+  mcScroll.classList.add('panning');
+});
+
+document.addEventListener('mousemove', (e) => {
+  if (!panning) return;
+  mcScroll.scrollLeft = panScrollLeft - (e.clientX - panStartX);
+  mcScroll.scrollTop = panScrollTop - (e.clientY - panStartY);
+});
+
+document.addEventListener('mouseup', () => {
+  if (panning) {
+    panning = false;
+    mcScroll.classList.remove('panning');
+  }
+});
+
+// ──────────────────────────────────────────────
+//  Init
+// ──────────────────────────────────────────────
+startGame();
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 ---
 title: "Mini-map"
-status: ready-for-agent
+status: completed
 ---
 
 ## What to build

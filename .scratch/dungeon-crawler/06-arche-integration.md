@@ -1,6 +1,6 @@
 ---
 title: "Arche API client"
-status: ready-for-agent
+status: completed
 ---
 
 ## What to build

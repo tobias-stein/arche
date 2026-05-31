@@ -1,6 +1,6 @@
 ---
 title: "Responsive design + touch"
-status: ready-for-agent
+status: completed
 ---
 
 ## What to build

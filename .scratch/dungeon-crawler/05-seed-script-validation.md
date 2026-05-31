@@ -1,6 +1,6 @@
 ---
 title: "Seed script + distribution validation"
-status: ready-for-agent
+status: completed
 ---
 
 ## What to build

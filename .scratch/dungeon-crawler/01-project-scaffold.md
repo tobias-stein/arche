@@ -1,6 +1,6 @@
 ---
 title: "Project scaffold + core loop"
-status: ready-for-agent
+status: completed
 ---
 
 ## What to build

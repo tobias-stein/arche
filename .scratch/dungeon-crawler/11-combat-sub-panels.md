@@ -1,6 +1,6 @@
 ---
 title: "Combat sub-panels (spell, item, flee)"
-status: ready-for-agent
+status: completed
 ---
 
 ## What to build

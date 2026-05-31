@@ -1,6 +1,6 @@
 ---
 title: "Player movement + room transitions"
-status: ready-for-agent
+status: completed
 ---
 
 ## What to build

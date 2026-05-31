@@ -1,6 +1,6 @@
 ---
 title: "Unified log"
-status: ready-for-agent
+status: completed
 ---
 
 ## What to build

@@ -1,5 +1,6 @@
 import { GAME_CONFIG } from './config'
 import type { PlayerState, LogEvent } from './types'
+import type { Dungeon } from './game/dungeon-generator'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type EventCallback = (...args: any[]) => void
@@ -29,6 +30,7 @@ class GameState extends EventEmitter {
   gameStarted = false
   currentRoomId = 0
   visitedRooms: Set<number> = new Set()
+  dungeon: Dungeon | null = null
 
   constructor() {
     super()
@@ -49,6 +51,11 @@ class GameState extends EventEmitter {
   startGame(): void {
     this.gameStarted = true
     this.emit('game:started')
+  }
+
+  setDungeonData(dungeon: Dungeon): void {
+    this.dungeon = dungeon
+    this.emit('dungeon:ready', dungeon)
   }
 
   setPlayerPosition(x: number, y: number): void {

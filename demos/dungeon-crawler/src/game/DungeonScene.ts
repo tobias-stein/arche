@@ -135,6 +135,7 @@ export class DungeonScene extends Phaser.Scene {
     this.moving = false;
     this.autoPath = null;
     this.heldDirs.clear();
+    this.gameState.setDungeonData(this.dungeon);
     this.gameState.setCurrentRoom(this.currentRoom);
     this.gameState.setPlayerPosition(this.playerX, this.playerY);
     this.drawCurrentRoom();

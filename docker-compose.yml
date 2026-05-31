@@ -41,5 +41,28 @@ services:
     depends_on:
       - arche-service
 
+  seed:
+    build:
+      context: scripts
+      dockerfile: Dockerfile
+    entrypoint: ["npx", "tsx", "seed.ts"]
+    environment:
+      ARCHE_API_URL: http://arche-service:8080
+    depends_on:
+      arche-service:
+        condition: service_started
+
+  validate:
+    build:
+      context: scripts
+      dockerfile: Dockerfile
+    entrypoint: ["npx", "tsx", "validate.ts"]
+    environment:
+      ARCHE_API_URL: http://arche-service:8080
+      ARCHE_API_KEY: ${ARCHE_API_KEY}
+    depends_on:
+      arche-service:
+        condition: service_started
+
 volumes:
   pgdata:

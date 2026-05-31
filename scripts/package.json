@@ -1,0 +1,13 @@
+{
+  "name": "arche-dungeon-crawler-seed",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "seed": "tsx seed.ts",
+    "validate": "tsx validate.ts"
+  },
+  "dependencies": {
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.0"
+  }
+}

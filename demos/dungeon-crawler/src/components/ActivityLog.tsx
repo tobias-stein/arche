@@ -42,24 +42,23 @@ function ActivityLog() {
   const bodyRef = useRef<HTMLDivElement>(null)
   const startTimeRef = useRef(Date.now())
   const programmaticRef = useRef(false)
-  const entriesRef = useRef<LogEntry[]>([])
 
   useEffect(() => {
     const gs = getGameState()
     startTimeRef.current = Date.now()
 
     function onLogEntry(event: LogEvent) {
-      const entry: LogEntry = {
-        timestamp: formatTimestamp(startTimeRef.current),
-        type: event.type as LogEventType,
-        message: event.message,
-        icon: event.icon,
-      }
-      entriesRef.current = [entry, ...entriesRef.current]
-      if (entriesRef.current.length > MAX_LOG) {
-        entriesRef.current = entriesRef.current.slice(0, MAX_LOG)
-      }
-      setEntries([...entriesRef.current])
+      setEntries(prev => {
+        const entry: LogEntry = {
+          timestamp: formatTimestamp(startTimeRef.current),
+          type: event.type,
+          message: event.message,
+          icon: event.icon,
+        }
+        const next = [entry, ...prev]
+        if (next.length > MAX_LOG) next.length = MAX_LOG
+        return next
+      })
     }
 
     gs.on('log:entry', onLogEntry)

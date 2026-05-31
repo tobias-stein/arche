@@ -385,7 +385,6 @@ class GameState extends EventEmitter {
       this.inventory[emptyIdx] = item
     }
   }
-  }
 }
 
 let _instance: GameState | null = null

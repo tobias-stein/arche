@@ -1,6 +1,6 @@
 ---
 title: "Creature spawning + aggro/chase"
-status: ready-for-agent
+status: completed
 ---
 
 ## What to build

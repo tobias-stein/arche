@@ -108,6 +108,10 @@ class GameState extends EventEmitter {
   emitInventoryRequested(): void {
     this.emit('inventory:requested')
   }
+
+  emitEncounterStarted(creatureId: string): void {
+    this.emit('encounter:started', creatureId)
+  }
 }
 
 let _instance: GameState | null = null

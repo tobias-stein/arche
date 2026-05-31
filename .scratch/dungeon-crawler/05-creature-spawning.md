@@ -7,12 +7,14 @@ status: ready-for-agent
 
 Spawn creatures in rooms with difficulty-based rendering, aggro ranges, chase behavior, and encounter trigger.
 
+Each creature is generated via `POST /api/generate` (see issue 13). The spawn system receives a list of `CreatureState` objects and places them in the room.
+
 **Spawn:**
 - Each room spawns `rand(GAME_CONFIG.creatureSpawn.minPerRoom, GAME_CONFIG.creatureSpawn.maxPerRoom)` creatures (default 1–4).
 - Boss room: exactly 1 boss creature.
 - Spawn on random floor tiles, minimum `GAME_CONFIG.creatureSpawn.entryExclusionRadius` (default 4) tiles from the entry door tile.
 - Soft constraint: try to avoid overlapping aggro ranges between spawned creatures.
-- Difficulty distribution: weighted random from `GAME_CONFIG.creatureSpawn.difficultyWeights` (normal 50%, champion 25%, elite 15%, boss 10%).
+- **Difficulty is NOT rolled game-side.** Arche's blueprint weights determine which difficulty is drawn. For non-boss rooms the Arche request includes `difficulty: { in: ["normal", "champion", "elite"] }`; boss rooms use `difficulty: { in: ["boss"] }`, `count: 1`. The game reads `difficulty` from the response.
 - Creatures respawn when re-entering a room.
 
 **Rendering:**
@@ -33,6 +35,8 @@ Spawn creatures in rooms with difficulty-based rendering, aggro ranges, chase be
 **Post-flee:**
 - Creature stays at encounter position. Gains a `GAME_CONFIG.fleeStunDuration` (default 1500ms) stun window — no aggro, no movement.
 - After stun, creature resumes stationary behavior at current position.
+
+**Generation flow:** Each spawn slot calls Arche individually. Non-boss rooms constrain `difficulty: { in: ["normal", "champion", "elite"] }`; boss rooms constrain `difficulty: { in: ["boss"] }`. Arche's blueprint weights determine which difficulty level is drawn.
 
 ## Prototype references
 

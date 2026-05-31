@@ -261,27 +261,34 @@ Always exactly 1 prefix (the element).
 
 ### Generation Flow
 
+**Creature spawn** (per spawn slot):
 ```
-1. Game decides what to generate (based on room, loot drop, etc.)
-2. Game selects rarity/difficulty tier (weighted random)
-3. Game selects level window centered on player level
-4. Game constructs Arche generate request:
-   {
-     "archetype": "creature",
-     "constraints": {
-       "level": { "gte": 3, "lte": 7 },
-       "difficulty": { "in": ["champion"] }
-     },
-     "affixes": {
-       "min_prefixes": 1,
-       "max_prefixes": 1,
-       "min_suffixes": 0,
-       "max_suffixes": 0
-     }
-   }
-5. Arche responds with a generated Thing (rolled stats + affixes)
-6. Game interprets the response and spawns the creature / drops the item
+1. Game computes level window: playerLevel ± creatureLevelVariance
+2. Game constructs Arche request with level + difficulty constraints:
+   // Non-boss rooms:
+   { "constraints": { "level": { "gte": 3, "lte": 7 },
+                      "difficulty": { "in": ["normal", "champion", "elite"] } } }
+   // Boss rooms:
+   { "constraints": { "level": { "gte": 85, "lte": 100 },
+                      "difficulty": { "in": ["boss"] } }, "count": 1 }
+3. Arche picks a blueprint via weighted random — blueprint weights determine
+   which difficulty is drawn. No game-side difficulty pre-roll needed.
+4. Game reads the `difficulty` from the response for aggro range / visuals.
 ```
+
+**Loot drop** (per drop slot after victory or chest open):
+```
+1. Game computes level window: creatureLevel ± itemLevelVariance
+2. Game constructs Arche request with level constraint only:
+   { "constraints": { "level": { "gte": 3, "lte": 7 } } }
+   — No archetype filter, no rarity filter. Arche picks from all matching
+     item blueprints via weighted random selection.
+3. Game reads the `rarity` from the response for visual styling.
+```
+
+**Key principle:** Rarity/difficulty emerges naturally from Arche's blueprint
+weights, not from game-side pre-rolls. The seed script tunes weights so that
+common/normal blueprints are ~5× more likely than boss/legendary ones.
 
 ## Game Mechanics
 
@@ -402,25 +409,28 @@ Run before first game launch: `docker compose run --rm seed`
 
 The script uses templates with parameterized ranges per level band. Creature and item blueprints are generated combinatorially from base types × level bands × difficulty/rarity tiers to reach target counts (~100 creatures, ~100 items).
 
-### Creature Distribution
+### Creature Distribution (Target — achieved via blueprint weights)
 
-| Difficulty | % of creature pool | Prefixes | Suffixes | Affix tier |
-|---|---|---|---|---|
-| normal | 50% | 0 | 0 | n/a |
-| champion | 25% | 1 | 0 | by creature level |
-| elite | 15% | 1 | 1 | by creature level |
-| boss | 10% | 2 | 1 | by creature level |
+| Difficulty | Target frequency | Weight guide | Prefixes | Suffixes | Affix tier |
+|---|---|---|---|---|---|
+| normal | ~50% | 1.0 | 0 | 0 | n/a |
+| champion | ~25% | 0.5–0.7 | 1 | 0 | by creature level |
+| elite | ~15% | 0.3–0.4 | 1 | 1 | by creature level |
+| boss | ~10% | 0.1–0.2 | 2 | 1 | by creature level |
 
-### Item Distribution
+These are seed script guidelines. The actual distribution emerges from Arche's
+weighted random selection. No game-side logic replicates these weights.
 
-Same 50/25/15/10 split and affix mapping as creature difficulty.
+### Item Distribution (Target — achieved via blueprint weights)
 
-| Rarity | % of item pool | Prefixes | Suffixes | Affix tier |
-|---|---|---|---|---|
-| common | 50% | 0 | 0 | n/a |
-| uncommon | 25% | 1 | 0 | by item level |
-| rare | 15% | 1 | 1 | by item level |
-| legendary | 10% | 2 | 1 | by item level |
+Same weight approach as creature difficulty.
+
+| Rarity | Target frequency | Weight guide | Prefixes | Suffixes | Affix tier |
+|---|---|---|---|---|---|
+| common | ~50% | 1.0 | 0 | 0 | n/a |
+| uncommon | ~25% | 0.5–0.7 | 1 | 0 | by item level |
+| rare | ~15% | 0.3–0.4 | 1 | 1 | by item level |
+| legendary | ~10% | 0.1–0.2 | 2 | 1 | by item level |
 
 ### Level Bands
 

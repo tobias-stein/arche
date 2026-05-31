@@ -40,10 +40,24 @@ interface GenerateRequest {
 - Item level bands match creature bands (7 bands, 1–100).
 
 **Generation flow (for other slices to use):**
-1. Game decides what to generate (room spawn, loot drop, etc.)
-2. Game selects rarity/difficulty (weighted random via GAME_CONFIG)
-3. Game selects level window: `playerLevel ± GAME_CONFIG.generationWindow.variance`
-4. Game constructs Arche request → receives Thing → interprets as creature/item
+
+Creature spawn:
+1. Game computes level window: `playerLevel ± GAME_CONFIG.generationWindow.creatureLevelVariance`
+2. Game constructs Arche request with level + difficulty constraints:
+   - Non-boss: `difficulty: { in: ["normal", "champion", "elite"] }`
+   - Boss room: `difficulty: { in: ["boss"] }`, `count: 1`
+3. Arche picks a blueprint via weighted random — no game-side difficulty pre-roll
+4. Game reads `difficulty` from the response for aggro range / visuals
+
+Loot drop:
+1. Game computes level window: `creatureLevel ± GAME_CONFIG.generationWindow.itemLevelVariance`
+2. Game constructs Arche request with **no archetype, no rarity constraint**
+3. Arche picks from all matching item blueprints via weighted random
+4. Game reads `rarity` from the response for visual styling
+
+**Key principle:** Rarity/difficulty emerges from Arche's blueprint weights.
+GAME_CONFIG no longer contains `difficultyWeights` or `rarityWeights` — those
+are handled by the seed script's weight calibration.
 
 ## Prototype references
 

@@ -351,12 +351,22 @@ Affixes are tiered by level band (4 tiers: Weak 1–30, Strong 20–60, Greater 
 
 ### Generation Flow
 
-1. Game decides what to generate (based on room, loot drop, etc.)
-2. Game selects rarity/difficulty tier (weighted random)
-3. Game selects level window centered on player level
-4. Game constructs Arche generate request
-5. Arche responds with a generated Thing (rolled stats + affixes)
-6. Game interprets the response and spawns the creature / drops the item
+**Creature spawn** (per spawn slot in a room):
+1. Game computes level window: `playerLevel ± creatureLevelVariance`
+2. Game constructs Arche request with level constraint:
+   - Non-boss rooms: `difficulty: { in: ["normal", "champion", "elite"] }`
+   - Boss rooms: `difficulty: { in: ["boss"] }`, `count: 1`
+   - No rarity/difficulty weights are passed — Arche's blueprint weights determine which difficulty is drawn
+3. Arche responds with a generated Thing (with rolled `difficulty` attribute)
+4. Game reads the `difficulty` from the response and applies it (aggro range, visual style, etc.)
+
+**Loot drop** (per drop slot after creature victory or chest open):
+1. Game computes level window: `creatureLevel ± itemLevelVariance`
+2. Game constructs Arche request with level constraint only — no archetype, no rarity filter
+3. Arche picks from all item blueprints matching the level window via its weighted random selection
+4. Game reads the response's `rarity` attribute and applies visual styling (rarity triangle, name color, etc.)
+
+**Key design principle:** Rarity/difficulty and item type emerge naturally from Arche's blueprint weight system, not from game-side pre-rolls. The seed script calibrates blueprint weights so that common/normal blueprints are selected roughly ~5× more often than boss/legendary ones. This keeps all drop-rate tuning in the seed script (and ultimately in Arche's data), not scattered across game config and source code.
 
 ### Seed Script
 
@@ -371,14 +381,16 @@ A TypeScript seed script (`scripts/seed.ts`) generates valid Arche import JSON: 
 | rare / elite | 1 | 1 |
 | legendary / boss | 2 | 1 |
 
-### Creature Distribution
+### Creature Distribution (Target — achieved via blueprint weights in seed script)
 
-| Difficulty | % of pool |
-|---|---|
-| normal | 50% |
-| champion | 25% |
-| elite | 15% |
-| boss | 10% |
+| Difficulty | Target frequency | Result |
+|---|---|---|
+| normal | ~50% | Blueprint weight 1.0, many blueprints |
+| champion | ~25% | Blueprint weight 0.5–0.7 |
+| elite | ~15% | Blueprint weight 0.3–0.4 |
+| boss | ~10% | Blueprint weight 0.1–0.2, few blueprints |
+
+These are guidelines for the seed script, not game-side logic. The actual distribution emerges from Arche's weighted random selection across all creature blueprints.
 
 ### Level Bands
 
@@ -913,6 +925,34 @@ interface GenerateResponse {
 async function generate(request: GenerateRequest): Promise<GenerateResponse>;
 ```
 
+**Usage examples:**
+
+```typescript
+// Creature spawn in a non-boss room
+generate({
+  constraints: {
+    level: { gte: 3, lte: 7 },  // playerLevel ± creatureLevelVariance
+    difficulty: { in: ["normal", "champion", "elite"] }
+  }
+});
+
+// Creature spawn in boss room
+generate({
+  constraints: {
+    level: { gte: 85, lte: 100 },
+    difficulty: { in: ["boss"] }
+  },
+  count: 1
+});
+
+// Loot drop (no archetype, no rarity — Arche picks via blueprint weights)
+generate({
+  constraints: {
+    level: { gte: 3, lte: 7 }   // creatureLevel ± itemLevelVariance
+  }
+});
+```
+
 The game calls `POST /api/generate` from the browser. Arche is configured with `CorsLayer::permissive()` for local dev. API key is embedded in the client config.
 
 ### Seed Script
@@ -982,9 +1022,12 @@ export const GAME_CONFIG = {
     curveExponent: 1.5,
   },
 
-  /** Generation window: item/creature level = playerLevel ± variance */
+  /** Level windows for Arche generation requests */
   generationWindow: {
-    variance: 2,
+    /** Creature level = playerLevel ± creatureLevelVariance */
+    creatureLevelVariance: 2,
+    /** Item level = creatureLevel ± itemLevelVariance (used for loot drops) */
+    itemLevelVariance: 2,
   },
 
   /** Post-victory recovery (% of max) */
@@ -1011,13 +1054,13 @@ export const GAME_CONFIG = {
     maxPerRoom: 4,
     /** Tile radius from entry door to exclude from spawn */
     entryExclusionRadius: 4,
-    /** Difficulty distribution weights (must sum to 100) */
-    difficultyWeights: {
-      normal: 50,
-      champion: 25,
-      elite: 15,
-      boss: 10,
-    },
+    /**
+     * NOTE: Difficulty distribution is NOT configured here.
+     * Rarity/difficulty of spawned creatures is determined by Arche's
+     * blueprint weights during generation. Tune weights in the seed script.
+     * Non-boss rooms request difficulty in [normal, champion, elite].
+     * Boss rooms request difficulty in [boss].
+     */
   },
 
   /** Creature aggro ranges (tile radius, Chebyshev distance) */
@@ -1034,22 +1077,18 @@ export const GAME_CONFIG = {
   /** Flee stun duration in milliseconds */
   fleeStunDuration: 1500,
 
-  /** Loot drops */
+  /** Loot drops: how many items drop per creature difficulty */
   lootDrops: {
     normal:  { min: 0, max: 1 },
     champion: { min: 1, max: 3 },
     elite:    { min: 3, max: 5 },
     boss:     { min: 5, max: 7 },
-    /** Item level variance from creature/player level */
-    itemLevelVariance: 2,
-  },
-
-  /** Rarity distribution by difficulty (weights, pre-normalized) */
-  rarityWeights: {
-    normal:    { common: 80,   uncommon: 20,  rare: 0,     legendary: 0 },
-    champion:  { common: 30,   uncommon: 50,  rare: 20,    legendary: 0 },
-    elite:     { common: 0,    uncommon: 20,  rare: 50,    legendary: 30 },
-    boss:      { common: 0,    uncommon: 0,   rare: 30,    legendary: 70 },
+    /**
+     * NOTE: Rarity distribution and item type are NOT configured here.
+     * They are determined by Arche's blueprint weights during generation.
+     * The level window for loot is controlled by generationWindow.itemLevelVariance.
+     * Every item archetype (weapon, armor, potion, spell, etc.) is equally eligible.
+     */
   },
 
   /** Inventory and spellbook */
@@ -1094,9 +1133,14 @@ const damage = Math.max(GAME_CONFIG.combat.minDamage,
   playerAttack - creatureDefense + rand(0, GAME_CONFIG.combat.playerDamageRollMax)
 );
 
-// In LootSystem:
+// In CreatureSpawnSystem:
+const variance = GAME_CONFIG.generationWindow.creatureLevelVariance;
+const levelWindow = { gte: playerLevel - variance, lte: playerLevel + variance };
+
+// In LootSystem (how many drops, not what drops):
 const { min, max } = GAME_CONFIG.lootDrops[creature.difficulty];
 const count = rand(min, max);
+// Each drop calls Arche with level constraint only (no archetype/rarity filter)
 ```
 
 ### What Belongs in Config vs What Doesn't
@@ -1107,10 +1151,17 @@ const count = rand(min, max);
 
 ### Adding/Changing Values
 
-To tweak game balance, edit the game config file only. No source files need changes. For example:
+**Game config file** — for tuning game-side mechanics. No source file changes needed. For example:
 - Make creatures faster: change `creatureChaseSpeed` to `0.75`
-- Make potions drop more: bump `rarityWeights.normal.common` up
 - Make leveling slower: adjust `xpThresholds` array or `curveExponent`
+- Increase loot drops: bump `lootDrops.champion.max` from 3 to 5
+
+**Seed script (Arche data)** — for tuning drop rates and content distribution. For example:
+- Make potions drop more often: increase potion blueprint weights
+- Make bosses rarer: decrease boss blueprint weights to `0.1`
+- Shift item type balance: add more weapon blueprints to skew selection
+
+This two-layer approach keeps Arche's weight system as the source of truth for content distribution, while the game config handles gameplay mechanics like movement speed, damage numbers, and drop counts.
 
 ---
 

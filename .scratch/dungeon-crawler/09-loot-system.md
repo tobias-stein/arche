@@ -15,7 +15,7 @@ Implement loot drops after creature defeat, the loot popup, and item generation.
 
 **Rarity distribution:** NOT rolled game-side. Arche's blueprint weights determine rarity. The game requests items with a level constraint only (`creatureLevel ± GAME_CONFIG.generationWindow.itemLevelVariance`) — no archetype filter, no rarity filter. The game reads `rarity` from the Arche response for visual styling (common `#888`, uncommon `#4488ff`, rare `#44cc66`, legendary `#aa44ff`).
 
-**Item generation:** Items are generated via `POST /api/generate` (see issue 13). Arche integration in slice 13 is separate — for now generate mock items with random subtype, a placeholder name like "Iron Sword", and stats matching a randomly chosen rarity. Item level: `creatureLevel ± GAME_CONFIG.generationWindow.itemLevelVariance` (default 2).
+**Item generation:** Items are generated via `POST /api/generate` (see issue 14). Arche integration in slice 14 is separate — for now generate mock items with random subtype, a placeholder name like "Iron Sword", and stats matching a randomly chosen rarity. Item level: `creatureLevel ± GAME_CONFIG.generationWindow.itemLevelVariance` (default 2).
 
 **Loot popup:**
 - Centered card after victory. Header: "VICTORY!" with XP gain and level-up notification badge.

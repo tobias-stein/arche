@@ -1,5 +1,5 @@
-export { configureArcheClient, generate, getApiUrl } from './arche-client'
+export { configureArcheClient, generate } from './arche-client'
 export { buildCreatureRequest, buildLootRequest, buildBossRequest } from './request-builders'
 export { parseCreature, parseItem, resetCreatureIdCounter, resetItemIdCounter } from './response-parser'
-export { generateMockCreatureThing, generateMockItemThing, generateMockResponse } from './mock-fallback'
 export type { GenerateRequest, GenerateResponse, GeneratedThing, AttributeValue, NameParts } from './types'
+

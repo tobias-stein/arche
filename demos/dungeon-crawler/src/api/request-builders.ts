@@ -19,10 +19,7 @@ function findBand(level: number): { min: number; max: number } {
   return LEVEL_BANDS[LEVEL_BANDS.length - 1]
 }
 
-export function buildCreatureRequest(
-  playerLevel: number,
-  excludeBoss?: boolean,
-): GenerateRequest {
+export function buildCreatureRequest(playerLevel: number): GenerateRequest {
   const band = findBand(playerLevel)
   return {
     archetype: 'creature',

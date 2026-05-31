@@ -26,6 +26,3 @@ export async function generate(request: GenerateRequest): Promise<GenerateRespon
   return response.json() as Promise<GenerateResponse>
 }
 
-export function getApiUrl(): string {
-  return apiUrl
-}

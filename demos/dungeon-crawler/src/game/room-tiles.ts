@@ -48,3 +48,59 @@ export function getDoorPos(dir: number): { x: number; y: number } {
 export function oppositeDir(d: number): number {
   return d ^ 1;
 }
+
+const DIRS_TILE: [number, number][] = [[0, -1], [0, 1], [-1, 0], [1, 0]];
+
+export function bfsPathfind(
+  tiles: TileType[][],
+  fx: number,
+  fy: number,
+  tx: number,
+  ty: number,
+): { x: number; y: number }[] | null {
+  const rh = tiles.length;
+  const rw = tiles[0]?.length ?? 0;
+  if (tx < 0 || tx >= rw || ty < 0 || ty >= rh) return null;
+  if (tiles[ty][tx] === TILE.WALL) return null;
+  if (fx === tx && fy === ty) return [];
+
+  const dist = Array.from({ length: rh }, () => Array(rw).fill(-1));
+  const prev = Array.from({ length: rh }, () => Array(rw).fill(null)) as ({ x: number; y: number } | null)[][];
+  const q: { x: number; y: number }[] = [{ x: fx, y: fy }];
+  dist[fy][fx] = 0;
+
+  for (let qi = 0; qi < q.length; qi++) {
+    const cur = q[qi];
+    if (cur.x === tx && cur.y === ty) break;
+
+    for (const [dx, dy] of DIRS_TILE) {
+      const nx = cur.x + dx;
+      const ny = cur.y + dy;
+      if (nx < 0 || nx >= rw || ny < 0 || ny >= rh) continue;
+      if (dist[ny][nx] !== -1) continue;
+      if (tiles[ny][nx] === TILE.WALL) continue;
+
+      dist[ny][nx] = dist[cur.y][cur.x] + 1;
+      prev[ny][nx] = { x: cur.x, y: cur.y };
+      q.push({ x: nx, y: ny });
+    }
+  }
+
+  if (dist[ty][tx] === -1) return null;
+
+  const path: { x: number; y: number }[] = [];
+  let c: { x: number; y: number } | null = { x: tx, y: ty };
+  while (c !== null && (c.x !== fx || c.y !== fy)) {
+    path.unshift(c);
+    c = prev[c.y][c.x];
+  }
+  return path;
+}
+
+export function getDirFromDelta(dx: number, dy: number): number {
+  if (dx === 0 && dy === -1) return 0;
+  if (dx === 0 && dy === 1) return 1;
+  if (dx === -1 && dy === 0) return 2;
+  if (dx === 1 && dy === 0) return 3;
+  return -1;
+}

@@ -22,6 +22,35 @@ describe('GameState', () => {
     expect(gs.player.xp.next).toBe(GAME_CONFIG.xpThresholds[0])
   })
 
+  it('initializes with default room state', () => {
+    expect(gs.currentRoomId).toBe(0)
+    expect(gs.visitedRooms).toBeInstanceOf(Set)
+    expect(gs.visitedRooms.size).toBe(0)
+  })
+
+  it('setPlayerPosition updates position and emits event', () => {
+    const events: unknown[][] = []
+    gs.on('player:moved', (p) => events.push([p.position.x, p.position.y]))
+    gs.setPlayerPosition(5, 3)
+    expect(gs.player.position.x).toBe(5)
+    expect(gs.player.position.y).toBe(3)
+    expect(events.length).toBe(1)
+    expect(events[0]).toEqual([5, 3])
+  })
+
+  it('setCurrentRoom updates room and adds to visited', () => {
+    gs.setCurrentRoom(3)
+    expect(gs.currentRoomId).toBe(3)
+    expect(gs.visitedRooms.has(3)).toBe(true)
+  })
+
+  it('setCurrentRoom emits room:changed event', () => {
+    const events: number[] = []
+    gs.on('room:changed', (id) => events.push(id as number))
+    gs.setCurrentRoom(5)
+    expect(events).toEqual([5])
+  })
+
   it('is not started by default', () => {
     expect(gs.gameStarted).toBe(false)
   })

@@ -27,6 +27,8 @@ class EventEmitter {
 class GameState extends EventEmitter {
   player: PlayerState
   gameStarted = false
+  currentRoomId = 0
+  visitedRooms: Set<number> = new Set()
 
   constructor() {
     super()
@@ -47,6 +49,18 @@ class GameState extends EventEmitter {
   startGame(): void {
     this.gameStarted = true
     this.emit('game:started')
+  }
+
+  setPlayerPosition(x: number, y: number): void {
+    this.player.position.x = x
+    this.player.position.y = y
+    this.emit('player:moved', this.player)
+  }
+
+  setCurrentRoom(roomId: number): void {
+    this.currentRoomId = roomId
+    this.visitedRooms.add(roomId)
+    this.emit('room:changed', roomId)
   }
 
   setPlayerHp(value: number): void {

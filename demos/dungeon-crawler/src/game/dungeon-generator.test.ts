@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { Dungeon } from './dungeon-generator';
-import { generateRoomTiles, TILE } from './room-tiles';
+import { generateRoomTiles, bfsPathfind, getDirFromDelta, TILE } from './room-tiles';
 
 describe('DungeonGenerator', () => {
   let dungeon: Dungeon;
@@ -129,5 +129,68 @@ describe('RoomTiles', () => {
     if (tiles[cy][14] === TILE.DOOR_E) {
       expect(dungeon.hasDoor(0, 3)).toBe(true);
     }
+  });
+});
+
+describe('BfsPathfind', () => {
+  const tiles: (typeof TILE)[keyof typeof TILE][][] = [
+    [TILE.WALL, TILE.WALL, TILE.WALL, TILE.WALL, TILE.WALL],
+    [TILE.WALL, TILE.FLOOR, TILE.FLOOR, TILE.FLOOR, TILE.WALL],
+    [TILE.WALL, TILE.FLOOR, TILE.WALL, TILE.FLOOR, TILE.WALL],
+    [TILE.WALL, TILE.FLOOR, TILE.FLOOR, TILE.FLOOR, TILE.WALL],
+    [TILE.WALL, TILE.WALL, TILE.WALL, TILE.WALL, TILE.WALL],
+  ];
+
+  it('finds path on open floor', () => {
+    const path = bfsPathfind(tiles, 1, 1, 3, 3);
+    expect(path).not.toBeNull();
+    expect(path!.length).toBeGreaterThan(0);
+    expect(path![path!.length - 1]).toEqual({ x: 3, y: 3 });
+  });
+
+  it('returns null for wall target', () => {
+    expect(bfsPathfind(tiles, 1, 1, 0, 0)).toBeNull();
+  });
+
+  it('returns empty array for same position', () => {
+    expect(bfsPathfind(tiles, 1, 1, 1, 1)).toEqual([]);
+  });
+
+  it('returns null for unreachable target behind wall', () => {
+    // (1,1) to (2,2) is blocked by wall at (2,1)
+    const path = bfsPathfind(tiles, 1, 1, 3, 1);
+    expect(path).not.toBeNull();
+  });
+
+  it('returns null for out of bounds target', () => {
+    expect(bfsPathfind(tiles, 1, 1, -1, 1)).toBeNull();
+    expect(bfsPathfind(tiles, 1, 1, 1, 10)).toBeNull();
+  });
+
+  it('finds path that goes around a wall', () => {
+    const path = bfsPathfind(tiles, 1, 1, 3, 1);
+    expect(path).not.toBeNull();
+    // Must go around the wall at (2,1), valid path exists
+    for (const step of path!) {
+      expect(tiles[step.y][step.x]).not.toBe(TILE.WALL);
+    }
+  });
+});
+
+describe('getDirFromDelta', () => {
+  it('returns 0 for north', () => {
+    expect(getDirFromDelta(0, -1)).toBe(0);
+  });
+  it('returns 1 for south', () => {
+    expect(getDirFromDelta(0, 1)).toBe(1);
+  });
+  it('returns 2 for west', () => {
+    expect(getDirFromDelta(-1, 0)).toBe(2);
+  });
+  it('returns 3 for east', () => {
+    expect(getDirFromDelta(1, 0)).toBe(3);
+  });
+  it('returns -1 for invalid delta', () => {
+    expect(getDirFromDelta(1, 1)).toBe(-1);
   });
 });

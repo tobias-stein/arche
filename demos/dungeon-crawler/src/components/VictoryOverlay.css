@@ -1,0 +1,112 @@
+.victory-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: monospace;
+}
+
+.victory-bg {
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 25, 15, 0.92);
+}
+
+.victory-content {
+  position: relative;
+  text-align: center;
+  padding: 32px 40px;
+  background: #2d4d38;
+  border: 4px solid #4a7a58;
+  box-shadow: 0 8px 0 #1a3a2a, inset 0 0 0 2px #3a6a48;
+  max-width: 400px;
+  width: 90vw;
+}
+
+.victory-title {
+  font-size: 48px;
+  color: #60e060;
+  text-shadow: 4px 4px 0 #1a3a2a, 0 0 40px rgba(80, 200, 80, 0.3);
+  letter-spacing: 6px;
+  margin: 0 0 24px;
+  font-family: monospace;
+}
+
+.victory-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.victory-stat {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background: #1a3a2a;
+  border: 1px solid #4a7a58;
+}
+
+.victory-stat .stat-label {
+  color: #88b898;
+  font-size: 12px;
+  font-weight: 700;
+  text-shadow: 1px 1px 0 #1a3a2a;
+}
+
+.victory-stat .stat-value {
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  text-shadow: 1px 1px 0 #1a3a2a;
+}
+
+.victory-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.victory-actions button {
+  padding: 10px 24px;
+  border: 3px solid #4a7a58;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: monospace;
+  box-shadow: 0 3px 0 #1a3a2a;
+  transition: 0.1s;
+  color: #d8f0e0;
+}
+
+.victory-actions button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 0 #1a3a2a;
+}
+
+.vic-play {
+  background: #2a4a38;
+}
+
+.vic-play:hover {
+  background: #3a6a48;
+}
+
+.vic-quit {
+  background: #4a1a1a;
+  border-color: #6a2a2a;
+  color: #ff9090;
+}
+
+.vic-quit:hover {
+  background: #5a2a2a;
+}
+
+.victory-actions .key-hint {
+  font-size: 10px;
+  opacity: 0.7;
+  display: block;
+  margin-top: 2px;
+}

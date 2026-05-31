@@ -2,10 +2,15 @@ import { useState, useCallback, useEffect } from 'react'
 import { GameComponent } from './game/GameComponent'
 import { getGameState } from './GameState'
 import { DungeonScene } from './game/DungeonScene'
+import TitleScreen from './components/TitleScreen'
 import ActivityLog from './components/ActivityLog'
 import MiniMap from './components/MiniMap'
 import BottomToolbar from './components/BottomToolbar'
 import CombatOverlay from './components/CombatOverlay'
+import EncounterPrompt from './components/EncounterPrompt'
+import GameOverOverlay from './components/GameOverOverlay'
+import VictoryOverlay from './components/VictoryOverlay'
+import ControlsOverlay from './components/ControlsOverlay'
 import { useBreakpoint } from './hooks/useBreakpoint'
 import './styles/responsive.css'
 
@@ -27,15 +32,71 @@ function App() {
       if (!scene) return
       const creature = scene.findCreatureById(creatureId)
       if (!creature) return
-      gs.startCombat(creature)
+      gs.showEncounterPrompt(creature)
+    }
+
+    function onEnemySlain() {
+      gs.incrementEnemiesSlain()
     }
 
     gs.on('encounter:started', onEncounterStarted)
-    return () => { gs.off('encounter:started', onEncounterStarted) }
+    gs.on('combat:victory', onEnemySlain)
+
+    return () => {
+      gs.off('encounter:started', onEncounterStarted)
+      gs.off('combat:victory', onEnemySlain)
+    }
+  }, [])
+
+  const handleStart = useCallback(() => {
+    getGameState().startGame()
+  }, [])
+
+  const handleRestartDungeon = useCallback(() => {
+    const scene = DungeonScene.currentInstance
+    if (scene) {
+      scene.generateDungeon()
+    }
+  }, [])
+
+  const handlePlayAgain = useCallback(() => {
+    const gs = getGameState()
+    gs.restartGame()
+    handleRestartDungeon()
+    gs.startGame()
+  }, [handleRestartDungeon])
+
+  const handleQuit = useCallback(() => {
+    getGameState().quitToTitle()
+  }, [])
+
+  useEffect(() => {
+    function isHelpKey(e: KeyboardEvent): boolean {
+      return e.key === 'h' || e.key === 'H' || e.key === '?' || e.key === '/'
+    }
+
+    function handleKeyDown(e: KeyboardEvent) {
+      const gs = getGameState()
+      if (gs.encounterActive || gs.combatActive || gs.gameOver || gs.victory) return
+
+      if (isHelpKey(e)) {
+        e.preventDefault()
+        gs.controlsVisible ? gs.setControlsVisible(false) : gs.toggleControls()
+        return
+      }
+
+      if (gs.controlsVisible) {
+        gs.setControlsVisible(false)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
 
   return (
     <>
+      <TitleScreen onStart={handleStart} />
       <GameComponent />
       <ActivityLog
         expanded={isMobile ? logExpanded : undefined}
@@ -43,7 +104,17 @@ function App() {
       />
       <MiniMap />
       <BottomToolbar onToggleLog={toggleLog} />
+      <EncounterPrompt />
       <CombatOverlay />
+      <GameOverOverlay
+        onPlayAgain={handlePlayAgain}
+        onQuit={handleQuit}
+      />
+      <VictoryOverlay
+        onPlayAgain={handlePlayAgain}
+        onQuit={handleQuit}
+      />
+      <ControlsOverlay />
     </>
   )
 }

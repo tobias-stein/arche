@@ -63,6 +63,9 @@ export class DungeonScene extends Phaser.Scene {
 
   private gameState = getGameState();
 
+  private lastMoveFromX = 0;
+  private lastMoveFromY = 0;
+
   private creatures: CreatureState[] = [];
   private creatureLabels: Phaser.GameObjects.Text[] = [];
   private chaseTarget: CreatureState | null = null;
@@ -74,6 +77,7 @@ export class DungeonScene extends Phaser.Scene {
 
   private boundHandleVictory: ((creatureId: string) => void) | null = null
   private boundHandleFled: ((creatureId: string) => void) | null = null
+  private boundHandleBackAway: ((creatureId: string) => void) | null = null
 
   create(): void {
     this.tileSize = Math.min(
@@ -97,8 +101,10 @@ export class DungeonScene extends Phaser.Scene {
 
     this.boundHandleVictory = (creatureId: string) => this.removeCreature(creatureId)
     this.boundHandleFled = (creatureId: string) => this.stunCreature(creatureId)
+    this.boundHandleBackAway = (_creatureId: string) => this.movePlayerBack()
     this.gameState.on('combat:victory', this.boundHandleVictory)
     this.gameState.on('combat:fled', this.boundHandleFled)
+    this.gameState.on('encounter:backed-away', this.boundHandleBackAway)
 
     DungeonScene.currentInstance = this
   }
@@ -291,6 +297,8 @@ export class DungeonScene extends Phaser.Scene {
     this.moving = true;
     this.moveFromX = this.playerX;
     this.moveFromY = this.playerY;
+    this.lastMoveFromX = this.playerX;
+    this.lastMoveFromY = this.playerY;
     this.moveToX = tx;
     this.moveToY = ty;
     this.moveStartTime = this.time.now;
@@ -486,6 +494,14 @@ export class DungeonScene extends Phaser.Scene {
     return a + (b - a) * t;
   }
 
+  movePlayerBack(): void {
+    this.playerX = this.lastMoveFromX;
+    this.playerY = this.lastMoveFromY;
+    this.renderX = this.lastMoveFromX;
+    this.renderY = this.lastMoveFromY;
+    this.gameState.setPlayerPosition(this.lastMoveFromX, this.lastMoveFromY);
+  }
+
   stunCreature(creatureId: string): void {
     for (const c of this.creatures) {
       if (c.id === creatureId) {
@@ -519,7 +535,7 @@ export class DungeonScene extends Phaser.Scene {
 
   update(_time: number, delta: number): void {
     this.elapsed += delta;
-    if (this.gameState.combatActive) {
+    if (this.gameState.combatActive || this.gameState.encounterActive) {
       this.drawCurrentRoom();
       return;
     }

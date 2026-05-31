@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { getGameState } from '../GameState'
 import './TitleScreen.css'
 
 interface TitleScreenProps {
@@ -9,6 +10,22 @@ function TitleScreen({ onStart }: TitleScreenProps) {
   const [visible, setVisible] = useState(true)
   const [fading, setFading] = useState(false)
   const fadingRef = useRef(false)
+
+  useEffect(() => {
+    const gs = getGameState()
+
+    function onGameQuit() {
+      setVisible(true)
+      setFading(false)
+      fadingRef.current = false
+    }
+
+    gs.on('game:quit', onGameQuit)
+
+    return () => {
+      gs.off('game:quit', onGameQuit)
+    }
+  }, [])
 
   const handleStart = useCallback(() => {
     if (fadingRef.current) return

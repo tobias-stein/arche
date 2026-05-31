@@ -1,0 +1,113 @@
+.gameover-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: monospace;
+}
+
+.gameover-bg {
+  position: absolute;
+  inset: 0;
+  background: rgba(30, 5, 5, 0.92);
+}
+
+.gameover-content {
+  position: relative;
+  text-align: center;
+  padding: 32px 40px;
+  background: #3a2020;
+  border: 4px solid #6a3a3a;
+  box-shadow: 0 8px 0 #1a3a2a, inset 0 0 0 2px #4a2a2a;
+  max-width: 400px;
+  width: 90vw;
+}
+
+.gameover-title {
+  font-size: 48px;
+  color: #ff4444;
+  text-shadow: 4px 4px 0 #2a1010, 0 0 40px rgba(200, 40, 40, 0.3);
+  letter-spacing: 6px;
+  margin: 0 0 24px;
+  font-family: monospace;
+}
+
+.gameover-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.gameover-stat {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background: #2a1818;
+  border: 1px solid #5a2a2a;
+}
+
+.stat-label {
+  color: #ff9090;
+  font-size: 12px;
+  font-weight: 700;
+  text-shadow: 1px 1px 0 #2a1010;
+}
+
+.stat-value {
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  text-shadow: 1px 1px 0 #2a1010;
+}
+
+.gameover-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.gameover-actions button {
+  padding: 10px 24px;
+  border: 3px solid #6a3a3a;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: monospace;
+  box-shadow: 0 3px 0 #1a3a2a;
+  transition: 0.1s;
+  color: #d8f0e0;
+}
+
+.gameover-actions button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 0 #1a3a2a;
+}
+
+.go-play {
+  background: #4a1a1a;
+  border-color: #6a2a2a;
+  color: #ff9090;
+}
+
+.go-play:hover {
+  background: #5a2a2a;
+}
+
+.go-quit {
+  background: #2a4a38;
+  border-color: #4a7a58;
+}
+
+.go-quit:hover {
+  background: #3a6a48;
+}
+
+.gameover-actions .key-hint {
+  font-size: 10px;
+  opacity: 0.7;
+  display: block;
+  margin-top: 2px;
+}

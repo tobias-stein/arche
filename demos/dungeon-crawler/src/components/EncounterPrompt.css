@@ -1,0 +1,190 @@
+.encounter-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 150;
+  background: rgba(10, 25, 15, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: monospace;
+}
+
+.encounter-card {
+  background: #2d4d38;
+  border: 4px solid #4a7a58;
+  padding: 24px 32px;
+  text-align: center;
+  max-width: 380px;
+  box-shadow: 0 8px 0 #1a3a2a;
+}
+
+.encounter-name {
+  color: #ff7070;
+  font-size: 18px;
+  font-weight: 700;
+  text-shadow: 2px 2px 0 #2a1a1a;
+  margin: 0;
+  font-family: monospace;
+}
+
+.encounter-difficulty {
+  font-size: 11px;
+  margin-top: 4px;
+  font-weight: 700;
+  font-family: monospace;
+}
+
+.encounter-card-mini {
+  background: #3a2020;
+  border: 4px solid #6a3a3a;
+  margin: 12px -16px;
+  box-shadow: inset 0 0 0 2px #4a2a2a;
+  text-align: left;
+}
+
+.encounter-card-mini .ph {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: #4a2a2a;
+  border-bottom: 3px solid #6a3a3a;
+}
+
+.encounter-card-mini .pa {
+  width: 36px;
+  height: 36px;
+  background: #6a3a3a;
+  border: 3px solid #3a2020;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 18px;
+}
+
+.encounter-card-mini .pn {
+  color: #ff7070;
+  font-size: 14px;
+  font-weight: 700;
+  text-shadow: 2px 2px 0 #2a1010;
+  font-family: monospace;
+}
+
+.encounter-card-mini .pl {
+  color: #ff9090;
+  font-size: 11px;
+  background: #2a1010;
+  padding: 0 8px;
+  display: inline-block;
+  font-family: monospace;
+}
+
+.encounter-card-mini .pb {
+  padding: 6px 10px;
+}
+
+.encounter-card-mini .br {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 3px 0;
+}
+
+.encounter-card-mini .br .lbl {
+  width: 22px;
+  text-align: center;
+  font-size: 12px;
+}
+
+.encounter-card-mini .br .bb {
+  flex: 1;
+  height: 14px;
+  background: #1a0a0a;
+  border: 2px solid #5a2a2a;
+  position: relative;
+}
+
+.encounter-card-mini .br .bf {
+  height: 100%;
+  transition: width 0.4s ease;
+}
+
+.encounter-card-mini .br .bf.hp {
+  background: linear-gradient(90deg, #d04040, #ff6060);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.25);
+}
+
+.encounter-card-mini .br .bt {
+  color: #ff9090;
+  font-size: 10px;
+  min-width: 36px;
+  text-align: right;
+  font-weight: 700;
+  text-shadow: 1px 1px 0 #2a1010;
+  font-family: monospace;
+}
+
+.encounter-card-mini .ps {
+  display: flex;
+  gap: 16px;
+  padding: 6px 12px 8px;
+  border-top: 2px solid #5a2a2a;
+  background: #2a1818;
+  color: #ff9090;
+  font-size: 11px;
+  font-weight: 700;
+  text-shadow: 1px 1px 0 #2a1010;
+  font-family: monospace;
+}
+
+.encounter-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 14px;
+}
+
+.encounter-actions button {
+  padding: 8px 24px;
+  border: 3px solid #4a7a58;
+  background: #2a4a38;
+  color: #d8f0e0;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: monospace;
+  box-shadow: 0 3px 0 #1a3a2a;
+  transition: 0.1s;
+}
+
+.encounter-actions button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 0 #1a3a2a;
+}
+
+.encounter-actions .enc-eng {
+  background: #4a1a1a;
+  border-color: #6a2a2a;
+  color: #ff9090;
+}
+
+.encounter-actions .enc-eng:hover {
+  background: #5a2a2a;
+}
+
+.encounter-actions .enc-back {
+  background: #2a4a38;
+}
+
+.encounter-actions .enc-back:hover {
+  background: #3a6a48;
+}
+
+.encounter-actions .key-hint {
+  font-size: 10px;
+  opacity: 0.7;
+  display: block;
+  margin-top: 2px;
+}

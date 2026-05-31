@@ -46,7 +46,6 @@ class GameState extends EventEmitter {
   controlsVisible = false
   titleVisible = true
 
-  roomsExplored = 0
   enemiesSlain = 0
   itemsCollected = 0
   gameStartTime = 0
@@ -256,10 +255,6 @@ class GameState extends EventEmitter {
     this.itemsCollected++
   }
 
-  updateRoomsExplored(): void {
-    this.roomsExplored = this.visitedRooms.size
-  }
-
   toggleControls(): void {
     this.controlsVisible = !this.controlsVisible
     this.emit('controls:visible', this.controlsVisible)
@@ -283,7 +278,6 @@ class GameState extends EventEmitter {
     this.encounterActive = false
     this.encounterCreature = null
     this.controlsVisible = false
-    this.roomsExplored = 0
     this.enemiesSlain = 0
     this.itemsCollected = 0
     this.gameStartTime = 0

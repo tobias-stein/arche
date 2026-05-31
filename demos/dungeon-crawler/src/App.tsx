@@ -71,23 +71,22 @@ function App() {
   }, [])
 
   useEffect(() => {
+    function isHelpKey(e: KeyboardEvent): boolean {
+      return e.key === 'h' || e.key === 'H' || e.key === '?' || e.key === '/'
+    }
+
     function handleKeyDown(e: KeyboardEvent) {
       const gs = getGameState()
       if (gs.encounterActive || gs.combatActive || gs.gameOver || gs.victory) return
 
-      if (gs.controlsVisible) {
-        if (e.key === 'h' || e.key === 'H' || e.key === '?' || e.key === '/') {
-          e.preventDefault()
-          gs.setControlsVisible(false)
-          return
-        }
-        gs.setControlsVisible(false)
+      if (isHelpKey(e)) {
+        e.preventDefault()
+        gs.controlsVisible ? gs.setControlsVisible(false) : gs.toggleControls()
         return
       }
 
-      if (e.key === 'h' || e.key === 'H' || e.key === '?' || e.key === '/') {
-        e.preventDefault()
-        gs.toggleControls()
+      if (gs.controlsVisible) {
+        gs.setControlsVisible(false)
       }
     }
 

@@ -51,28 +51,28 @@ describe('VictoryOverlay', () => {
     expect(screen.getByText('Quit')).toBeInTheDocument()
   })
 
-  it('calls restartGame when Play Again is clicked', () => {
+  it('calls onPlayAgain when Play Again is clicked', () => {
+    const onPlayAgain = vi.fn()
+    render(<VictoryOverlay onPlayAgain={onPlayAgain} />)
     const gs = getGameState()
-    const restartFn = vi.spyOn(gs, 'restartGame')
-    render(<VictoryOverlay />)
     act(() => {
       gs.startGame()
       gs.emit('game:victory')
     })
     fireEvent.click(screen.getByText('Play Again'))
-    expect(restartFn).toHaveBeenCalledTimes(1)
+    expect(onPlayAgain).toHaveBeenCalledTimes(1)
   })
 
-  it('calls quitToTitle when Quit is clicked', () => {
+  it('calls onQuit when Quit is clicked', () => {
+    const onQuit = vi.fn()
+    render(<VictoryOverlay onQuit={onQuit} />)
     const gs = getGameState()
-    const quitFn = vi.spyOn(gs, 'quitToTitle')
-    render(<VictoryOverlay />)
     act(() => {
       gs.startGame()
       gs.emit('game:victory')
     })
     fireEvent.click(screen.getByText('Quit'))
-    expect(quitFn).toHaveBeenCalledTimes(1)
+    expect(onQuit).toHaveBeenCalledTimes(1)
   })
 
   it('disappears on game:restarted event', () => {
@@ -104,26 +104,26 @@ describe('VictoryOverlay', () => {
   })
 
   it('restarts with Enter key', () => {
+    const onPlayAgain = vi.fn()
+    render(<VictoryOverlay onPlayAgain={onPlayAgain} />)
     const gs = getGameState()
-    const restartFn = vi.spyOn(gs, 'restartGame')
-    render(<VictoryOverlay />)
     act(() => {
       gs.startGame()
       gs.emit('game:victory')
     })
     fireEvent.keyDown(window, { key: 'Enter' })
-    expect(restartFn).toHaveBeenCalledTimes(1)
+    expect(onPlayAgain).toHaveBeenCalledTimes(1)
   })
 
   it('quits with Q key', () => {
+    const onQuit = vi.fn()
+    render(<VictoryOverlay onQuit={onQuit} />)
     const gs = getGameState()
-    const quitFn = vi.spyOn(gs, 'quitToTitle')
-    render(<VictoryOverlay />)
     act(() => {
       gs.startGame()
       gs.emit('game:victory')
     })
     fireEvent.keyDown(window, { key: 'q' })
-    expect(quitFn).toHaveBeenCalledTimes(1)
+    expect(onQuit).toHaveBeenCalledTimes(1)
   })
 })

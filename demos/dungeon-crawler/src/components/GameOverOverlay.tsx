@@ -70,14 +70,11 @@ function GameOverOverlay({ onPlayAgain, onQuit }: GameOverOverlayProps) {
   }, [])
 
   const handlePlayAgain = useCallback(() => {
-    const gs = getGameState()
-    gs.restartGame()
-    if (onPlayAgain) onPlayAgain()
+    onPlayAgain?.()
   }, [onPlayAgain])
 
   const handleQuit = useCallback(() => {
-    getGameState().quitToTitle()
-    if (onQuit) onQuit()
+    onQuit?.()
   }, [onQuit])
 
   useEffect(() => {

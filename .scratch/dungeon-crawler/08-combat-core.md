@@ -62,4 +62,4 @@ Implement the turn-based 1v1 combat system with Attack action, enemy AI, and pos
 
 ## Blocked by
 
-06-creature-spawning
+07-creature-spawning

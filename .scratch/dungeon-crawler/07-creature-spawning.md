@@ -7,7 +7,7 @@ status: ready-for-agent
 
 Spawn creatures in rooms with difficulty-based rendering, aggro ranges, chase behavior, and encounter trigger.
 
-Each creature is generated via `POST /api/generate` (see issue 14). The spawn system receives a list of `CreatureState` objects and places them in the room.
+Each creature is generated via `POST /api/generate` (see issue 06). The spawn system receives a list of `CreatureState` objects and places them in the room.
 
 **Spawn:**
 - Each room spawns `rand(GAME_CONFIG.creatureSpawn.minPerRoom, GAME_CONFIG.creatureSpawn.maxPerRoom)` creatures (default 1–4).
@@ -57,3 +57,4 @@ Each creature is generated via `POST /api/generate` (see issue 14). The spawn sy
 ## Blocked by
 
 03-player-movement
+06-arche-integration

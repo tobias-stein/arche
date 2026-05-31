@@ -86,4 +86,4 @@ Implement the unified modal dialog containing Equipment (10 slots), Inventory (1
 
 ## Blocked by
 
-09-loot-system
+10-loot-system

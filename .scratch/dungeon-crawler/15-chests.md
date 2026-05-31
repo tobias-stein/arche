@@ -41,4 +41,4 @@ Add chest entities to rooms that players can open for loot.
 
 ## Blocked by
 
-09-loot-system
+10-loot-system

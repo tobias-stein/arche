@@ -37,7 +37,6 @@ class GameState extends EventEmitter {
   combatTurn: 'player' | 'enemy' | null = null
   combatVictory = false
   combatDefeat = false
-  combatLog: string[] = []
 
   constructor() {
     super()
@@ -126,14 +125,12 @@ class GameState extends EventEmitter {
     this.combatTurn = 'player'
     this.combatVictory = false
     this.combatDefeat = false
-    this.combatLog = []
     this.emit('combat:started', creature)
   }
 
   processPlayerAttack(damage: number): void {
     if (!this.combatCreature) return
     this.combatCreature.hp.current = Math.max(0, this.combatCreature.hp.current - damage)
-    this.combatLog.push(`Player dealt ${damage} damage to ${this.combatCreature.name}`)
     this.emit('combat:creature-damaged', damage, this.combatCreature)
 
     if (this.combatCreature.hp.current <= 0) {
@@ -146,7 +143,6 @@ class GameState extends EventEmitter {
 
   processEnemyTurn(damage: number): void {
     this.setPlayerHp(this.player.hp.current - damage)
-    this.combatLog.push(`${this.combatCreature?.name ?? 'Enemy'} dealt ${damage} damage to player`)
     this.emit('combat:player-damaged', damage, this.player)
 
     if (this.player.hp.current <= 0) {

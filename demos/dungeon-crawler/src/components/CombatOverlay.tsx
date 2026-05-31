@@ -41,10 +41,6 @@ function CombatOverlay() {
       setCreature({ ...c })
     }
 
-    function onPlayerDamaged(_damage: number) {
-      setTurn('enemy')
-    }
-
     function onTurnChanged(t: unknown) {
       setTurn(t as 'player' | 'enemy')
       if (t === 'player') {
@@ -91,7 +87,6 @@ function CombatOverlay() {
 
     gs.on('combat:started', onCombatStarted)
     gs.on('combat:creature-damaged', onCreatureDamaged)
-    gs.on('combat:player-damaged', onPlayerDamaged)
     gs.on('combat:turn-changed', onTurnChanged)
     gs.on('combat:victory', onVictory)
     gs.on('combat:defeat', onDefeat)
@@ -101,7 +96,6 @@ function CombatOverlay() {
     return () => {
       gs.off('combat:started', onCombatStarted)
       gs.off('combat:creature-damaged', onCreatureDamaged)
-      gs.off('combat:player-damaged', onPlayerDamaged)
       gs.off('combat:turn-changed', onTurnChanged)
       gs.off('combat:victory', onVictory)
       gs.off('combat:defeat', onDefeat)

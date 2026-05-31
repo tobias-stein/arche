@@ -10,10 +10,10 @@ interface ActionMenuProps {
 }
 
 const ACTIONS = [
-  { id: 'attack', icon: 'fa-crosshairs', label: 'Attack', row: 0, col: 0 },
-  { id: 'cast', icon: 'fa-wand-sparkles', label: 'Cast Spell', row: 0, col: 1 },
-  { id: 'item', icon: 'fa-flask', label: 'Use Item', row: 1, col: 0 },
-  { id: 'flee', icon: 'fa-person-running', label: 'Flee', row: 1, col: 1 },
+  { id: 'attack', icon: 'fa-crosshairs', label: 'Attack' },
+  { id: 'cast', icon: 'fa-wand-sparkles', label: 'Cast Spell' },
+  { id: 'item', icon: 'fa-flask', label: 'Use Item' },
+  { id: 'flee', icon: 'fa-person-running', label: 'Flee' },
 ] as const
 
 function ActionMenu({ onAttack, onCastSpell, onUseItem, onFlee, disabled = false }: ActionMenuProps) {

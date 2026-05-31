@@ -59,13 +59,6 @@ function LootPopup() {
     }
   }, [])
 
-  const closeLoot = useCallback(() => {
-    const gs = getGameState()
-    gs.endCombat()
-    setVisible(false)
-    setItems([])
-  }, [])
-
   const handleTakeItem = useCallback((itemId: string) => {
     const gs = getGameState()
     gs.takeLootItem(itemId)

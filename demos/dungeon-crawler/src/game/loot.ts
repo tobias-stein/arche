@@ -1,5 +1,6 @@
 import { GAME_CONFIG } from '../config'
 import type { ItemState, Rarity, EquipSlot, Difficulty } from '../types'
+import { generate, buildLootRequest, parseItem } from '../api'
 
 let nextItemId = 1
 
@@ -141,18 +142,32 @@ export function generateMockItem(creatureLevel: number, levelVariance: number): 
   }
 }
 
-export function generateMockItems(
+export async function generateMockItems(
   difficulty: Difficulty,
   creatureLevel: number,
   levelVariance: number,
-): ItemState[] {
+): Promise<ItemState[]> {
   const cfg = GAME_CONFIG.lootDrops[difficulty]
   const count = randInt(cfg.min, cfg.max)
-  const items: ItemState[] = []
-  for (let i = 0; i < count; i++) {
-    items.push(generateMockItem(creatureLevel, levelVariance))
+
+  try {
+    const request = buildLootRequest(creatureLevel)
+    const response = await generate(request)
+    const parsed: ItemState[] = []
+    const usedThings = response.things.slice(0, count)
+    for (const thing of usedThings) {
+      parsed.push(parseItem(thing))
+    }
+    if (parsed.length > 0) return parsed
+  } catch {
+    // Fallback to mock data
   }
-  return items
+
+  const fallback: ItemState[] = []
+  for (let i = 0; i < count; i++) {
+    fallback.push(generateMockItem(creatureLevel, levelVariance))
+  }
+  return fallback
 }
 
 export function resetItemIdCounter(): void {

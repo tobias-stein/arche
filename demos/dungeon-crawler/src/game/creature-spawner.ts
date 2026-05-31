@@ -1,6 +1,7 @@
 import { GAME_CONFIG } from '../config/game-config';
 import { TILE, type TileType } from './room-tiles';
 import type { Difficulty, CreatureState } from '../types';
+import { generate, buildCreatureRequest, buildBossRequest, parseCreature } from '../api';
 
 let nextId = 1;
 
@@ -115,13 +116,13 @@ export function pickDifficulties(
   return diffs;
 }
 
-export function generateCreaturesForRoom(
+export async function generateCreaturesForRoom(
   tiles: TileType[][],
   roomId: number,
   isBoss: boolean,
   playerLevel: number,
   entryTile: { x: number; y: number },
-): CreatureState[] {
+): Promise<CreatureState[]> {
   let count: number;
   if (isBoss) {
     count = 1;
@@ -131,6 +132,19 @@ export function generateCreaturesForRoom(
 
   const positions = pickSpawnPositions(tiles, count, entryTile);
   const difficulties = pickDifficulties(positions.length, isBoss);
+
+  try {
+    const request = isBoss ? buildBossRequest(playerLevel) : buildCreatureRequest(playerLevel);
+    const response = await generate(request);
+    const creatures: CreatureState[] = [];
+    const usedThings = response.things.slice(0, positions.length);
+    for (let i = 0; i < usedThings.length; i++) {
+      creatures.push(parseCreature(usedThings[i], positions[i].x, positions[i].y));
+    }
+    return creatures;
+  } catch {
+    // Fallback to mock data
+  }
 
   const creatures: CreatureState[] = [];
   for (let i = 0; i < positions.length; i++) {

@@ -170,18 +170,18 @@ export class DungeonScene extends Phaser.Scene {
     this.gameState.setDungeonData(this.dungeon);
     this.gameState.setCurrentRoom(this.currentRoom);
     this.gameState.setPlayerPosition(this.playerX, this.playerY);
-    this.spawnCreatures();
+    void this.spawnCreatures();
     this.drawCurrentRoom();
   }
 
-  private spawnCreatures(): void {
+  private async spawnCreatures(): Promise<void> {
     this.destroyCreatureLabels();
 
     const isBoss = this.currentRoom === this.dungeon.bossRoom;
     const entryTile = getEntryTile(this.tiles);
     const playerLevel = this.gameState.player.level;
 
-    this.creatures = generateCreaturesForRoom(
+    this.creatures = await generateCreaturesForRoom(
       this.tiles,
       this.currentRoom,
       isBoss,
@@ -344,7 +344,7 @@ export class DungeonScene extends Phaser.Scene {
         this.renderY = this.playerY;
         this.gameState.setPlayerPosition(pos.x, pos.y);
 
-        this.spawnCreatures();
+        void this.spawnCreatures();
 
         const fadeOutTarget = { alpha: 1 };
         this.tweens.add({

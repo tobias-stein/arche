@@ -101,13 +101,13 @@ function CombatOverlay() {
     }
   }, [])
 
-  const handleAttack = useCallback(() => {
+  const handleAttack = useCallback(async () => {
     const gs = getGameState()
     if (!gs.combatCreature || gs.combatTurn !== 'player') return
 
     setShowMenu(false)
     const damage = calculatePlayerDamage(gs.player, gs.combatCreature)
-    gs.processPlayerAttack(damage)
+    await gs.processPlayerAttack(damage)
 
     if (gs.combatCreature.hp.current > 0) {
       enemyTimerRef.current = setTimeout(() => {

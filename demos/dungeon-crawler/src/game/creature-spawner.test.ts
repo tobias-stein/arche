@@ -120,9 +120,9 @@ describe('pickDifficulties', () => {
 });
 
 describe('generateCreaturesForRoom', () => {
-  it('generates creatures for a non-boss room', () => {
+  it('generates creatures for a non-boss room', async () => {
     const tiles = makeEmptyRoom({ n: true });
-    const creatures = generateCreaturesForRoom(tiles, 0, false, 1, { x: 7, y: 0 });
+    const creatures = await generateCreaturesForRoom(tiles, 0, false, 1, { x: 7, y: 0 });
     expect(creatures.length).toBeGreaterThanOrEqual(1);
     expect(creatures.length).toBeLessThanOrEqual(4);
     for (const c of creatures) {
@@ -131,16 +131,16 @@ describe('generateCreaturesForRoom', () => {
     }
   });
 
-  it('generates exactly 1 boss creature for boss room', () => {
+  it('generates exactly 1 boss creature for boss room', async () => {
     const tiles = makeEmptyRoom({ n: true });
-    const creatures = generateCreaturesForRoom(tiles, 0, true, 5, { x: 7, y: 0 });
+    const creatures = await generateCreaturesForRoom(tiles, 0, true, 5, { x: 7, y: 0 });
     expect(creatures.length).toBe(1);
     expect(creatures[0].difficulty).toBe('boss');
   });
 
-  it('creatures have valid positions within room', () => {
+  it('creatures have valid positions within room', async () => {
     const tiles = makeEmptyRoom({ n: true });
-    const creatures = generateCreaturesForRoom(tiles, 0, false, 1, { x: 7, y: 0 });
+    const creatures = await generateCreaturesForRoom(tiles, 0, false, 1, { x: 7, y: 0 });
     for (const c of creatures) {
       expect(c.position.x).toBeGreaterThanOrEqual(0);
       expect(c.position.x).toBeLessThan(15);
@@ -149,10 +149,10 @@ describe('generateCreaturesForRoom', () => {
     }
   });
 
-  it('respawning generates new creatures', () => {
+  it('respawning generates new creatures', async () => {
     const tiles = makeEmptyRoom({ n: true });
-    const c1 = generateCreaturesForRoom(tiles, 0, false, 1, { x: 7, y: 0 });
-    const c2 = generateCreaturesForRoom(tiles, 0, false, 1, { x: 7, y: 0 });
+    const c1 = await generateCreaturesForRoom(tiles, 0, false, 1, { x: 7, y: 0 });
+    const c2 = await generateCreaturesForRoom(tiles, 0, false, 1, { x: 7, y: 0 });
     const ids1 = new Set(c1.map(c => c.id));
     const ids2 = new Set(c2.map(c => c.id));
     for (const id of ids1) {

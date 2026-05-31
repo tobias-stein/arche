@@ -10,18 +10,18 @@ beforeEach(() => {
 describe('generateMockItems', () => {
   const variance = GAME_CONFIG.generationWindow.itemLevelVariance
 
-  it('generates 0-1 items for normal difficulty', () => {
-    const items = generateMockItems('normal', 5, variance)
+  it('generates 0-1 items for normal difficulty', async () => {
+    const items = await generateMockItems('normal', 5, variance)
     expect(items.length).toBeGreaterThanOrEqual(0)
     expect(items.length).toBeLessThanOrEqual(1)
   })
 
-  it('generates 1-3 items for champion difficulty', () => {
+  it('generates 1-3 items for champion difficulty', async () => {
     // Run multiple times to cover range
     let min = Infinity
     let max = -Infinity
     for (let i = 0; i < 50; i++) {
-      const items = generateMockItems('champion', 5, variance)
+      const items = await generateMockItems('champion', 5, variance)
       min = Math.min(min, items.length)
       max = Math.max(max, items.length)
     }
@@ -29,11 +29,11 @@ describe('generateMockItems', () => {
     expect(max).toBeLessThanOrEqual(3)
   })
 
-  it('generates 3-5 items for elite difficulty', () => {
+  it('generates 3-5 items for elite difficulty', async () => {
     let min = Infinity
     let max = -Infinity
     for (let i = 0; i < 50; i++) {
-      const items = generateMockItems('elite', 5, variance)
+      const items = await generateMockItems('elite', 5, variance)
       min = Math.min(min, items.length)
       max = Math.max(max, items.length)
     }
@@ -41,11 +41,11 @@ describe('generateMockItems', () => {
     expect(max).toBeLessThanOrEqual(5)
   })
 
-  it('generates 5-7 items for boss difficulty', () => {
+  it('generates 5-7 items for boss difficulty', async () => {
     let min = Infinity
     let max = -Infinity
     for (let i = 0; i < 50; i++) {
-      const items = generateMockItems('boss', 10, variance)
+      const items = await generateMockItems('boss', 10, variance)
       min = Math.min(min, items.length)
       max = Math.max(max, items.length)
     }

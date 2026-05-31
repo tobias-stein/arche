@@ -49,7 +49,7 @@ describe('GameState combat', () => {
   })
 
   describe('processPlayerAttack', () => {
-    it('damages creature and switches to enemy turn', () => {
+    it('damages creature and switches to enemy turn', async () => {
       const creature = makeCreature({ hp: { current: 35, max: 35 } })
       gs.startCombat(creature)
 
@@ -58,7 +58,7 @@ describe('GameState combat', () => {
       gs.on('combat:creature-damaged', (dmg, c) => damageEvents.push([dmg, c.hp.current]))
       gs.on('combat:turn-changed', (turn) => turnEvents.push(turn as string))
 
-      gs.processPlayerAttack(10)
+      await gs.processPlayerAttack(10)
 
       expect(creature.hp.current).toBe(25)
       expect(damageEvents).toEqual([[10, 25]])
@@ -66,14 +66,14 @@ describe('GameState combat', () => {
       expect(gs.combatTurn).toBe('enemy')
     })
 
-    it('resolves victory when creature HP reaches 0', () => {
+    it('resolves victory when creature HP reaches 0', async () => {
       const creature = makeCreature({ hp: { current: 5, max: 35 }, xpReward: 15 })
       gs.startCombat(creature)
 
       const victoryEvents: unknown[] = []
       gs.on('combat:victory', (...args) => victoryEvents.push(args))
 
-      gs.processPlayerAttack(10)
+      await gs.processPlayerAttack(10)
 
       expect(creature.hp.current).toBe(0)
       expect(victoryEvents.length).toBe(1)
@@ -83,7 +83,7 @@ describe('GameState combat', () => {
       expect(gs.victory).toBe(false)
     })
 
-    it('triggers game:victory for boss kills', () => {
+    it('triggers game:victory for boss kills', async () => {
       const creature = makeCreature({
         hp: { current: 5, max: 35 },
         xpReward: 15,
@@ -94,19 +94,19 @@ describe('GameState combat', () => {
       const gameVictoryEvents: unknown[] = []
       gs.on('game:victory', () => gameVictoryEvents.push('game:victory'))
 
-      gs.processPlayerAttack(10)
+      await gs.processPlayerAttack(10)
 
       expect(gameVictoryEvents).toEqual(['game:victory'])
       expect(gs.victory).toBe(true)
     })
 
-    it('applies recovery after victory', () => {
+    it('applies recovery after victory', async () => {
       gs.player.hp.current = 50
       gs.player.mp.current = 10
       const creature = makeCreature({ hp: { current: 5, max: 35 } })
       gs.startCombat(creature)
 
-      gs.processPlayerAttack(10)
+      await gs.processPlayerAttack(10)
 
       const hpRecovery = Math.round(gs.player.hp.max * GAME_CONFIG.recovery.hpPercent)
       const mpRecovery = Math.round(gs.player.mp.max * GAME_CONFIG.recovery.mpPercent)
@@ -114,11 +114,11 @@ describe('GameState combat', () => {
       expect(gs.player.mp.current).toBe(10 + mpRecovery)
     })
 
-    it('grants XP after victory', () => {
+    it('grants XP after victory', async () => {
       const creature = makeCreature({ hp: { current: 5, max: 35 }, xpReward: 15 })
       gs.startCombat(creature)
 
-      gs.processPlayerAttack(10)
+      await gs.processPlayerAttack(10)
 
       expect(gs.player.xp.current).toBe(5)
     })
@@ -200,24 +200,24 @@ describe('GameState combat', () => {
   })
 
   describe('loot generation', () => {
-    it('generates loot after victory and emits loot:show', () => {
+    it('generates loot after victory and emits loot:show', async () => {
       const creature = makeCreature({ difficulty: 'elite', level: 5, hp: { current: 5, max: 100 }, xpReward: 50 })
       gs.startCombat(creature)
 
       const lootEvents: unknown[] = []
       gs.on('loot:show', (items) => lootEvents.push(items))
 
-      gs.processPlayerAttack(50)
+      await gs.processPlayerAttack(50)
 
       expect(gs.lootItems.length).toBeGreaterThanOrEqual(3)
       expect(gs.lootItems.length).toBeLessThanOrEqual(5)
       expect(lootEvents.length).toBe(1)
     })
 
-    it('generates correct item level range', () => {
+    it('generates correct item level range', async () => {
       const creature = makeCreature({ difficulty: 'normal', level: 10, hp: { current: 5, max: 100 } })
       gs.startCombat(creature)
-      gs.processPlayerAttack(50)
+      await gs.processPlayerAttack(50)
 
       for (const item of gs.lootItems) {
         expect(item.level).toBeGreaterThanOrEqual(8)
@@ -227,10 +227,10 @@ describe('GameState combat', () => {
   })
 
   describe('takeLootItem', () => {
-    it('removes item from loot and adds to inventory or equipment', () => {
+    it('removes item from loot and adds to inventory or equipment', async () => {
       const creature = makeCreature({ difficulty: 'elite', level: 5, hp: { current: 5, max: 100 } })
       gs.startCombat(creature)
-      gs.processPlayerAttack(50)
+      await gs.processPlayerAttack(50)
 
       const item = gs.lootItems[0]
       gs.takeLootItem(item.id)
@@ -241,10 +241,10 @@ describe('GameState combat', () => {
       expect(inInventory || inEquipment).toBe(true)
     })
 
-    it('emits loot:items-changed after taking', () => {
+    it('emits loot:items-changed after taking', async () => {
       const creature = makeCreature({ difficulty: 'elite', level: 5, hp: { current: 5, max: 100 } })
       gs.startCombat(creature)
-      gs.processPlayerAttack(50)
+      await gs.processPlayerAttack(50)
 
       const changedEvents: unknown[] = []
       gs.on('loot:items-changed', (items) => changedEvents.push(items))
@@ -254,10 +254,10 @@ describe('GameState combat', () => {
       expect(changedEvents.length).toBe(1)
     })
 
-    it('auto-equips to empty equipment slot', () => {
+    it('auto-equips to empty equipment slot', async () => {
       const creature = makeCreature({ difficulty: 'boss', level: 5, hp: { current: 5, max: 200 } })
       gs.startCombat(creature)
-      gs.processPlayerAttack(200)
+      await gs.processPlayerAttack(200)
 
       const equipItem = gs.lootItems.find(i => i.equipSlot)
       if (equipItem) {
@@ -269,10 +269,10 @@ describe('GameState combat', () => {
   })
 
   describe('takeAllLoot', () => {
-    it('takes all loot items', () => {
+    it('takes all loot items', async () => {
       const creature = makeCreature({ difficulty: 'elite', level: 5, hp: { current: 5, max: 100 } })
       gs.startCombat(creature)
-      gs.processPlayerAttack(50)
+      await gs.processPlayerAttack(50)
 
       const prevCount = gs.lootItems.length
       gs.takeAllLoot()
@@ -283,10 +283,10 @@ describe('GameState combat', () => {
       expect(inventoryCount + equipCount).toBeGreaterThanOrEqual(prevCount)
     })
 
-    it('emits loot:items-changed with empty array', () => {
+    it('emits loot:items-changed with empty array', async () => {
       const creature = makeCreature({ difficulty: 'elite', level: 5, hp: { current: 5, max: 100 } })
       gs.startCombat(creature)
-      gs.processPlayerAttack(50)
+      await gs.processPlayerAttack(50)
 
       const changedEvents: unknown[] = []
       gs.on('loot:items-changed', (items) => changedEvents.push(items))
@@ -299,20 +299,20 @@ describe('GameState combat', () => {
   })
 
   describe('dismissLoot', () => {
-    it('clears loot items', () => {
+    it('clears loot items', async () => {
       const creature = makeCreature({ difficulty: 'elite', level: 5, hp: { current: 5, max: 100 } })
       gs.startCombat(creature)
-      gs.processPlayerAttack(50)
+      await gs.processPlayerAttack(50)
 
       gs.dismissLoot()
 
       expect(gs.lootItems).toEqual([])
     })
 
-    it('emits loot:items-changed with empty array', () => {
+    it('emits loot:items-changed with empty array', async () => {
       const creature = makeCreature({ difficulty: 'elite', level: 5, hp: { current: 5, max: 100 } })
       gs.startCombat(creature)
-      gs.processPlayerAttack(50)
+      await gs.processPlayerAttack(50)
 
       const changedEvents: unknown[] = []
       gs.on('loot:items-changed', (items) => changedEvents.push(items))
@@ -329,10 +329,10 @@ describe('GameState combat', () => {
       expect(gs.inventory.length).toBe(GAME_CONFIG.capacity.inventorySlots)
     })
 
-    it('takeAllLoot moves all items out of loot', () => {
+    it('takeAllLoot moves all items out of loot', async () => {
       const creature = makeCreature({ difficulty: 'elite', level: 5, hp: { current: 5, max: 100 } })
       gs.startCombat(creature)
-      gs.processPlayerAttack(50)
+      await gs.processPlayerAttack(50)
 
       gs.takeAllLoot()
 

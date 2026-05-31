@@ -1,4 +1,9 @@
 export const GAME_CONFIG = {
+  arche: {
+    apiUrl: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_ARCHE_API_URL) || 'http://localhost:8080',
+    apiKey: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_ARCHE_API_KEY) || '',
+  },
+
   player: {
     baseHp: 100,
     baseMp: 30,

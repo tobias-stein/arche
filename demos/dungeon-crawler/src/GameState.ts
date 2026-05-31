@@ -2,6 +2,7 @@ import { GAME_CONFIG } from './config'
 import type { PlayerState, CreatureState, ItemState, EquipSlot, LogEvent } from './types'
 import type { Dungeon } from './game/dungeon-generator'
 import { generateMockItems } from './game/loot'
+import { resetCreatureIdCounter, resetItemIdCounter } from './api'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type EventCallback = (...args: any[]) => void
@@ -173,13 +174,13 @@ class GameState extends EventEmitter {
     this.emit('combat:started', creature)
   }
 
-  processPlayerAttack(damage: number): void {
+  async processPlayerAttack(damage: number): Promise<void> {
     if (!this.combatCreature) return
     this.combatCreature.hp.current = Math.max(0, this.combatCreature.hp.current - damage)
     this.emit('combat:creature-damaged', damage, this.combatCreature)
 
     if (this.combatCreature.hp.current <= 0) {
-      this.resolveVictory()
+      await this.resolveVictory()
     } else {
       this.combatTurn = 'enemy'
       this.emit('combat:turn-changed', 'enemy')
@@ -198,7 +199,7 @@ class GameState extends EventEmitter {
     }
   }
 
-  resolveVictory(): void {
+  async resolveVictory(): Promise<void> {
     this.combatVictory = true
     this.combatTurn = null
     const xpReward = this.combatCreature?.xpReward ?? 0
@@ -218,7 +219,7 @@ class GameState extends EventEmitter {
     const creatureId = this.combatCreature?.id ?? ''
     this.emit('combat:victory', creatureId, xpReward)
 
-    this.generateLoot()
+    await this.generateLoot()
 
     if (this.combatCreature?.difficulty === 'boss') {
       this.victory = true
@@ -273,6 +274,8 @@ class GameState extends EventEmitter {
   }
 
   restartGame(): void {
+    resetCreatureIdCounter()
+    resetItemIdCounter()
     this.gameOver = false
     this.victory = false
     this.gameStarted = false
@@ -328,10 +331,10 @@ class GameState extends EventEmitter {
     this.emit('game:quit')
   }
 
-  generateLoot(): void {
+  async generateLoot(): Promise<void> {
     if (!this.combatCreature) return
     const variance = GAME_CONFIG.generationWindow.itemLevelVariance
-    this.lootItems = generateMockItems(this.combatCreature.difficulty, this.combatCreature.level, variance)
+    this.lootItems = await generateMockItems(this.combatCreature.difficulty, this.combatCreature.level, variance)
     this.emit('loot:show', this.lootItems)
   }
 

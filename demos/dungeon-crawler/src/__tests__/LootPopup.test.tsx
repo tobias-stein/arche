@@ -44,7 +44,9 @@ describe('LootPopup', () => {
 
     act(() => {
       gs.startCombat(creature)
-      gs.resolveVictory()
+    })
+    await act(async () => {
+      await gs.resolveVictory()
     })
 
     await waitFor(() => {
@@ -61,7 +63,9 @@ describe('LootPopup', () => {
 
     act(() => {
       gs.startCombat(creature)
-      gs.resolveVictory()
+    })
+    await act(async () => {
+      await gs.resolveVictory()
     })
 
     await waitFor(() => {
@@ -82,7 +86,9 @@ describe('LootPopup', () => {
 
     act(() => {
       gs.startCombat(creature)
-      gs.processPlayerAttack(30)
+    })
+    await act(async () => {
+      await gs.processPlayerAttack(30)
     })
 
     await waitFor(() => {
@@ -98,7 +104,9 @@ describe('LootPopup', () => {
 
     act(() => {
       gs.startCombat(creature)
-      gs.resolveVictory()
+    })
+    await act(async () => {
+      await gs.resolveVictory()
     })
 
     await waitFor(() => {
@@ -121,7 +129,9 @@ describe('LootPopup', () => {
 
     act(() => {
       gs.startCombat(creature)
-      gs.resolveVictory()
+    })
+    await act(async () => {
+      await gs.resolveVictory()
     })
 
     await waitFor(() => {
@@ -142,7 +152,9 @@ describe('LootPopup', () => {
 
     act(() => {
       gs.startCombat(creature)
-      gs.resolveVictory()
+    })
+    await act(async () => {
+      await gs.resolveVictory()
     })
 
     await waitFor(() => {
@@ -167,7 +179,9 @@ describe('LootPopup', () => {
 
     act(() => {
       gs.startCombat(creature)
-      gs.resolveVictory()
+    })
+    await act(async () => {
+      await gs.resolveVictory()
     })
 
     await waitFor(() => {
@@ -191,7 +205,9 @@ describe('LootPopup', () => {
 
     act(() => {
       gs.startCombat(creature)
-      gs.resolveVictory()
+    })
+    await act(async () => {
+      await gs.resolveVictory()
     })
 
     await waitFor(() => {
@@ -215,7 +231,9 @@ describe('LootPopup', () => {
 
     act(() => {
       gs.startCombat(creature)
-      gs.resolveVictory()
+    })
+    await act(async () => {
+      await gs.resolveVictory()
     })
 
     await waitFor(() => {
@@ -240,7 +258,9 @@ describe('LootPopup', () => {
 
     act(() => {
       gs.startCombat(creature)
-      gs.resolveVictory()
+    })
+    await act(async () => {
+      await gs.resolveVictory()
     })
 
     await waitFor(() => {

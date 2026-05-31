@@ -1,6 +1,6 @@
 ---
 title: "Encounter prompt + game-over/victory/controls screens"
-status: ready-for-agent
+status: completed
 ---
 
 ## What to build

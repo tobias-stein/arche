@@ -1,6 +1,6 @@
 ---
 title: "Loot system"
-status: ready-for-agent
+status: completed
 ---
 
 ## What to build

@@ -1,5 +1,5 @@
 import { GAME_CONFIG } from './config'
-import type { PlayerState, LogEvent } from './types'
+import type { PlayerState, CreatureState, LogEvent } from './types'
 import type { Dungeon } from './game/dungeon-generator'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -31,6 +31,13 @@ class GameState extends EventEmitter {
   currentRoomId = 0
   visitedRooms: Set<number> = new Set()
   dungeon: Dungeon | null = null
+
+  combatActive = false
+  combatCreature: CreatureState | null = null
+  combatTurn: 'player' | 'enemy' | null = null
+  combatVictory = false
+  combatDefeat = false
+  combatLog: string[] = []
 
   constructor() {
     super()
@@ -111,6 +118,90 @@ class GameState extends EventEmitter {
 
   emitEncounterStarted(creatureId: string): void {
     this.emit('encounter:started', creatureId)
+  }
+
+  startCombat(creature: CreatureState): void {
+    this.combatActive = true
+    this.combatCreature = creature
+    this.combatTurn = 'player'
+    this.combatVictory = false
+    this.combatDefeat = false
+    this.combatLog = []
+    this.emit('combat:started', creature)
+  }
+
+  processPlayerAttack(damage: number): void {
+    if (!this.combatCreature) return
+    this.combatCreature.hp.current = Math.max(0, this.combatCreature.hp.current - damage)
+    this.combatLog.push(`Player dealt ${damage} damage to ${this.combatCreature.name}`)
+    this.emit('combat:creature-damaged', damage, this.combatCreature)
+
+    if (this.combatCreature.hp.current <= 0) {
+      this.resolveVictory()
+    } else {
+      this.combatTurn = 'enemy'
+      this.emit('combat:turn-changed', 'enemy')
+    }
+  }
+
+  processEnemyTurn(damage: number): void {
+    this.setPlayerHp(this.player.hp.current - damage)
+    this.combatLog.push(`${this.combatCreature?.name ?? 'Enemy'} dealt ${damage} damage to player`)
+    this.emit('combat:player-damaged', damage, this.player)
+
+    if (this.player.hp.current <= 0) {
+      this.resolveDefeat()
+    } else {
+      this.combatTurn = 'player'
+      this.emit('combat:turn-changed', 'player')
+    }
+  }
+
+  resolveVictory(): void {
+    this.combatVictory = true
+    this.combatTurn = null
+    const xpReward = this.combatCreature?.xpReward ?? 0
+    this.addXp(xpReward)
+
+    const hpRestore = Math.round(this.player.hp.max * GAME_CONFIG.recovery.hpPercent)
+    const mpRestore = Math.round(this.player.mp.max * GAME_CONFIG.recovery.mpPercent)
+    this.setPlayerHp(this.player.hp.current + hpRestore)
+    this.setPlayerMp(this.player.mp.current + mpRestore)
+
+    this.addLogEntry({
+      type: 'enemy_slain',
+      message: `${this.combatCreature?.name ?? 'Enemy'} slain! +${xpReward} XP`,
+      icon: 'fa-solid fa-crosshairs',
+    })
+
+    const creatureId = this.combatCreature?.id ?? ''
+    this.emit('combat:victory', creatureId, xpReward)
+  }
+
+  resolveDefeat(): void {
+    this.combatDefeat = true
+    this.combatTurn = null
+    this.emit('combat:defeat')
+  }
+
+  fleeCombat(): void {
+    this.addLogEntry({
+      type: 'flee_attempt',
+      message: 'Fled from combat!',
+      icon: 'fa-solid fa-person-running',
+    })
+    const creatureId = this.combatCreature?.id ?? ''
+    this.emit('combat:fled', creatureId)
+    this.endCombat()
+  }
+
+  endCombat(): void {
+    this.combatActive = false
+    this.combatCreature = null
+    this.combatTurn = null
+    this.combatVictory = false
+    this.combatDefeat = false
+    this.emit('combat:ended')
   }
 }
 

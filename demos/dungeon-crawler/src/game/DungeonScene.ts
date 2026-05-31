@@ -30,6 +30,8 @@ const KEY_MAP: Record<string, number> = {
 };
 
 export class DungeonScene extends Phaser.Scene {
+  static currentInstance: DungeonScene | null = null
+
   private dungeon!: Dungeon;
   private currentRoom = 0;
   private tiles!: TileType[][];
@@ -70,6 +72,9 @@ export class DungeonScene extends Phaser.Scene {
     super({ key: 'DungeonScene' });
   }
 
+  private boundHandleVictory: ((creatureId: string) => void) | null = null
+  private boundHandleFled: ((creatureId: string) => void) | null = null
+
   create(): void {
     this.tileSize = Math.min(
       Math.floor(this.scale.width / GAME_CONFIG.room.width),
@@ -89,6 +94,13 @@ export class DungeonScene extends Phaser.Scene {
 
     this.generateDungeon();
     this.setupInput();
+
+    this.boundHandleVictory = (creatureId: string) => this.removeCreature(creatureId)
+    this.boundHandleFled = (creatureId: string) => this.stunCreature(creatureId)
+    this.gameState.on('combat:victory', this.boundHandleVictory)
+    this.gameState.on('combat:fled', this.boundHandleFled)
+
+    DungeonScene.currentInstance = this
   }
 
   private setupInput(): void {
@@ -489,8 +501,28 @@ export class DungeonScene extends Phaser.Scene {
     return this.creatures;
   }
 
+  findCreatureById(id: string): CreatureState | undefined {
+    return this.creatures.find(c => c.id === id)
+  }
+
+  removeCreature(creatureId: string): void {
+    const idx = this.creatures.findIndex(c => c.id === creatureId);
+    if (idx !== -1) {
+      if (this.creatureLabels[idx]) this.creatureLabels[idx].destroy();
+      this.creatures.splice(idx, 1);
+      this.creatureLabels.splice(idx, 1);
+    }
+    if (this.chaseTarget?.id === creatureId) {
+      this.chaseTarget = null;
+    }
+  }
+
   update(_time: number, delta: number): void {
     this.elapsed += delta;
+    if (this.gameState.combatActive) {
+      this.drawCurrentRoom();
+      return;
+    }
     this.processInput();
     this.updateMovement();
     this.updateCreatures();

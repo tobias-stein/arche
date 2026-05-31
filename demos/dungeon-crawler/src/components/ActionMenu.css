@@ -1,0 +1,63 @@
+#action-menu {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 150;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+#action-menu button {
+  width: 150px;
+  height: 80px;
+  border: 4px solid #4a7a58;
+  background: #2d4d38;
+  color: #d8f0e0;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  transition: 0.1s;
+  font-family: 'Courier New', monospace;
+  box-shadow: 0 4px 0 #1a3a2a;
+}
+
+#action-menu button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 #1a3a2a;
+  background: #3a6a48;
+  border-color: #5a9a68;
+}
+
+#action-menu button:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 #1a3a2a;
+}
+
+#action-menu button.focused {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 #1a3a2a;
+  background: #3a6a48;
+  border-color: #5a9a68;
+}
+
+#action-menu button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+#action-menu button .ai {
+  font-size: 26px;
+}
+
+#action-menu button .al {
+  font-size: 12px;
+  text-shadow: 1px 1px 0 #1a3a2a;
+  font-family: monospace;
+}

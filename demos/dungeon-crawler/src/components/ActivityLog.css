@@ -8,7 +8,7 @@
   border: 4px solid #4a7a58;
   box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.3), inset 0 0 0 2px #3a6a48;
   max-height: 145px;
-  transition: max-height .3s ease;
+  transition: max-height .3s ease, width .3s ease, bottom .3s ease;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -23,15 +23,13 @@
   align-items: center;
   gap: 10px;
   padding: 8px 12px;
+  min-height: 44px;
   background: #3a6a48;
   border-bottom: 3px solid #4a7a58;
   cursor: pointer;
   flex-shrink: 0;
   user-select: none;
-}
-
-#log .log-header:hover {
-  background: #4a7a58;
+  touch-action: manipulation;
 }
 
 #log .log-title {
@@ -101,6 +99,8 @@
   z-index: 2;
   width: 28px;
   height: 28px;
+  min-width: 44px;
+  min-height: 44px;
   align-items: center;
   justify-content: center;
   background: #3a6a48;
@@ -116,6 +116,60 @@
   display: flex;
 }
 
-#log .log-scroll-btn:hover {
-  background: #4a7a58;
+/* Tablet: resizable overlay */
+@media (min-width: 640px) and (max-width: 1024px) {
+  #log {
+    width: min(60vw, 400px);
+  }
+
+  #log.expanded {
+    max-height: min(50vh, 600px);
+  }
+}
+
+/* Mobile: expandable bottom tab, full-screen when expanded */
+@media (max-width: 639px) {
+  #log {
+    position: fixed;
+    bottom: 56px;
+    left: 0;
+    right: 0;
+    width: 100%;
+    max-height: 44px;
+    border: none;
+    border-top: 4px solid #4a7a58;
+    border-radius: 0;
+    z-index: 150;
+    transition: max-height 0.3s ease;
+  }
+
+  #log .log-header {
+    min-height: 44px;
+    padding: 4px 12px;
+    justify-content: space-between;
+  }
+
+  #log.mobile.expanded {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    max-height: 100vh;
+    z-index: 300;
+    border: none;
+    border-top: none;
+  }
+
+  #log.mobile.expanded .log-body {
+    flex: 1;
+    overflow-y: auto;
+  }
+
+  #log.mobile .log-scroll-btn {
+    width: 36px;
+    height: 36px;
+    min-width: 44px;
+    min-height: 44px;
+  }
 }

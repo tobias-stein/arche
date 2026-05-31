@@ -17,3 +17,10 @@ body {
   width: 100vw;
   height: 100vh;
 }
+
+/* Safe area for mobile bottom toolbar */
+@media (max-width: 639px) {
+  body {
+    padding-bottom: 56px;
+  }
+}

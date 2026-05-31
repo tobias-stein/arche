@@ -55,10 +55,6 @@ function CombatOverlay() {
       setXpGained(xp)
       setFlash(true)
       setTimeout(() => setFlash(false), 400)
-
-      enemyTimerRef.current = setTimeout(() => {
-        gs.endCombat()
-      }, 2000)
     }
 
     function onDefeat() {

@@ -6,6 +6,7 @@ import ActivityLog from './components/ActivityLog'
 import MiniMap from './components/MiniMap'
 import BottomToolbar from './components/BottomToolbar'
 import CombatOverlay from './components/CombatOverlay'
+import LootPopup from './components/LootPopup'
 import { useBreakpoint } from './hooks/useBreakpoint'
 import './styles/responsive.css'
 
@@ -44,6 +45,7 @@ function App() {
       <MiniMap />
       <BottomToolbar onToggleLog={toggleLog} />
       <CombatOverlay />
+      <LootPopup />
     </>
   )
 }

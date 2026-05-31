@@ -1,6 +1,7 @@
 import { GAME_CONFIG } from './config'
-import type { PlayerState, CreatureState, LogEvent } from './types'
+import type { PlayerState, CreatureState, ItemState, EquipSlot, LogEvent } from './types'
 import type { Dungeon } from './game/dungeon-generator'
+import { generateMockItems } from './game/loot'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type EventCallback = (...args: any[]) => void
@@ -37,6 +38,10 @@ class GameState extends EventEmitter {
   combatTurn: 'player' | 'enemy' | null = null
   combatVictory = false
   combatDefeat = false
+
+  inventory: (ItemState | null)[] = Array(GAME_CONFIG.capacity.inventorySlots).fill(null)
+  equipment: Partial<Record<EquipSlot, ItemState>> = {}
+  lootItems: ItemState[] = []
 
   constructor() {
     super()
@@ -172,6 +177,8 @@ class GameState extends EventEmitter {
 
     const creatureId = this.combatCreature?.id ?? ''
     this.emit('combat:victory', creatureId, xpReward)
+
+    this.generateLoot()
   }
 
   resolveDefeat(): void {
@@ -198,6 +205,64 @@ class GameState extends EventEmitter {
     this.combatVictory = false
     this.combatDefeat = false
     this.emit('combat:ended')
+  }
+
+  generateLoot(): void {
+    if (!this.combatCreature) return
+    const variance = GAME_CONFIG.generationWindow.itemLevelVariance
+    this.lootItems = generateMockItems(this.combatCreature.difficulty, this.combatCreature.level, variance)
+    this.emit('loot:show', this.lootItems)
+  }
+
+  takeLootItem(itemId: string): void {
+    const idx = this.lootItems.findIndex(i => i.id === itemId)
+    if (idx === -1) return
+    const item = this.lootItems[idx]
+    this.lootItems.splice(idx, 1)
+    this.addItemToInventoryOrEquip(item)
+    this.addLogEntry({
+      type: 'item_picked_up',
+      message: `Picked up ${item.name}`,
+      icon: 'fa-solid fa-box-open',
+    })
+    this.emit('loot:items-changed', [...this.lootItems])
+  }
+
+  takeAllLoot(): void {
+    const items = [...this.lootItems]
+    this.lootItems = []
+    for (const item of items) {
+      this.addItemToInventoryOrEquip(item)
+    }
+    this.addLogEntry({
+      type: 'item_picked_up',
+      message: `Took all items (${items.length})`,
+      icon: 'fa-solid fa-box-open',
+    })
+    this.emit('loot:items-changed', [])
+  }
+
+  dismissLoot(): void {
+    if (this.lootItems.length > 0) {
+      this.addLogEntry({
+        type: 'item_dropped',
+        message: `Left ${this.lootItems.length} item(s) on the ground`,
+        icon: 'fa-solid fa-box-open',
+      })
+    }
+    this.lootItems = []
+    this.emit('loot:items-changed', [])
+  }
+
+  private addItemToInventoryOrEquip(item: ItemState): void {
+    if (item.equipSlot && !this.equipment[item.equipSlot]) {
+      this.equipment[item.equipSlot] = item
+      return
+    }
+    const emptyIdx = this.inventory.findIndex(slot => slot === null)
+    if (emptyIdx !== -1) {
+      this.inventory[emptyIdx] = item
+    }
   }
 }
 

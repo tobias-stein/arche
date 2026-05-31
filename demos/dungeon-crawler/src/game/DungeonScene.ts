@@ -111,7 +111,6 @@ export class DungeonScene extends Phaser.Scene {
     if (this.transitioning) return;
     this.transitioning = true;
 
-    const overlay = this.transitionOverlay;
     const duration = GAME_CONFIG.dungeon.transitionMs;
     const half = duration / 2;
 
@@ -120,11 +119,7 @@ export class DungeonScene extends Phaser.Scene {
       targets: fadeTarget,
       alpha: 1,
       duration: half,
-      onUpdate: () => {
-        overlay.clear();
-        overlay.fillStyle(0x000000, fadeTarget.alpha);
-        overlay.fillRect(0, 0, this.scale.width, this.scale.height);
-      },
+      onUpdate: () => this.drawTransitionOverlay(fadeTarget.alpha),
       onComplete: () => {
         this.currentRoom = nextRoom;
         this.tiles = generateRoomTiles(this.dungeon, this.currentRoom);
@@ -141,18 +136,20 @@ export class DungeonScene extends Phaser.Scene {
           targets: fadeOutTarget,
           alpha: 0,
           duration: half,
-          onUpdate: () => {
-            overlay.clear();
-            overlay.fillStyle(0x000000, fadeOutTarget.alpha);
-            overlay.fillRect(0, 0, this.scale.width, this.scale.height);
-          },
+          onUpdate: () => this.drawTransitionOverlay(fadeOutTarget.alpha),
           onComplete: () => {
-            overlay.clear();
+            this.transitionOverlay.clear();
             this.transitioning = false;
           },
         });
       },
     });
+  }
+
+  private drawTransitionOverlay(alpha: number): void {
+    this.transitionOverlay.clear();
+    this.transitionOverlay.fillStyle(0x000000, alpha);
+    this.transitionOverlay.fillRect(0, 0, this.scale.width, this.scale.height);
   }
 
   update(_time: number, delta: number): void {

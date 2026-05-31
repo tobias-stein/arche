@@ -142,7 +142,6 @@ export class Dungeon {
         this.bossRoom = i;
       }
     }
-    this.entranceRoom = 0;
   }
 
   getNeighbor(roomId: number, dir: number): number {

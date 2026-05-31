@@ -86,6 +86,13 @@ export function drawArchway(graphics: Phaser.GameObjects.Graphics, px: number, p
   graphics.fill();
 }
 
+const DOOR_DIR: Record<number, string> = {
+  [TILE.DOOR_N]: 'N',
+  [TILE.DOOR_S]: 'S',
+  [TILE.DOOR_E]: 'E',
+  [TILE.DOOR_W]: 'W',
+};
+
 export function drawDoorGlow(graphics: Phaser.GameObjects.Graphics, px: number, py: number, ts: number, time: number, dir: string): void {
   const glow = 0.5 + 0.5 * Math.sin(time * 0.003);
   const g = Math.floor(lerp(80, 200, glow));
@@ -134,20 +141,11 @@ export function drawRoom(
           break;
         }
         case TILE.DOOR_N:
-          drawArchway(graphics, px, py, tileSize, 'N');
-          drawDoorGlow(graphics, px, py, tileSize, time, 'N');
-          break;
         case TILE.DOOR_S:
-          drawArchway(graphics, px, py, tileSize, 'S');
-          drawDoorGlow(graphics, px, py, tileSize, time, 'S');
-          break;
-        case TILE.DOOR_W:
-          drawArchway(graphics, px, py, tileSize, 'W');
-          drawDoorGlow(graphics, px, py, tileSize, time, 'W');
-          break;
         case TILE.DOOR_E:
-          drawArchway(graphics, px, py, tileSize, 'E');
-          drawDoorGlow(graphics, px, py, tileSize, time, 'E');
+        case TILE.DOOR_W:
+          drawArchway(graphics, px, py, tileSize, DOOR_DIR[t]);
+          drawDoorGlow(graphics, px, py, tileSize, time, DOOR_DIR[t]);
           break;
       }
     }

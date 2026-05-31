@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { GameState } from '../GameState'
+import { GameState, resetGameState } from '../GameState'
 import { GAME_CONFIG } from '../config'
-import type { CreatureState } from '../types'
+import type { CreatureState, ItemState } from '../types'
 
 function makeCreature(overrides?: Partial<CreatureState>): CreatureState {
   return {
@@ -196,6 +196,147 @@ describe('GameState combat', () => {
       expect(gs.combatCreature).toBeNull()
       expect(gs.combatTurn).toBeNull()
       expect(endEvents).toEqual(['ended'])
+    })
+  })
+
+  describe('loot generation', () => {
+    it('generates loot after victory and emits loot:show', () => {
+      const creature = makeCreature({ difficulty: 'elite', level: 5, hp: { current: 5, max: 100 }, xpReward: 50 })
+      gs.startCombat(creature)
+
+      const lootEvents: unknown[] = []
+      gs.on('loot:show', (items) => lootEvents.push(items))
+
+      gs.processPlayerAttack(50)
+
+      expect(gs.lootItems.length).toBeGreaterThanOrEqual(3)
+      expect(gs.lootItems.length).toBeLessThanOrEqual(5)
+      expect(lootEvents.length).toBe(1)
+    })
+
+    it('generates correct item level range', () => {
+      const creature = makeCreature({ difficulty: 'normal', level: 10, hp: { current: 5, max: 100 } })
+      gs.startCombat(creature)
+      gs.processPlayerAttack(50)
+
+      for (const item of gs.lootItems) {
+        expect(item.level).toBeGreaterThanOrEqual(8)
+        expect(item.level).toBeLessThanOrEqual(12)
+      }
+    })
+  })
+
+  describe('takeLootItem', () => {
+    it('removes item from loot and adds to inventory or equipment', () => {
+      const creature = makeCreature({ difficulty: 'elite', level: 5, hp: { current: 5, max: 100 } })
+      gs.startCombat(creature)
+      gs.processPlayerAttack(50)
+
+      const item = gs.lootItems[0]
+      gs.takeLootItem(item.id)
+
+      expect(gs.lootItems.find(i => i.id === item.id)).toBeUndefined()
+      const inInventory = gs.inventory.some(slot => slot?.id === item.id)
+      const inEquipment = Object.values(gs.equipment).some(eq => eq?.id === item.id)
+      expect(inInventory || inEquipment).toBe(true)
+    })
+
+    it('emits loot:items-changed after taking', () => {
+      const creature = makeCreature({ difficulty: 'elite', level: 5, hp: { current: 5, max: 100 } })
+      gs.startCombat(creature)
+      gs.processPlayerAttack(50)
+
+      const changedEvents: unknown[] = []
+      gs.on('loot:items-changed', (items) => changedEvents.push(items))
+
+      gs.takeLootItem(gs.lootItems[0].id)
+
+      expect(changedEvents.length).toBe(1)
+    })
+
+    it('auto-equips to empty equipment slot', () => {
+      const creature = makeCreature({ difficulty: 'boss', level: 5, hp: { current: 5, max: 200 } })
+      gs.startCombat(creature)
+      gs.processPlayerAttack(200)
+
+      const equipItem = gs.lootItems.find(i => i.equipSlot)
+      if (equipItem) {
+        const slot = equipItem.equipSlot!
+        gs.takeLootItem(equipItem.id)
+        expect(gs.equipment[slot]).toBe(equipItem)
+      }
+    })
+  })
+
+  describe('takeAllLoot', () => {
+    it('takes all loot items', () => {
+      const creature = makeCreature({ difficulty: 'elite', level: 5, hp: { current: 5, max: 100 } })
+      gs.startCombat(creature)
+      gs.processPlayerAttack(50)
+
+      const prevCount = gs.lootItems.length
+      gs.takeAllLoot()
+
+      expect(gs.lootItems.length).toBe(0)
+      const inventoryCount = gs.inventory.filter(s => s !== null).length
+      const equipCount = Object.keys(gs.equipment).length
+      expect(inventoryCount + equipCount).toBeGreaterThanOrEqual(prevCount)
+    })
+
+    it('emits loot:items-changed with empty array', () => {
+      const creature = makeCreature({ difficulty: 'elite', level: 5, hp: { current: 5, max: 100 } })
+      gs.startCombat(creature)
+      gs.processPlayerAttack(50)
+
+      const changedEvents: unknown[] = []
+      gs.on('loot:items-changed', (items) => changedEvents.push(items))
+
+      gs.takeAllLoot()
+
+      expect(changedEvents.length).toBe(1)
+      expect(changedEvents[0]).toEqual([])
+    })
+  })
+
+  describe('dismissLoot', () => {
+    it('clears loot items', () => {
+      const creature = makeCreature({ difficulty: 'elite', level: 5, hp: { current: 5, max: 100 } })
+      gs.startCombat(creature)
+      gs.processPlayerAttack(50)
+
+      gs.dismissLoot()
+
+      expect(gs.lootItems).toEqual([])
+    })
+
+    it('emits loot:items-changed with empty array', () => {
+      const creature = makeCreature({ difficulty: 'elite', level: 5, hp: { current: 5, max: 100 } })
+      gs.startCombat(creature)
+      gs.processPlayerAttack(50)
+
+      const changedEvents: unknown[] = []
+      gs.on('loot:items-changed', (items) => changedEvents.push(items))
+
+      gs.dismissLoot()
+
+      expect(changedEvents.length).toBe(1)
+      expect(changedEvents[0]).toEqual([])
+    })
+  })
+
+  describe('inventory capacity', () => {
+    it('has 18 inventory slots', () => {
+      expect(gs.inventory.length).toBe(GAME_CONFIG.capacity.inventorySlots)
+    })
+
+    it('takeAllLoot moves all items out of loot', () => {
+      const creature = makeCreature({ difficulty: 'elite', level: 5, hp: { current: 5, max: 100 } })
+      gs.startCombat(creature)
+      gs.processPlayerAttack(50)
+
+      gs.takeAllLoot()
+
+      expect(gs.lootItems.length).toBe(0)
     })
   })
 })

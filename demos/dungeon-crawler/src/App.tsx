@@ -11,6 +11,7 @@ import EncounterPrompt from './components/EncounterPrompt'
 import GameOverOverlay from './components/GameOverOverlay'
 import VictoryOverlay from './components/VictoryOverlay'
 import ControlsOverlay from './components/ControlsOverlay'
+import LootPopup from './components/LootPopup'
 import { useBreakpoint } from './hooks/useBreakpoint'
 import './styles/responsive.css'
 
@@ -115,6 +116,7 @@ function App() {
         onQuit={handleQuit}
       />
       <ControlsOverlay />
+      <LootPopup />
     </>
   )
 }

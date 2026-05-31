@@ -648,7 +648,7 @@ border: 3px solid #ffd700;
 
 ### Iconography
 
-**FontAwesome 6** via CDN. Icons used across the game:
+**FontAwesome 6** via CDN. All icons in the game use FontAwesome — no emoji characters anywhere. This applies to UI elements, minimap markers, item icons, status indicators, and any other visual symbol.
 
 | Context | Icon | Color |
 |---|---|---|
@@ -766,7 +766,7 @@ Items in inventory/equipment/loot grids are rendered as FontAwesome icons + text
 | Visited room | `#4a7a58` fill (small) or `#5a5a6a` (large) |
 | Current room | `#ffd700` fill, white stroke, cyan center dot (player) |
 | Boss room (undiscovered) | Dark cell with red border, "?" marker |
-| Boss room (discovered) | Red `#e53935` fill, "☠" marker |
+| Boss room (discovered) | Red `#e53935` fill, `fa-skull` icon marker |
 | Entrance room | Green `#66bb6a` small square marker |
 | Unexplored room | Not rendered (hidden) |
 | Edges (connected rooms) | Lines between cells — gold for current, grey for others |

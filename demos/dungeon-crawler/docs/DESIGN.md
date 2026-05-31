@@ -466,7 +466,7 @@ Creature and item blueprints are grouped into bands:
 
 See `UI.md` for the complete UI specification. Key decisions from the design session (2026-05-30):
 
-- **Responsive**: mobile, tablet, and desktop layouts. All inputs (touch, mouse, keyboard) supported for every action. No hover-only interactions. Touch targets ≥44×44px.
+- **Responsive**: mobile, tablet, and desktop layouts. All inputs (touch, mouse, keyboard) supported for every action. All icons use FontAwesome 6 — no emoji characters anywhere in the UI. No hover-only interactions. Touch targets ≥44×44px.
 
 - **Player card**: top-left always. HP/MP bars + ATK/DEF/Lv/XP.
 - **Enemy card**: bottom-right during combat only.

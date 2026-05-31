@@ -43,7 +43,7 @@ services:
 
   seed:
     build:
-      context: scripts
+      context: demos/dungeon-crawler/scripts
       dockerfile: Dockerfile
     entrypoint: ["npx", "tsx", "seed.ts"]
     environment:
@@ -54,7 +54,7 @@ services:
 
   validate:
     build:
-      context: scripts
+      context: demos/dungeon-crawler/scripts
       dockerfile: Dockerfile
     entrypoint: ["npx", "tsx", "validate.ts"]
     environment:

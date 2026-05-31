@@ -22,8 +22,6 @@
 }
 
 #player-card .pa {
-  width: 36px;
-  height: 36px;
   min-width: 44px;
   min-height: 44px;
   background: #4a7a58;
@@ -178,8 +176,6 @@
   }
 
   #player-card .pa {
-    width: 32px;
-    height: 32px;
     min-width: 44px;
     min-height: 44px;
     font-size: 16px;
@@ -244,8 +240,6 @@
   }
 
   #player-card .pa {
-    width: 32px;
-    height: 32px;
     min-width: 44px;
     min-height: 44px;
     font-size: 16px;

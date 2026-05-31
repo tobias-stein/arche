@@ -97,8 +97,6 @@
   bottom: 8px;
   right: 8px;
   z-index: 2;
-  width: 28px;
-  height: 28px;
   min-width: 44px;
   min-height: 44px;
   align-items: center;
@@ -167,8 +165,6 @@
   }
 
   #log.mobile .log-scroll-btn {
-    width: 36px;
-    height: 36px;
     min-width: 44px;
     min-height: 44px;
   }

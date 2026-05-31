@@ -13,10 +13,6 @@ describe('DungeonGenerator', () => {
     expect(dungeon.rooms.length).toBeGreaterThan(0);
   });
 
-  it('has at least one room', () => {
-    expect(dungeon.rooms.length).toBeGreaterThanOrEqual(1);
-  });
-
   it('has an entrance room at index 0', () => {
     expect(dungeon.entranceRoom).toBe(0);
   });

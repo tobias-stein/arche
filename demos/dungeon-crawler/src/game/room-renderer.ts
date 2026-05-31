@@ -1,7 +1,6 @@
 import Phaser from 'phaser';
 import { GAME_CONFIG } from '../config/game-config';
-import { TILE } from './room-tiles';
-import type { TileType } from './room-tiles';
+import { TILE, type TileType } from './room-tiles';
 
 const PALETTE = {
   wallBase: 0x2d4d38,

@@ -100,7 +100,6 @@ export class DungeonScene extends Phaser.Scene {
     const totalSteps = 20;
     for (let i = 0; i < totalSteps; i++) {
       const t = i / totalSteps;
-      const r1 = innerR + (Math.max(w, h) * 0.65 - innerR) * t;
       const r2 = innerR + (Math.max(w, h) * 0.65 - innerR) * (t + 1 / totalSteps);
       const alpha = t * t * 0.45;
       grd.fillStyle(0x000000, alpha);

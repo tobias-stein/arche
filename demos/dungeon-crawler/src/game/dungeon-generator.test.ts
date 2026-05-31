@@ -156,8 +156,7 @@ describe('BfsPathfind', () => {
     expect(bfsPathfind(tiles, 1, 1, 1, 1)).toEqual([]);
   });
 
-  it('returns null for unreachable target behind wall', () => {
-    // (1,1) to (2,2) is blocked by wall at (2,1)
+  it('finds path between reachable tiles', () => {
     const path = bfsPathfind(tiles, 1, 1, 3, 1);
     expect(path).not.toBeNull();
   });
@@ -167,10 +166,9 @@ describe('BfsPathfind', () => {
     expect(bfsPathfind(tiles, 1, 1, 1, 10)).toBeNull();
   });
 
-  it('finds path that goes around a wall', () => {
+  it('returns only floor tiles in the path', () => {
     const path = bfsPathfind(tiles, 1, 1, 3, 1);
     expect(path).not.toBeNull();
-    // Must go around the wall at (2,1), valid path exists
     for (const step of path!) {
       expect(tiles[step.y][step.x]).not.toBe(TILE.WALL);
     }

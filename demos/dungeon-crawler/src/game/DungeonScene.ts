@@ -39,7 +39,6 @@ export class DungeonScene extends Phaser.Scene {
   private transitionOverlay!: Phaser.GameObjects.Graphics;
   private playerGraphics!: Phaser.GameObjects.Graphics;
   private transitioning = false;
-  private visited: Set<number> = new Set();
   private elapsed = 0;
 
   private moving = false;
@@ -132,7 +131,6 @@ export class DungeonScene extends Phaser.Scene {
     this.playerY = spawn.y;
     this.renderX = this.playerX;
     this.renderY = this.playerY;
-    this.visited = new Set([this.currentRoom]);
     this.transitioning = false;
     this.moving = false;
     this.autoPath = null;
@@ -238,7 +236,6 @@ export class DungeonScene extends Phaser.Scene {
       onComplete: () => {
         this.currentRoom = nextRoom;
         this.tiles = generateRoomTiles(this.dungeon, this.currentRoom);
-        this.visited.add(nextRoom);
         this.gameState.setCurrentRoom(nextRoom);
 
         const pos = getDoorPos(oppositeDir(enterDir));

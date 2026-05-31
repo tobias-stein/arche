@@ -1,0 +1,27 @@
+export const GAME_CONFIG = {
+  player: {
+    baseHp: 100,
+    baseMp: 30,
+    baseAttack: 10,
+    baseDefense: 5,
+    startingLevel: 1,
+    maxLevel: 100,
+  },
+
+  dungeon: {
+    gridSize: 64,
+    targetRoomRatio: 0.55,
+    extraEdgeRatio: 0.20,
+    transitionMs: 350,
+  },
+
+  room: {
+    width: 15,
+    height: 11,
+  },
+
+  movement: {
+    walkSpeed: 120,
+    holdMoveInterval: 110,
+  },
+} as const;

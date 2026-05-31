@@ -54,4 +54,4 @@ All three panels are React components. Keyboard navigation: Arrow keys to naviga
 
 ## Blocked by
 
-06-combat-core
+07-combat-core

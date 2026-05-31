@@ -53,4 +53,4 @@ All screens are React components reading GameState.
 
 ## Blocked by
 
-06-combat-core
+07-combat-core

@@ -47,4 +47,4 @@ Implement loot drops after creature defeat, the loot popup, and item generation.
 
 ## Blocked by
 
-06-combat-core
+07-combat-core

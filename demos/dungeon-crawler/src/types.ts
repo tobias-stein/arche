@@ -43,4 +43,23 @@ interface ItemState {
   affixes: string[]
 }
 
-export type { Difficulty, Rarity, EquipSlot, PlayerState, CreatureState, ItemState }
+type LogEventType =
+  | 'player_damage_dealt'
+  | 'player_damage_taken'
+  | 'enemy_slain'
+  | 'spell_cast'
+  | 'potion_consumed'
+  | 'item_picked_up'
+  | 'item_dropped'
+  | 'room_entered'
+  | 'encounter_started'
+  | 'level_up'
+  | 'flee_attempt'
+
+interface LogEvent {
+  type: LogEventType
+  message: string
+  icon: string
+}
+
+export type { Difficulty, Rarity, EquipSlot, PlayerState, CreatureState, ItemState, LogEventType, LogEvent }

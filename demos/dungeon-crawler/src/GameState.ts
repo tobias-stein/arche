@@ -1,5 +1,5 @@
 import { GAME_CONFIG } from './config'
-import type { PlayerState } from './types'
+import type { PlayerState, LogEvent } from './types'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type EventCallback = (...args: any[]) => void
@@ -78,6 +78,10 @@ class GameState extends EventEmitter {
       this.emit('xp:level-up', this.player.level)
     }
     this.emit('player:stats-changed', this.player)
+  }
+
+  addLogEntry(entry: LogEvent): void {
+    this.emit('log:entry', entry)
   }
 
   emitInventoryRequested(): void {

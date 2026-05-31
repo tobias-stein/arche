@@ -38,6 +38,19 @@ class GameState extends EventEmitter {
   combatVictory = false
   combatDefeat = false
 
+  encounterActive = false
+  encounterCreature: CreatureState | null = null
+
+  gameOver = false
+  victory = false
+  controlsVisible = false
+  titleVisible = true
+
+  roomsExplored = 0
+  enemiesSlain = 0
+  itemsCollected = 0
+  gameStartTime = 0
+
   constructor() {
     super()
     const cfg = GAME_CONFIG.player
@@ -56,6 +69,8 @@ class GameState extends EventEmitter {
 
   startGame(): void {
     this.gameStarted = true
+    this.titleVisible = false
+    this.gameStartTime = Date.now()
     this.emit('game:started')
   }
 
@@ -119,6 +134,32 @@ class GameState extends EventEmitter {
     this.emit('encounter:started', creatureId)
   }
 
+  showEncounterPrompt(creature: CreatureState): void {
+    this.encounterActive = true
+    this.encounterCreature = creature
+    this.emit('encounter:prompt', creature)
+  }
+
+  dismissEncounter(): void {
+    this.encounterActive = false
+    this.encounterCreature = null
+    this.emit('encounter:dismissed')
+  }
+
+  backAwayFromEncounter(): void {
+    if (!this.encounterCreature) return
+    const creatureId = this.encounterCreature.id
+    this.dismissEncounter()
+    this.emit('encounter:backed-away', creatureId)
+  }
+
+  proceedToCombat(): void {
+    if (!this.encounterCreature) return
+    const creature = this.encounterCreature
+    this.dismissEncounter()
+    this.startCombat(creature)
+  }
+
   startCombat(creature: CreatureState): void {
     this.combatActive = true
     this.combatCreature = creature
@@ -172,12 +213,19 @@ class GameState extends EventEmitter {
 
     const creatureId = this.combatCreature?.id ?? ''
     this.emit('combat:victory', creatureId, xpReward)
+
+    if (this.combatCreature?.difficulty === 'boss') {
+      this.victory = true
+      this.emit('game:victory')
+    }
   }
 
   resolveDefeat(): void {
     this.combatDefeat = true
     this.combatTurn = null
+    this.gameOver = true
     this.emit('combat:defeat')
+    this.emit('game:over')
   }
 
   fleeCombat(): void {
@@ -198,6 +246,79 @@ class GameState extends EventEmitter {
     this.combatVictory = false
     this.combatDefeat = false
     this.emit('combat:ended')
+  }
+
+  incrementEnemiesSlain(): void {
+    this.enemiesSlain++
+  }
+
+  incrementItemsCollected(): void {
+    this.itemsCollected++
+  }
+
+  updateRoomsExplored(): void {
+    this.roomsExplored = this.visitedRooms.size
+  }
+
+  toggleControls(): void {
+    this.controlsVisible = !this.controlsVisible
+    this.emit('controls:visible', this.controlsVisible)
+  }
+
+  setControlsVisible(visible: boolean): void {
+    this.controlsVisible = visible
+    this.emit('controls:visible', visible)
+  }
+
+  restartGame(): void {
+    this.gameOver = false
+    this.victory = false
+    this.gameStarted = false
+    this.titleVisible = true
+    this.combatActive = false
+    this.combatCreature = null
+    this.combatTurn = null
+    this.combatVictory = false
+    this.combatDefeat = false
+    this.encounterActive = false
+    this.encounterCreature = null
+    this.controlsVisible = false
+    this.roomsExplored = 0
+    this.enemiesSlain = 0
+    this.itemsCollected = 0
+    this.gameStartTime = 0
+    this.currentRoomId = 0
+    this.visitedRooms = new Set()
+    this.dungeon = null
+    const cfg = GAME_CONFIG.player
+    const nextXp = GAME_CONFIG.xpThresholds[cfg.startingLevel - 1] ?? 10
+    this.player = {
+      name: 'Hero',
+      level: cfg.startingLevel,
+      xp: { current: 0, next: nextXp },
+      hp: { current: cfg.baseHp, max: cfg.baseHp },
+      mp: { current: cfg.baseMp, max: cfg.baseMp },
+      attack: cfg.baseAttack,
+      defense: cfg.baseDefense,
+      position: { x: 0, y: 0 },
+    }
+    this.emit('game:restarted')
+  }
+
+  quitToTitle(): void {
+    this.gameOver = false
+    this.victory = false
+    this.gameStarted = false
+    this.titleVisible = true
+    this.combatActive = false
+    this.combatCreature = null
+    this.combatTurn = null
+    this.combatVictory = false
+    this.combatDefeat = false
+    this.encounterActive = false
+    this.encounterCreature = null
+    this.controlsVisible = false
+    this.emit('game:quit')
   }
 }
 

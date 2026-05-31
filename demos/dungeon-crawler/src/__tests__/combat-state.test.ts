@@ -80,6 +80,24 @@ describe('GameState combat', () => {
       expect(victoryEvents[0]).toEqual(['creature_1', 15])
       expect(gs.combatVictory).toBe(true)
       expect(gs.combatTurn).toBeNull()
+      expect(gs.victory).toBe(false)
+    })
+
+    it('triggers game:victory for boss kills', () => {
+      const creature = makeCreature({
+        hp: { current: 5, max: 35 },
+        xpReward: 15,
+        difficulty: 'boss',
+      })
+      gs.startCombat(creature)
+
+      const gameVictoryEvents: unknown[] = []
+      gs.on('game:victory', () => gameVictoryEvents.push('game:victory'))
+
+      gs.processPlayerAttack(10)
+
+      expect(gameVictoryEvents).toEqual(['game:victory'])
+      expect(gs.victory).toBe(true)
     })
 
     it('applies recovery after victory', () => {
@@ -130,13 +148,17 @@ describe('GameState combat', () => {
       gs.startCombat(creature)
 
       const defeatEvents: unknown[] = []
+      const gameOverEvents: unknown[] = []
       gs.on('combat:defeat', () => defeatEvents.push('defeat'))
+      gs.on('game:over', () => gameOverEvents.push('game:over'))
 
       gs.processEnemyTurn(10)
 
       expect(gs.player.hp.current).toBe(0)
       expect(defeatEvents).toEqual(['defeat'])
+      expect(gameOverEvents).toEqual(['game:over'])
       expect(gs.combatDefeat).toBe(true)
+      expect(gs.gameOver).toBe(true)
       expect(gs.combatTurn).toBeNull()
     })
   })

@@ -37,6 +37,7 @@ import {
 } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { BlueprintFormModal } from '@/components/BlueprintFormModal'
+import { getCopyName } from '@/lib/get-copy-name'
 
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('en-US', {
@@ -299,15 +300,6 @@ export default function BlueprintDetail() {
     [allBlueprintsData?.data],
   )
 
-  function getCopyName(name: string): string {
-    const base = `${name} (Copy)`
-    const existingNames = new Set(allBlueprints.map((b) => b.name))
-    if (!existingNames.has(base)) return base
-    let n = 2
-    while (existingNames.has(`${name} (Copy ${n})`)) n++
-    return `${name} (Copy ${n})`
-  }
-
   const affixMap = useMemo(() => {
     const map = new Map<string, Affix>()
     const affixes = (affixData?.data ?? []) as Affix[]
@@ -375,10 +367,10 @@ export default function BlueprintDetail() {
     (k) => k in (blueprint.attributes ?? {}),
   )
 
-  const blueprintData = blueprint
+  const bp = blueprint
 
   function handleDuplicate() {
-    const copy: Blueprint = { ...blueprintData, name: getCopyName(blueprintData.name) }
+    const copy: Blueprint = { ...bp, name: getCopyName(bp.name, allBlueprints) }
     setDuplicatingBlueprint(copy)
     setShowDuplicateModal(true)
   }

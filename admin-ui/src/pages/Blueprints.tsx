@@ -50,6 +50,7 @@ import { BatchEditDialog } from '@/components/BatchEditDialog'
 import { BlueprintFormModal } from '@/components/BlueprintFormModal'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { useToast } from '@/hooks/use-toast'
+import { getCopyName } from '@/lib/get-copy-name'
 
 const PER_PAGE_OPTIONS = [10, 25, 50, 100]
 const DEFAULT_PER_PAGE = 25
@@ -410,17 +411,8 @@ export default function Blueprints() {
     setShowEditModal(true)
   }
 
-  function getCopyName(name: string): string {
-    const base = `${name} (Copy)`
-    const existingNames = new Set(allBlueprints.map((b) => b.name))
-    if (!existingNames.has(base)) return base
-    let n = 2
-    while (existingNames.has(`${name} (Copy ${n})`)) n++
-    return `${name} (Copy ${n})`
-  }
-
   function handleDuplicate(bp: Blueprint) {
-    const copy: Blueprint = { ...bp, name: getCopyName(bp.name) }
+    const copy: Blueprint = { ...bp, name: getCopyName(bp.name, allBlueprints) }
     setDuplicatingBlueprint(copy)
     setShowDuplicateModal(true)
   }

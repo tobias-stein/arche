@@ -8,8 +8,6 @@ export const DIFFICULTY_COLORS: Record<Difficulty, number> = {
   boss: 0x7a388a,
 };
 
-export const SYMBOL_COLOR = 0xf0e8d8;
-
 function lighten(color: number, amount: number): number {
   const r = Math.min(255, ((color >> 16) & 0xff) + amount);
   const g = Math.min(255, ((color >> 8) & 0xff) + amount);
@@ -40,26 +38,15 @@ export function drawCreatureTriangle(
   const height = botY - topY;
   const halfW = Math.round(height * 0.577);
 
-  const lighter = lighten(color, 50);
-  const darker = darken(color, 40);
-
-  const lr = (lighter >> 16) & 0xff;
-  const lg = (lighter >> 8) & 0xff;
-  const lb = lighter & 0xff;
-
-  const dr = (darker >> 16) & 0xff;
-  const dg = (darker >> 8) & 0xff;
-  const db = darker & 0xff;
-
   const cr = Math.max(2, Math.round(ts * 0.045));
 
-  graphics.fillStyle(Phaser.Display.Color.GetColor(lr, lg, lb));
+  graphics.fillStyle(lighten(color, 50));
   graphics.fillTriangle(cx, topY, cx + halfW, botY, cx - halfW, botY);
 
   graphics.lineStyle(cr * 2, color);
   graphics.strokeTriangle(cx, topY, cx + halfW, botY, cx - halfW, botY);
 
-  graphics.lineStyle(Math.max(1, Math.round(ts * 0.025)), Phaser.Display.Color.GetColor(dr, dg, db));
+  graphics.lineStyle(Math.max(1, Math.round(ts * 0.025)), darken(color, 40));
   graphics.strokeTriangle(cx, topY, cx + halfW, botY, cx - halfW, botY);
 }
 

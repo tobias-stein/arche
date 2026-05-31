@@ -6,6 +6,13 @@ let nextId = 1;
 
 const DIFFICULTIES: Difficulty[] = ['normal', 'champion', 'elite'];
 
+const CREATURE_STATS: Record<Difficulty, { hp: number; attack: number; defense: number; xp: number }> = {
+  normal: { hp: 30, attack: 6, defense: 4, xp: 10 },
+  champion: { hp: 50, attack: 10, defense: 7, xp: 25 },
+  elite: { hp: 80, attack: 14, defense: 10, xp: 50 },
+  boss: { hp: 150, attack: 20, defense: 15, xp: 100 },
+};
+
 function randInt(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
@@ -27,12 +34,8 @@ export function generateMockCreature(
   const levelVariance = GAME_CONFIG.generationWindow?.creatureLevelVariance ?? 2;
   const level = Math.max(1, playerLevel + randInt(-levelVariance, levelVariance));
 
-  const hpBase = difficulty === 'boss' ? 150 : difficulty === 'elite' ? 80 : difficulty === 'champion' ? 50 : 30;
-  const attackBase = difficulty === 'boss' ? 20 : difficulty === 'elite' ? 14 : difficulty === 'champion' ? 10 : 6;
-  const defenseBase = difficulty === 'boss' ? 15 : difficulty === 'elite' ? 10 : difficulty === 'champion' ? 7 : 4;
-  const xpBase = difficulty === 'boss' ? 100 : difficulty === 'elite' ? 50 : difficulty === 'champion' ? 25 : 10;
-
-  const hpMax = hpBase + level * 5;
+  const stats = CREATURE_STATS[difficulty];
+  const hpMax = stats.hp + level * 5;
   const names: Record<Difficulty, string[]> = {
     normal: ['Rat', 'Spider', 'Slime', 'Skeleton'],
     champion: ['Dire Rat', 'Shadow Spider', 'Acid Slime', 'Bone Warrior'],
@@ -48,9 +51,9 @@ export function generateMockCreature(
     difficulty,
     level,
     hp: { current: hpMax, max: hpMax },
-    attack: attackBase + level * 2,
-    defense: defenseBase + level,
-    xpReward: xpBase + level * 5,
+    attack: stats.attack + level * 2,
+    defense: stats.defense + level,
+    xpReward: stats.xp + level * 5,
     position: { x, y },
     aggroRange: GAME_CONFIG.aggroRanges[difficulty],
     aggro: false,
@@ -87,14 +90,12 @@ export function pickSpawnPositions(
 
   const positions: { x: number; y: number }[] = [];
   const available = [...floorTiles];
-  const taken = new Set<string>();
 
   for (let i = 0; i < count && available.length > 0; i++) {
     const idx = Math.floor(Math.random() * available.length);
     const pos = available[idx];
     available.splice(idx, 1);
     positions.push(pos);
-    taken.add(`${pos.x},${pos.y}`);
   }
 
   return positions;

@@ -329,7 +329,7 @@ function MiniMap() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const zoomLabel = zoom < 1 ? zoom.toFixed(2).replace(/\.?0+$/, '') : (zoom % 1 === 0 ? zoom.toFixed(0) : zoom.toFixed(2).replace(/\.?0+$/, ''));
+  const zoomLabel = zoom % 1 === 0 ? zoom.toFixed(0) : zoom.toFixed(2).replace(/\.?0+$/, '');
 
   return (
     <>

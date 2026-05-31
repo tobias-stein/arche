@@ -13,6 +13,12 @@ import {
 } from './room-tiles';
 import { drawRoom } from './room-renderer';
 import { getGameState } from '../GameState';
+import {
+  generateCreaturesForRoom,
+  getEntryTile,
+} from './creature-spawner';
+import { drawCreatureTriangle, createCreatureLabel } from './creature-renderer';
+import type { CreatureState } from '../types';
 
 const DIRS: [number, number][] = [[0, -1], [0, 1], [-1, 0], [1, 0]];
 
@@ -38,6 +44,7 @@ export class DungeonScene extends Phaser.Scene {
   private vignetteGraphics!: Phaser.GameObjects.Graphics;
   private transitionOverlay!: Phaser.GameObjects.Graphics;
   private playerGraphics!: Phaser.GameObjects.Graphics;
+  private creatureGraphics!: Phaser.GameObjects.Graphics;
   private transitioning = false;
   private elapsed = 0;
 
@@ -53,6 +60,11 @@ export class DungeonScene extends Phaser.Scene {
   private autoPath: { x: number; y: number }[] | null = null;
 
   private gameState = getGameState();
+
+  private creatures: CreatureState[] = [];
+  private creatureLabels: Phaser.GameObjects.Text[] = [];
+  private chaseTarget: CreatureState | null = null;
+  private chaseTickAccum = 0;
 
   constructor() {
     super({ key: 'DungeonScene' });
@@ -70,6 +82,8 @@ export class DungeonScene extends Phaser.Scene {
     this.vignetteGraphics = this.add.graphics();
     this.playerGraphics = this.add.graphics();
     this.playerGraphics.setDepth(50);
+    this.creatureGraphics = this.add.graphics();
+    this.creatureGraphics.setDepth(40);
     this.transitionOverlay = this.add.graphics();
     this.transitionOverlay.setDepth(100);
 
@@ -138,19 +152,72 @@ export class DungeonScene extends Phaser.Scene {
     this.gameState.setDungeonData(this.dungeon);
     this.gameState.setCurrentRoom(this.currentRoom);
     this.gameState.setPlayerPosition(this.playerX, this.playerY);
+    this.spawnCreatures();
     this.drawCurrentRoom();
+  }
+
+  private spawnCreatures(): void {
+    this.destroyCreatureLabels();
+
+    const isBoss = this.currentRoom === this.dungeon.bossRoom;
+    const entryTile = getEntryTile(this.tiles);
+    const playerLevel = this.gameState.player.level;
+
+    this.creatures = generateCreaturesForRoom(
+      this.tiles,
+      this.currentRoom,
+      isBoss,
+      playerLevel,
+      entryTile,
+    );
+
+    this.creatureLabels = this.creatures.map((c) => {
+      const px = this.offsetX + c.position.x * this.tileSize;
+      const py = this.offsetY + c.position.y * this.tileSize;
+      const cx = Math.round(px + this.tileSize / 2);
+      const cy = Math.round(py + this.tileSize / 2);
+      const label = createCreatureLabel(this, cx, cy, this.tileSize);
+      label.setDepth(45);
+      return label;
+    });
+
+    this.chaseTarget = null;
+    this.chaseTickAccum = 0;
+  }
+
+  private destroyCreatureLabels(): void {
+    for (const label of this.creatureLabels) {
+      label.destroy();
+    }
+    this.creatureLabels = [];
   }
 
   private drawCurrentRoom(): void {
     this.roomGraphics.clear();
     this.vignetteGraphics.clear();
     this.playerGraphics.clear();
+    this.creatureGraphics.clear();
 
     drawRoom(this.roomGraphics, this.tiles, this.tileSize, this.offsetX, this.offsetY, this.elapsed);
 
     this.drawPlayer();
-
+    this.drawCreatures();
     this.drawVignette();
+  }
+
+  private drawCreatures(): void {
+    for (let i = 0; i < this.creatures.length; i++) {
+      const c = this.creatures[i];
+      const px = this.offsetX + c.position.x * this.tileSize;
+      const py = this.offsetY + c.position.y * this.tileSize;
+      drawCreatureTriangle(this.creatureGraphics, px, py, this.tileSize, c.difficulty);
+
+      const labelCx = Math.round(px + this.tileSize / 2);
+      const labelCy = Math.round(py + this.tileSize / 2 + this.tileSize * 0.06);
+      if (this.creatureLabels[i]) {
+        this.creatureLabels[i].setPosition(labelCx, labelCy);
+      }
+    }
   }
 
   private drawPlayer(): void {
@@ -218,6 +285,17 @@ export class DungeonScene extends Phaser.Scene {
     this.playerX = tx;
     this.playerY = ty;
     this.gameState.setPlayerPosition(tx, ty);
+    this.checkEncounter(tx, ty);
+  }
+
+  private checkEncounter(tx: number, ty: number): void {
+    for (const c of this.creatures) {
+      if (c.stunned) continue;
+      if (c.position.x === tx && c.position.y === ty) {
+        this.gameState.emitEncounterStarted(c.id);
+        return;
+      }
+    }
   }
 
   transitionToRoom(nextRoom: number, enterDir: number): void {
@@ -245,6 +323,8 @@ export class DungeonScene extends Phaser.Scene {
         this.renderX = this.playerX;
         this.renderY = this.playerY;
         this.gameState.setPlayerPosition(pos.x, pos.y);
+
+        this.spawnCreatures();
 
         const fadeOutTarget = { alpha: 1 };
         this.tweens.add({
@@ -314,14 +394,106 @@ export class DungeonScene extends Phaser.Scene {
     }
   }
 
+  private updateCreatures(): void {
+    const now = this.time.now;
+
+    for (const c of this.creatures) {
+      if (c.stunned) {
+        if (now >= c.stunTimer) {
+          c.stunned = false;
+          c.stunTimer = 0;
+          c.aggro = false;
+        }
+        continue;
+      }
+
+      if (!c.aggro) {
+        const dist = Math.max(
+          Math.abs(c.position.x - this.playerX),
+          Math.abs(c.position.y - this.playerY),
+        );
+        if (dist <= c.aggroRange) {
+          c.aggro = true;
+        }
+      }
+    }
+
+    let nearest: CreatureState | null = null;
+    let nearestDist = Infinity;
+    for (const c of this.creatures) {
+      if (!c.aggro || c.stunned) continue;
+      const dist = Math.abs(c.position.x - this.playerX) + Math.abs(c.position.y - this.playerY);
+      if (dist < nearestDist) {
+        nearestDist = dist;
+        nearest = c;
+      }
+    }
+    this.chaseTarget = nearest;
+
+    if (this.chaseTarget) {
+      const chaseSpeed = GAME_CONFIG.creatureChaseSpeed;
+      this.chaseTickAccum += chaseSpeed;
+      while (this.chaseTickAccum >= 1) {
+        this.chaseTickAccum -= 1;
+        this.moveCreatureToward(this.chaseTarget, this.playerX, this.playerY);
+      }
+    } else {
+      this.chaseTickAccum = 0;
+    }
+  }
+
+  private moveCreatureToward(creature: CreatureState, targetX: number, targetY: number): void {
+    if (creature.stunned) return;
+
+    const dx = Math.sign(targetX - creature.position.x);
+    const dy = Math.sign(targetY - creature.position.y);
+
+    if (dx !== 0) {
+      const nx = creature.position.x + dx;
+      if (this.isWalkable(nx, creature.position.y)) {
+        creature.position.x = nx;
+      }
+    } else if (dy !== 0) {
+      const ny = creature.position.y + dy;
+      if (this.isWalkable(creature.position.x, ny)) {
+        creature.position.y = ny;
+      }
+    }
+
+    if (creature.position.x === this.playerX && creature.position.y === this.playerY) {
+      this.gameState.emitEncounterStarted(creature.id);
+    }
+  }
+
+  private isWalkable(x: number, y: number): boolean {
+    if (x < 0 || x >= GAME_CONFIG.room.width || y < 0 || y >= GAME_CONFIG.room.height) return false;
+    return this.tiles[y][x] !== TILE.WALL;
+  }
+
   private lerp(a: number, b: number, t: number): number {
     return a + (b - a) * t;
+  }
+
+  stunCreature(creatureId: string): void {
+    for (const c of this.creatures) {
+      if (c.id === creatureId) {
+        c.stunned = true;
+        c.stunTimer = this.time.now + GAME_CONFIG.fleeStunDuration;
+        c.aggro = false;
+        break;
+      }
+    }
+  }
+
+  getCreatures(): CreatureState[] {
+    return this.creatures;
   }
 
   update(_time: number, delta: number): void {
     this.elapsed += delta;
     this.processInput();
     this.updateMovement();
+    this.updateCreatures();
     this.drawCurrentRoom();
   }
 }

@@ -24,4 +24,26 @@ export const GAME_CONFIG = {
     walkSpeed: 120,
     holdMoveInterval: 110,
   },
+
+  generationWindow: {
+    creatureLevelVariance: 2,
+    itemLevelVariance: 2,
+  },
+
+  creatureSpawn: {
+    minPerRoom: 1,
+    maxPerRoom: 4,
+    entryExclusionRadius: 4,
+  },
+
+  aggroRanges: {
+    normal: 1,
+    champion: 2,
+    elite: 3,
+    boss: 3,
+  },
+
+  creatureChaseSpeed: 0.5,
+
+  fleeStunDuration: 1500,
 } as const;

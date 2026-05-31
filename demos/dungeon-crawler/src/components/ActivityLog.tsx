@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { getGameState } from '../GameState'
 import type { LogEvent, LogEventType } from '../types'
+import { useBreakpoint } from '../hooks/useBreakpoint'
 import './ActivityLog.css'
 
 const MAX_LOG = 200
@@ -35,13 +36,30 @@ interface LogEntry {
 
 let logEntryId = 0
 
-function ActivityLog() {
-  const [expanded, setExpanded] = useState(false)
+interface ActivityLogProps {
+  expanded?: boolean
+  onToggle?: () => void
+}
+
+function ActivityLog({ expanded: externalExpanded, onToggle }: ActivityLogProps) {
+  const [internalExpanded, setInternalExpanded] = useState(false)
   const [entries, setEntries] = useState<LogEntry[]>([])
   const [autoScroll, setAutoScroll] = useState(true)
   const bodyRef = useRef<HTMLDivElement>(null)
   const startTimeRef = useRef(Date.now())
   const programmaticRef = useRef(false)
+  const bp = useBreakpoint()
+
+  const expanded = externalExpanded !== undefined ? externalExpanded : internalExpanded
+  const toggleExpanded = useCallback(() => {
+    if (onToggle) {
+      onToggle()
+    } else {
+      setInternalExpanded(prev => !prev)
+    }
+  }, [onToggle])
+
+  const isMobile = bp === 'mobile'
 
   useEffect(() => {
     const gs = getGameState()
@@ -97,19 +115,15 @@ function ActivityLog() {
     }
   }, [])
 
-  const toggleExpanded = useCallback(() => {
-    setExpanded(prev => !prev)
-  }, [])
-
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === 'l' || e.key === 'L') {
-        setExpanded(prev => !prev)
+        toggleExpanded()
       }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [])
+  }, [toggleExpanded])
 
   useEffect(() => {
     if (!expanded) {
@@ -120,7 +134,11 @@ function ActivityLog() {
   const displayEntries = expanded ? entries : entries.slice(0, 5)
 
   return (
-    <div id="log" data-testid="activity-log" className={expanded ? 'expanded' : ''}>
+    <div
+      id="log"
+      data-testid="activity-log"
+      className={`${expanded ? 'expanded' : ''} ${isMobile ? 'mobile' : ''}`}
+    >
       <div className="log-header" onClick={toggleExpanded}>
         <span><i className="fa-solid fa-scroll" /></span>
         <span className="log-title">Activity Log</span>

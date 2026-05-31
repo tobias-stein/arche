@@ -1,0 +1,48 @@
+/* Touch targets: min 44x44px */
+.touch-target {
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* No hover-only interactions */
+@media (hover: none) and (pointer: coarse) {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  [data-tooltip]::after {
+    display: none;
+  }
+}
+
+/* Safe area for mobile bottom toolbar */
+@media (max-width: 639px) {
+  body {
+    padding-bottom: 56px;
+  }
+
+  #root {
+    padding-bottom: 0;
+  }
+
+  .desktop-only {
+    display: none !important;
+  }
+}
+
+/* Tablet overrides */
+@media (min-width: 640px) and (max-width: 1024px) {
+  .mobile-only {
+    display: none !important;
+  }
+}
+
+/* Desktop */
+@media (min-width: 1025px) {
+  .mobile-only {
+    display: none !important;
+  }
+}

@@ -9,6 +9,7 @@
   box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.3), inset 0 0 0 2px #3a6a48;
   cursor: pointer;
   user-select: none;
+  transition: width 0.3s ease;
 }
 
 #player-card .ph {
@@ -21,8 +22,8 @@
 }
 
 #player-card .pa {
-  width: 36px;
-  height: 36px;
+  min-width: 44px;
+  min-height: 44px;
   background: #4a7a58;
   border: 3px solid #2d4d38;
   border-radius: 50%;
@@ -148,4 +149,150 @@
   font-family: monospace;
   white-space: nowrap;
   text-shadow: 1px 1px 0 #1a3a2a;
+}
+
+.mobile-expand-hint {
+  position: absolute;
+  bottom: 2px;
+  right: 8px;
+  color: #88b898;
+  font-size: 10px;
+  animation: hint-bounce 1.5s infinite;
+}
+
+@keyframes hint-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(2px); }
+}
+
+/* Tablet: compact two-line card */
+@media (min-width: 640px) and (max-width: 1024px) {
+  #player-card {
+    width: 200px;
+  }
+
+  #player-card .ph {
+    padding: 6px 10px;
+  }
+
+  #player-card .pa {
+    min-width: 44px;
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  #player-card .pn {
+    font-size: 12px;
+  }
+
+  #player-card .pb {
+    padding: 4px 8px;
+    display: flex;
+    gap: 8px;
+  }
+
+  #player-card .br {
+    flex: 1;
+    margin: 0;
+  }
+
+  #player-card .br .lbl {
+    width: 16px;
+    font-size: 10px;
+  }
+
+  #player-card .br .bb {
+    height: 10px;
+  }
+
+  #player-card .br .bt {
+    font-size: 9px;
+    min-width: 30px;
+  }
+
+  #player-card .ps {
+    display: none;
+  }
+
+  #player-card .xp-row {
+    display: none;
+  }
+}
+
+/* Mobile: collapsed thin top bar (HP bar + level only) */
+@media (max-width: 639px) {
+  #player-card {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    height: auto;
+    border: none;
+    border-bottom: 4px solid #4a7a58;
+    box-shadow: 0 4px 0 rgba(0, 0, 0, 0.3);
+    z-index: 100;
+  }
+
+  #player-card .ph {
+    padding: 4px 12px;
+    min-height: 44px;
+  }
+
+  #player-card .pa {
+    min-width: 44px;
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  #player-card .pn {
+    font-size: 12px;
+  }
+
+  #player-card .pl {
+    font-size: 10px;
+  }
+
+  /* When collapsed: show only HP bar + level row in single line */
+  #player-card:not(.expanded) .ph > div {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+  }
+
+  #player-card:not(.expanded) .pb {
+    display: flex;
+    align-items: center;
+    padding: 2px 12px;
+    border-top: 2px solid #3a6a48;
+  }
+
+  #player-card:not(.expanded) .br:first-child {
+    flex: 1;
+    margin: 0;
+  }
+
+  #player-card:not(.expanded) .br:last-child {
+    display: none;
+  }
+
+  #player-card:not(.expanded) .ps {
+    display: none;
+  }
+
+  #player-card:not(.expanded) .xp-row {
+    display: none;
+  }
+
+  /* Expanded on mobile: full stats */
+  #player-card.expanded {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    border: none;
+    border-bottom: 4px solid #4a7a58;
+  }
 }

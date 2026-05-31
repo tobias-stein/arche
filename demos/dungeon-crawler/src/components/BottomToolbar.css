@@ -1,0 +1,44 @@
+#bottom-toolbar {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 56px;
+  z-index: 200;
+  background: #2d4d38;
+  border-top: 4px solid #4a7a58;
+  box-shadow: 0 -4px 0 rgba(0, 0, 0, 0.3);
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-around;
+  padding: 0 8px;
+}
+
+@media (max-width: 639px) {
+  #bottom-toolbar {
+    display: flex;
+  }
+}
+
+.tb-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  min-width: 44px;
+  min-height: 44px;
+  background: #3a6a48;
+  border: 2px solid #4a7a58;
+  color: #d8f0e0;
+  font-size: 20px;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background 0.15s;
+  touch-action: manipulation;
+}
+
+.tb-btn:active {
+  background: #4a7a58;
+}

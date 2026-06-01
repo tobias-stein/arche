@@ -66,9 +66,14 @@ function MiniMap() {
   useEffect(() => {
     if (overlayOpen && dungeon) {
       setZoom(ZOOM_MAX);
-      requestAnimationFrame(() => scrollToPlayer());
     }
   }, [overlayOpen]);
+
+  useEffect(() => {
+    if (overlayOpen && dungeon) {
+      scrollToPlayer();
+    }
+  }, [overlayOpen, zoom]);
 
   const scrollToPlayer = useCallback(() => {
     const el = scrollRef.current;

@@ -4,7 +4,11 @@ import { getRarityColor, getItemIcon } from '../game/loot'
 import type { ItemState, CreatureState } from '../types'
 import './LootPopup.css'
 
-function LootPopup() {
+interface Props {
+  inventoryOpen?: boolean
+}
+
+function LootPopup({ inventoryOpen }: Props) {
   const [items, setItems] = useState<ItemState[]>([])
   const [creature, setCreature] = useState<CreatureState | null>(null)
   const [xpGained, setXpGained] = useState(0)
@@ -146,6 +150,7 @@ function LootPopup() {
           handleTakeAll()
           break
         case 'Escape':
+          if (inventoryOpen) return // inventory dialog handles it
           e.preventDefault()
           handleLeave()
           break
@@ -161,7 +166,7 @@ function LootPopup() {
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [visible, items, selectedIdx, handleTakeItem, handleTakeAll, handleLeave, handleOpenInventory, source])
+  }, [visible, items, selectedIdx, handleTakeItem, handleTakeAll, handleLeave, handleOpenInventory, source, inventoryOpen])
 
   useEffect(() => {
     if (visible && containerRef.current) {

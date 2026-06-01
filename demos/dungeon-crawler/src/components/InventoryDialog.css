@@ -603,6 +603,20 @@
   font-style: italic;
 }
 
+/* Loot mode — shown alongside LootPopup */
+#equipment-dialog.loot-mode {
+  background: transparent;
+  pointer-events: none;
+  z-index: 261;
+  justify-content: flex-end;
+  padding-right: 20px;
+}
+
+#equipment-dialog.loot-mode .ed {
+  pointer-events: auto;
+  max-height: 82vh;
+}
+
 /* Responsive */
 @media (max-width: 639px) {
   #equipment-dialog .ed {

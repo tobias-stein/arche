@@ -19,6 +19,7 @@ import './styles/responsive.css'
 function App() {
   const [logExpanded, setLogExpanded] = useState(false)
   const [showInventory, setShowInventory] = useState(false)
+  const [lootVisible, setLootVisible] = useState(false)
   const bp = useBreakpoint()
 
   const toggleLog = useCallback(() => {
@@ -46,19 +47,39 @@ function App() {
       setShowInventory(true)
     }
 
+    function onLootShow() {
+      setLootVisible(true)
+    }
+
+    function onLootOrChestClosed() {
+      setLootVisible(false)
+    }
+
     gs.on('encounter:started', onEncounterStarted)
     gs.on('combat:victory', onEnemySlain)
     gs.on('inventory:requested', onInventoryRequested)
+    gs.on('loot:show', onLootShow)
+    gs.on('chest:loot-show', onLootShow)
+    gs.on('combat:ended', onLootOrChestClosed)
+    gs.on('chest:loot-dismissed', onLootOrChestClosed)
 
     return () => {
       gs.off('encounter:started', onEncounterStarted)
       gs.off('combat:victory', onEnemySlain)
       gs.off('inventory:requested', onInventoryRequested)
+      gs.off('loot:show', onLootShow)
+      gs.off('chest:loot-show', onLootShow)
+      gs.off('combat:ended', onLootOrChestClosed)
+      gs.off('chest:loot-dismissed', onLootOrChestClosed)
     }
   }, [])
 
   const handleStart = useCallback(() => {
     getGameState().startGame()
+  }, [])
+
+  const handleCloseInventory = useCallback(() => {
+    setShowInventory(false)
   }, [])
 
   const handleRestartDungeon = useCallback(() => {
@@ -87,6 +108,7 @@ function App() {
     function handleKeyDown(e: KeyboardEvent) {
       const gs = getGameState()
       if (gs.encounterActive || gs.combatActive || gs.gameOver || gs.victory) return
+      if (lootVisible) return
 
       if (e.key === 'i' || e.key === 'I') {
         e.preventDefault()
@@ -114,7 +136,7 @@ function App() {
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [showInventory])
+  }, [showInventory, lootVisible])
 
   return (
     <>
@@ -137,8 +159,8 @@ function App() {
         onQuit={handleQuit}
       />
       <ControlsOverlay />
-      <LootPopup />
-      {showInventory && <InventoryDialog />}
+      <LootPopup inventoryOpen={showInventory && lootVisible} />
+      {showInventory && <InventoryDialog onClose={handleCloseInventory} lootActive={lootVisible} />}
     </>
   )
 }

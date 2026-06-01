@@ -72,7 +72,7 @@ export interface SpawnSlot {
 export function pickSpawnPositions(
   tiles: TileType[][],
   count: number,
-  entryTile: { x: number; y: number },
+  exclusionCenters: { x: number; y: number }[],
 ): { x: number; y: number }[] {
   const rw = tiles[0]?.length ?? 0;
   const rh = tiles.length;
@@ -82,7 +82,10 @@ export function pickSpawnPositions(
   for (let y = 0; y < rh; y++) {
     for (let x = 0; x < rw; x++) {
       if (tiles[y][x] === TILE.FLOOR) {
-        if (chebyshev({ x, y }, entryTile) >= exclusion) {
+        const isExcluded = exclusionCenters.some(
+          center => chebyshev({ x, y }, center) < exclusion,
+        );
+        if (!isExcluded) {
           floorTiles.push({ x, y });
         }
       }
@@ -121,7 +124,7 @@ export async function generateCreaturesForRoom(
   roomId: number,
   isBoss: boolean,
   playerLevel: number,
-  entryTile: { x: number; y: number },
+  exclusionCenters: { x: number; y: number }[],
 ): Promise<CreatureState[]> {
   let count: number;
   if (isBoss) {
@@ -130,7 +133,7 @@ export async function generateCreaturesForRoom(
     count = randInt(GAME_CONFIG.creatureSpawn.minPerRoom, GAME_CONFIG.creatureSpawn.maxPerRoom);
   }
 
-  const positions = pickSpawnPositions(tiles, count, entryTile);
+  const positions = pickSpawnPositions(tiles, count, exclusionCenters);
   const difficulties = pickDifficulties(positions.length, isBoss);
 
   try {

@@ -14,7 +14,7 @@ function chebyshev(a: { x: number; y: number }, b: { x: number; y: number }): nu
 
 export function generateChestsForRoom(
   tiles: TileType[][],
-  entryTile: { x: number; y: number },
+  exclusionCenters: { x: number; y: number }[],
 ): ChestState[] {
   const count = randInt(
     GAME_CONFIG.chestSpawn.minPerRoom,
@@ -28,7 +28,10 @@ export function generateChestsForRoom(
   for (let y = 0; y < rh; y++) {
     for (let x = 0; x < rw; x++) {
       if (tiles[y][x] === TILE.FLOOR) {
-        if (chebyshev({ x, y }, entryTile) >= exclusion) {
+        const isExcluded = exclusionCenters.some(
+          center => chebyshev({ x, y }, center) < exclusion,
+        );
+        if (!isExcluded) {
           floorTiles.push({ x, y });
         }
       }

@@ -26,11 +26,29 @@ until curl -s http://localhost:8080/health >/dev/null 2>&1; do
 done
 echo "   Arche API is ready."
 
+echo "==> Extracting super admin key from Arche logs..."
+ARCHE_API_KEY=""
+for i in $(seq 1 30); do
+  ARCHE_API_KEY=$(docker compose logs arche-service 2>/dev/null | grep -o 'arche_k_[a-zA-Z0-9]\{48\}' | head -1 || true)
+  if [ -n "$ARCHE_API_KEY" ]; then
+    break
+  fi
+  sleep 1
+done
+
+if [ -z "$ARCHE_API_KEY" ]; then
+  echo "ERROR: Could not extract super admin key from Arche logs."
+  echo "If Arche was already bootstrapped, set ARCHE_API_KEY=<key> and re-run."
+  cleanup
+fi
+echo "   Super admin key extracted."
+
 echo "==> Running seed script..."
-docker compose run --rm seed
+docker compose run --rm -e ARCHE_API_KEY="$ARCHE_API_KEY" seed
 echo "   Seed complete."
 
 echo "==> Building and starting dungeon crawler..."
+export ARCHE_API_KEY
 docker compose up -d --build dungeon-crawler
 
 PORT="${DUNGEON_CRAWLER_PORT:-5173}"

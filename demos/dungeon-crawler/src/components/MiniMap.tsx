@@ -25,6 +25,7 @@ function MiniMap() {
   const largeCanvasRef = useRef<HTMLCanvasElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const panRef = useRef({ panning: false, startX: 0, startY: 0, scrollLeft: 0, scrollTop: 0 });
+  const shouldCenterOnOpen = useRef(false);
 
   useEffect(() => {
     const gs = getGameState();
@@ -66,14 +67,17 @@ function MiniMap() {
   useEffect(() => {
     if (overlayOpen && dungeon) {
       setZoom(ZOOM_MAX);
+      shouldCenterOnOpen.current = true;
     }
   }, [overlayOpen]);
 
   useEffect(() => {
-    if (overlayOpen && dungeon) {
+    if (!overlayOpen || !dungeon) return;
+    if (shouldCenterOnOpen.current && largeCanvasRef.current?.width) {
       scrollToPlayer();
+      shouldCenterOnOpen.current = false;
     }
-  }, [overlayOpen, zoom]);
+  });
 
   const scrollToPlayer = useCallback(() => {
     const el = scrollRef.current;
@@ -343,6 +347,7 @@ function MiniMap() {
               aria-label="Zoom"
             />
             <span className="level">{zoomLabel}\u00d7</span>
+            <button className="recenter" onClick={scrollToPlayer} aria-label="Center on player">\u2316</button>
           </div>
           <div className="label">Drag to pan \u00b7 <kbd>M</kbd> close</div>
           <button id="minimap-close" aria-label="Close minimap" onClick={closeOverlay}>

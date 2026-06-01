@@ -2,7 +2,7 @@ import type { EquipSlot } from '../types'
 
 export interface DragState {
   source: HTMLElement
-  sourceType: 'equipment' | 'inventory' | 'spell'
+  sourceType: 'equipment' | 'inventory' | 'spell' | 'loot'
   sourceEquipSlot?: EquipSlot
   sourceIdx?: number
   itemType: string
@@ -44,7 +44,7 @@ export function cleanupDragState(): void {
 export function initDragFromItem(
   e: MouseEvent,
   sourceEl: HTMLElement,
-  sourceType: 'equipment' | 'inventory' | 'spell',
+  sourceType: 'equipment' | 'inventory' | 'spell' | 'loot',
   itemName: string,
   rarity: string,
   itemId: string,
@@ -54,6 +54,8 @@ export function initDragFromItem(
   sourceIdx?: number,
   equipSlot?: EquipSlot,
 ): void {
+  e.preventDefault()
+
   const html = `<span class="ei"><i class="${itemIcon}"></i></span><span class="en">${itemName}</span>`
 
   dragState = {

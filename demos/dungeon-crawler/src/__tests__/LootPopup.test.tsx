@@ -366,7 +366,7 @@ describe('LootPopup', () => {
     })
   })
 
-  it('pins tooltip on click and hides on second click', async () => {
+  it('takes item on click', async () => {
     const gs = getGameState()
     const creature = makeCreature({ difficulty: 'elite', level: 5, hp: { current: 10, max: 80 } })
 
@@ -383,21 +383,14 @@ describe('LootPopup', () => {
       expect(screen.getByText(/LOOT/)).toBeInTheDocument()
     })
 
-    const item = container.querySelector('.ld-item') as HTMLElement
-    fireEvent.click(item)
+    const prevCount = gs.lootItems.length
+    expect(prevCount).toBeGreaterThan(0)
+
+    const firstItem = container.querySelector('.ld-item') as HTMLElement
+    fireEvent.click(firstItem)
 
     await waitFor(() => {
-      expect(document.querySelector('.inv-tooltip')).toBeInTheDocument()
-    })
-
-    fireEvent.mouseOut(item)
-    await waitFor(() => {
-      expect(document.querySelector('.inv-tooltip')).toBeInTheDocument()
-    })
-
-    fireEvent.click(item)
-    await waitFor(() => {
-      expect(document.querySelector('.inv-tooltip')).not.toBeInTheDocument()
+      expect(gs.lootItems.length).toBe(prevCount - 1)
     })
   })
 
@@ -487,7 +480,7 @@ describe('LootPopup', () => {
     })
 
     expect(dragState).not.toBeNull()
-    expect(dragState!.sourceType).toBe('inventory')
+    expect(dragState!.sourceType).toBe('loot')
     expect(dragState!.itemName).toBe(itemName)
     expect(dragState!.itemId).toBe(lootItem!.id)
     expect(dragState!.rarity).toBe(lootItem!.rarity)

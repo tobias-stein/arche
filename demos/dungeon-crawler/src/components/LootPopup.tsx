@@ -4,7 +4,7 @@ import { getRarityColor, getItemIcon } from '../game/loot'
 import type { ItemState, CreatureState } from '../types'
 import ItemTooltip from './ItemTooltip'
 import type { TooltipData } from './ItemTooltip'
-import { initDragFromItem } from './dragDrop'
+import { initDragFromItem, cleanupDragState } from './dragDrop'
 import './LootPopup.css'
 
 interface Props {
@@ -153,7 +153,7 @@ function LootPopup({ inventoryOpen }: Props) {
     initDragFromItem(
       e.nativeEvent,
       e.currentTarget as HTMLElement,
-      'inventory',
+      'loot',
       item.name,
       item.rarity,
       item.id,
@@ -272,7 +272,7 @@ function LootPopup({ inventoryOpen }: Props) {
                 className={`ld-item ${idx === selectedIdx ? 'selected' : ''}`}
                 data-rarity={item.rarity}
                 onMouseDown={(e) => handleDragStart(e, item, idx)}
-                onClick={(e) => handleTooltipClick(e, item)}
+                onClick={(e) => { e.stopPropagation(); handleTakeItem(item.id); cleanupDragState() }}
                 onMouseOver={(e) => handleMouseEnter(e, item)}
                 onMouseOut={handleMouseLeave}
               >

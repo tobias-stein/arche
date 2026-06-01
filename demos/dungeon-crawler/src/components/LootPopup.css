@@ -127,6 +127,7 @@
   font-size: 10px;
   color: var(--clr-body);
   cursor: pointer;
+  user-select: none;
   min-height: 44px;
   padding: 2px;
   transition: border-color 0.1s, background 0.1s;

@@ -264,6 +264,7 @@
   position: fixed;
   z-index: 999;
   pointer-events: none;
+  user-select: none;
   background: var(--clr-card-bg);
   border: 3px solid var(--clr-drag-float-border);
   box-shadow: 0 4px 12px var(--clr-drag-float-shadow);

@@ -209,6 +209,12 @@ function InventoryDialog({ onClose, lootActive }: Props) {
         gs.spellbook[target.idx] = item
         gs.emit('inventory:changed', { inventory: gs.inventory, equipment: gs.equipment, spellbook: gs.spellbook })
       }
+    } else if (source.sourceType === 'loot') {
+      if (gs.lootItems.some(i => i.id === source.itemId)) {
+        gs.takeLootItem(source.itemId)
+      } else if (gs.chestLootItems.some(i => i.id === source.itemId)) {
+        gs.takeChestItem(source.itemId)
+      }
     }
 
     syncState()

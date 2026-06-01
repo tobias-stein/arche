@@ -51,7 +51,9 @@ function App() {
 
     function onLootShow() {
       setLootVisible(true)
+      setShowInventory(true)
       gs.setLootOpen(true)
+      gs.setInventoryOpen(true)
     }
 
     function onLootOrChestClosed() {

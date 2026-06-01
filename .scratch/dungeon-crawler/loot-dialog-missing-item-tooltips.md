@@ -1,6 +1,6 @@
 ---
 title: Item tooltips not rendered in loot dialog
-status: ready-for-agent
+status: completed
 ---
 
 ## Summary

@@ -1,6 +1,6 @@
 ---
 title: Aggro never disengages when player leaves aggro range
-status: ready-for-agent
+status: completed
 ---
 
 ## Summary

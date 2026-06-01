@@ -1,6 +1,6 @@
 ---
 title: Minimap full-screen overlay has opaque black background instead of transparent
-status: ready-for-agent
+status: completed
 ---
 
 ## Summary

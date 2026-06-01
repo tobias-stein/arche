@@ -1,6 +1,6 @@
 ---
 title: "Take All" and click-to-take still work when inventory is full, causing items to vanish
-status: ready-for-agent
+status: completed
 ---
 
 ## Summary

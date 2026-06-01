@@ -2,25 +2,13 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { getGameState } from '../GameState'
 import { getRarityColor, getItemIcon } from '../game/loot'
 import type { ItemState, EquipSlot } from '../types'
+import { EQUIP_SLOT_LABELS } from '../types'
 import { GAME_CONFIG } from '../config'
 import ItemTooltip from './ItemTooltip'
 import type { TooltipData } from './ItemTooltip'
 import './InventoryDialog.css'
 
 const EQUIP_SLOTS: EquipSlot[] = ['weapon', 'helmet', 'chest', 'legs', 'boots', 'gloves', 'belt', 'ring', 'amulet', 'shield']
-const EQUIP_SLOT_LABELS: Record<EquipSlot, string> = {
-  weapon: 'WEAPON',
-  helmet: 'HEAD',
-  chest: 'CHEST',
-  legs: 'LEGS',
-  boots: 'FEET',
-  gloves: 'HANDS',
-  belt: 'BELT',
-  ring: 'RING',
-  amulet: 'NECK',
-  shield: 'OFFHAND',
-}
-
 interface DragState {
   source: HTMLElement
   sourceType: 'equipment' | 'inventory' | 'spell'

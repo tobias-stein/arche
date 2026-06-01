@@ -1,19 +1,7 @@
 import { getRarityColor } from '../game/loot'
 import { getGameState } from '../GameState'
-import type { ItemState, EquipSlot } from '../types'
-
-const EQUIP_SLOT_LABELS: Record<EquipSlot, string> = {
-  weapon: 'WEAPON',
-  helmet: 'HEAD',
-  chest: 'CHEST',
-  legs: 'LEGS',
-  boots: 'FEET',
-  gloves: 'HANDS',
-  belt: 'BELT',
-  ring: 'RING',
-  amulet: 'NECK',
-  shield: 'OFFHAND',
-}
+import type { ItemState } from '../types'
+import { EQUIP_SLOT_LABELS } from '../types'
 
 export interface TooltipData {
   item: ItemState
@@ -30,6 +18,12 @@ interface Props {
 function getCompareItem(item: ItemState): ItemState | null {
   if (!item.equipSlot) return null
   return getGameState().equipment[item.equipSlot] ?? null
+}
+
+function statDiff(current: number, compare: number): string {
+  if (compare > current) return '(+)'
+  if (compare < current) return '(-)'
+  return ''
 }
 
 export default function ItemTooltip({ tooltip, onClose }: Props) {
@@ -71,7 +65,7 @@ export default function ItemTooltip({ tooltip, onClose }: Props) {
           </div>
           {Object.entries(compareItem.stats).map(([key, val]) => (
             <span key={key} className="tt-cstat">
-              {key}: {val} {item.stats[key] !== undefined ? (val > item.stats[key] ? '(+)' : val < item.stats[key] ? '(-)' : '') : ''}
+              {key}: {val} {item.stats[key] !== undefined && statDiff(item.stats[key], val)}
             </span>
           ))}
         </div>

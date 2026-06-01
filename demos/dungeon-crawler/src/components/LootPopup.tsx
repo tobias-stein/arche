@@ -127,7 +127,7 @@ function LootPopup({ inventoryOpen }: Props) {
     gs.emitInventoryRequested()
   }, [])
 
-  const handleMouseEnter = useCallback((e: React.MouseEvent, item: ItemState) => {
+  function handleMouseEnter(e: React.MouseEvent, item: ItemState) {
     if (tooltip?.pinned) return
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
     setTooltip({
@@ -136,14 +136,14 @@ function LootPopup({ inventoryOpen }: Props) {
       y: rect.top,
       pinned: false,
     })
-  }, [tooltip?.pinned])
+  }
 
-  const handleMouseLeave = useCallback(() => {
+  function handleMouseLeave() {
     if (tooltip?.pinned) return
     setTooltip(null)
-  }, [tooltip?.pinned])
+  }
 
-  const handleTooltipClick = useCallback((e: React.MouseEvent, item: ItemState) => {
+  function handleTooltipClick(e: React.MouseEvent, item: ItemState) {
     e.stopPropagation()
     if (tooltip?.pinned) {
       setTooltip(null)
@@ -156,7 +156,7 @@ function LootPopup({ inventoryOpen }: Props) {
         pinned: true,
       })
     }
-  }, [tooltip?.pinned])
+  }
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {

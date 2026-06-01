@@ -71,7 +71,14 @@ export const GAME_CONFIG = {
     elite: 3,
     boss: 3,
   },
-  creatureChaseSpeed: 0.5,
+  creature: {
+    stepIntervalMs: {
+      normal: 1000,
+      champion: 1000,
+      elite: 800,
+      boss: 600,
+    },
+  },
   fleeStunDuration: 1500,
   lootDrops: {
     normal: { min: 0, max: 1 },

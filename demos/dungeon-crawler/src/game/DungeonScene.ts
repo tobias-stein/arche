@@ -75,7 +75,7 @@ export class DungeonScene extends Phaser.Scene {
   private chests: ChestState[] = [];
   private chestTexts: (Phaser.GameObjects.Text | null)[] = [];
   private adjacentChest: ChestState | null = null;
-  private chaseTickAccum = 0;
+  private creatureLastStepTime = 0;
 
   constructor() {
     super({ key: 'DungeonScene' });
@@ -224,7 +224,7 @@ export class DungeonScene extends Phaser.Scene {
     });
 
     this.chaseTarget = null;
-    this.chaseTickAccum = 0;
+    this.creatureLastStepTime = this.time.now;
   }
 
   private destroyChestTexts(): void {
@@ -522,14 +522,13 @@ export class DungeonScene extends Phaser.Scene {
     this.chaseTarget = nearest;
 
     if (this.chaseTarget) {
-      const chaseSpeed = GAME_CONFIG.creatureChaseSpeed;
-      this.chaseTickAccum += chaseSpeed;
-      while (this.chaseTickAccum >= 1) {
-        this.chaseTickAccum -= 1;
+      const interval = GAME_CONFIG.creature.stepIntervalMs[this.chaseTarget.difficulty];
+      if (now - this.creatureLastStepTime >= interval) {
         this.moveCreatureToward(this.chaseTarget, this.playerX, this.playerY);
+        this.creatureLastStepTime = now;
       }
     } else {
-      this.chaseTickAccum = 0;
+      this.creatureLastStepTime = now;
     }
   }
 

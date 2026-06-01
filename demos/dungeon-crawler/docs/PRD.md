@@ -1094,7 +1094,7 @@ export const GAME_CONFIG = {
   /** Inventory and spellbook */
   capacity: {
     inventorySlots: 18,
-    spellbookSlots: 7,
+    spellbookSlots: 6,
   },
 
   /** Room tile dimensions */

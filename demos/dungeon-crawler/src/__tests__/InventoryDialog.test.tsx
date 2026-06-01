@@ -81,7 +81,7 @@ describe('InventoryDialog', () => {
     expect(slots.length).toBe(GAME_CONFIG.capacity.inventorySlots)
   })
 
-  it('renders 7 spell slots', () => {
+  it('renders 6 spell slots', () => {
     const { container } = render(<InventoryDialog />)
     const spellGrid = container.querySelector('.spell-grid')
     expect(spellGrid).toBeInTheDocument()

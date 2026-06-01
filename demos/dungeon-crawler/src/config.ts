@@ -81,7 +81,7 @@ export const GAME_CONFIG = {
   },
   capacity: {
     inventorySlots: 18,
-    spellbookSlots: 7,
+    spellbookSlots: 6,
   },
   room: {
     width: 15,

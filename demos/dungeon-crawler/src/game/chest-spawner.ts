@@ -1,16 +1,9 @@
 import { GAME_CONFIG } from '../config/game-config';
-import { TILE, type TileType } from './room-tiles';
+import { type TileType } from './room-tiles';
 import type { ChestState } from '../types';
+import { randInt, getAvailableFloorTiles } from './dungeon-utils';
 
 let nextChestId = 1;
-
-function randInt(min: number, max: number): number {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
-function chebyshev(a: { x: number; y: number }, b: { x: number; y: number }): number {
-  return Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
-}
 
 export function generateChestsForRoom(
   tiles: TileType[][],
@@ -20,23 +13,7 @@ export function generateChestsForRoom(
     GAME_CONFIG.chestSpawn.minPerRoom,
     GAME_CONFIG.chestSpawn.maxPerRoom,
   );
-  const rw = tiles[0]?.length ?? 0;
-  const rh = tiles.length;
-  const exclusion = GAME_CONFIG.chestSpawn.entryExclusionRadius;
-
-  const floorTiles: { x: number; y: number }[] = [];
-  for (let y = 0; y < rh; y++) {
-    for (let x = 0; x < rw; x++) {
-      if (tiles[y][x] === TILE.FLOOR) {
-        const isExcluded = exclusionCenters.some(
-          center => chebyshev({ x, y }, center) < exclusion,
-        );
-        if (!isExcluded) {
-          floorTiles.push({ x, y });
-        }
-      }
-    }
-  }
+  const floorTiles = getAvailableFloorTiles(tiles, exclusionCenters, GAME_CONFIG.chestSpawn.entryExclusionRadius);
 
   const chests: ChestState[] = [];
   const available = [...floorTiles];

@@ -89,15 +89,12 @@ export class DungeonScene extends Phaser.Scene {
   private boundHandleChestLootDismissed: (() => void) | null = null
 
   create(): void {
-    this.tileSize = Math.min(
-      Math.floor(this.scale.width / GAME_CONFIG.room.width),
-      Math.floor(this.scale.height / GAME_CONFIG.room.height),
-    );
-    this.offsetX = Math.floor((this.scale.width - GAME_CONFIG.room.width * this.tileSize) / 2);
-    this.offsetY = Math.floor((this.scale.height - GAME_CONFIG.room.height * this.tileSize) / 2);
+    this.calculateLayout();
 
     this.roomGraphics = this.add.graphics();
+    this.roomGraphics.setDepth(0);
     this.vignetteGraphics = this.add.graphics();
+    this.vignetteGraphics.setDepth(55);
     this.playerGraphics = this.add.graphics();
     this.playerGraphics.setDepth(50);
     this.creatureGraphics = this.add.graphics();
@@ -106,6 +103,10 @@ export class DungeonScene extends Phaser.Scene {
     this.chestGraphics.setDepth(30);
     this.transitionOverlay = this.add.graphics();
     this.transitionOverlay.setDepth(100);
+
+    this.scale.on('resize', () => {
+      this.calculateLayout();
+    });
 
     this.generateDungeon();
     this.setupInput();
@@ -253,7 +254,17 @@ export class DungeonScene extends Phaser.Scene {
     this.creatureLabels = [];
   }
 
+  private calculateLayout(): void {
+    this.tileSize = Math.max(1, Math.min(
+      Math.floor(this.scale.width / GAME_CONFIG.room.width),
+      Math.floor(this.scale.height / GAME_CONFIG.room.height),
+    ));
+    this.offsetX = Math.floor((this.scale.width - GAME_CONFIG.room.width * this.tileSize) / 2);
+    this.offsetY = Math.floor((this.scale.height - GAME_CONFIG.room.height * this.tileSize) / 2);
+  }
+
   private drawCurrentRoom(): void {
+    this.calculateLayout();
     this.roomGraphics.clear();
     this.vignetteGraphics.clear();
     this.playerGraphics.clear();

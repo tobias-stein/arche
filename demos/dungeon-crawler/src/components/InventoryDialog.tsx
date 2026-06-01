@@ -3,6 +3,8 @@ import { getGameState } from '../GameState'
 import { getRarityColor, getItemIcon } from '../game/loot'
 import type { ItemState, EquipSlot } from '../types'
 import { GAME_CONFIG } from '../config'
+import ItemTooltip from './ItemTooltip'
+import type { TooltipData } from './ItemTooltip'
 import './InventoryDialog.css'
 
 const EQUIP_SLOTS: EquipSlot[] = ['weapon', 'helmet', 'chest', 'legs', 'boots', 'gloves', 'belt', 'ring', 'amulet', 'shield']
@@ -55,12 +57,7 @@ function InventoryDialog({ onClose, lootActive }: Props) {
     () => [...getGameState().spellbook]
   )
   const [dragActive, setDragActive] = useState(false)
-  const [tooltip, setTooltip] = useState<{
-    item: ItemState
-    x: number
-    y: number
-    pinned: boolean
-  } | null>(null)
+  const [tooltip, setTooltip] = useState<TooltipData | null>(null)
   const [abandonItem, setAbandonItem] = useState<DragState | null>(null)
   const [showSpellReplace, setShowSpellReplace] = useState(false)
   const [pendingSpell, setPendingSpell] = useState<ItemState | null>(null)
@@ -557,65 +554,6 @@ function InventoryDialog({ onClose, lootActive }: Props) {
     setReplaceConfirmIdx(null)
   }
 
-  function getCompareItem(item: ItemState): ItemState | null {
-    if (!item.equipSlot) return null
-    return getGameState().equipment[item.equipSlot] ?? null
-  }
-
-  function renderTooltip() {
-    if (!tooltip) return null
-    const { item, x, y } = tooltip
-    const rarityColor = getRarityColor(item.rarity)
-    const compareItem = getCompareItem(item)
-
-    return (
-      <div
-        className="inv-tooltip"
-        style={{
-          left: Math.min(x, window.innerWidth - 230),
-          top: Math.min(y, window.innerHeight - 200),
-        }}
-        onClick={() => setTooltip(null)}
-      >
-        <div className="tt-name" style={{ color: rarityColor }}>
-          {item.name}
-        </div>
-        <div className="tt-rarity" style={{ background: rarityColor }}>
-          {item.rarity}
-        </div>
-        {item.subtype && <div className="tt-desc">A {item.subtype} item</div>}
-        {item.equipSlot && (
-          <div className="tt-slot">{EQUIP_SLOT_LABELS[item.equipSlot]}</div>
-        )}
-        <div className="tt-stats">
-          {Object.entries(item.stats).map(([key, val]) => (
-            <span key={key}>{key}: {val}</span>
-          ))}
-          {item.level > 0 && <span>Level: {item.level}</span>}
-        </div>
-        {compareItem && (
-          <div className="tt-compare">
-            <div className="tt-clbl">Equipped:</div>
-            <div style={{ color: getRarityColor(compareItem.rarity) }}>
-              {compareItem.name}
-            </div>
-            {Object.entries(compareItem.stats).map(([key, val]) => (
-              <span key={key} className="tt-cstat">
-                {key}: {val} {item.stats[key] !== undefined ? (val > item.stats[key] ? '(+)' : val < item.stats[key] ? '(-)' : '') : ''}
-              </span>
-            ))}
-          </div>
-        )}
-        {!compareItem && item.equipSlot && (
-          <div className="tt-compare">
-            <div className="tt-clbl">Equipped:</div>
-            <span className="tt-cstat empty">(empty)</span>
-          </div>
-        )}
-      </div>
-    )
-  }
-
   function renderAbandonDialog() {
     if (!abandonItem) return null
     return (
@@ -839,7 +777,7 @@ function InventoryDialog({ onClose, lootActive }: Props) {
         </div>
       </div>
 
-      {renderTooltip()}
+      <ItemTooltip tooltip={tooltip} onClose={() => setTooltip(null)} />
       {renderAbandonDialog()}
       {renderSpellReplaceDialog()}
     </>

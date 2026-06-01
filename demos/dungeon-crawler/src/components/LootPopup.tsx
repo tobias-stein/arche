@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { getGameState } from '../GameState'
 import { getRarityColor, getItemIcon } from '../game/loot'
 import type { ItemState, CreatureState } from '../types'
+import ItemTooltip from './ItemTooltip'
+import type { TooltipData } from './ItemTooltip'
 import './LootPopup.css'
 
 interface Props {
@@ -17,6 +19,7 @@ function LootPopup({ inventoryOpen }: Props) {
   const [levelUp, setLevelUp] = useState(false)
   const [source, setSource] = useState<'combat' | 'chest'>('combat')
   const containerRef = useRef<HTMLDivElement>(null)
+  const [tooltip, setTooltip] = useState<TooltipData | null>(null)
 
   useEffect(() => {
     const gs = getGameState()
@@ -124,6 +127,37 @@ function LootPopup({ inventoryOpen }: Props) {
     gs.emitInventoryRequested()
   }, [])
 
+  const handleMouseEnter = useCallback((e: React.MouseEvent, item: ItemState) => {
+    if (tooltip?.pinned) return
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+    setTooltip({
+      item,
+      x: rect.right + 8,
+      y: rect.top,
+      pinned: false,
+    })
+  }, [tooltip?.pinned])
+
+  const handleMouseLeave = useCallback(() => {
+    if (tooltip?.pinned) return
+    setTooltip(null)
+  }, [tooltip?.pinned])
+
+  const handleTooltipClick = useCallback((e: React.MouseEvent, item: ItemState) => {
+    e.stopPropagation()
+    if (tooltip?.pinned) {
+      setTooltip(null)
+    } else {
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+      setTooltip({
+        item,
+        x: rect.right + 8,
+        y: rect.top,
+        pinned: true,
+      })
+    }
+  }, [tooltip?.pinned])
+
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (!visible) return
@@ -216,7 +250,9 @@ function LootPopup({ inventoryOpen }: Props) {
                 key={item.id}
                 className={`ld-item ${idx === selectedIdx ? 'selected' : ''}`}
                 data-rarity={item.rarity}
-                onClick={() => handleTakeItem(item.id)}
+                onClick={(e) => handleTooltipClick(e, item)}
+                onMouseOver={(e) => handleMouseEnter(e, item)}
+                onMouseOut={handleMouseLeave}
               >
                 <span className="li-icon" style={{ color: rarityColor }}>
                   <i className={icon} />
@@ -247,6 +283,8 @@ function LootPopup({ inventoryOpen }: Props) {
           <span><kbd>I</kbd> Inv</span>
         </div>
       </div>
+
+      <ItemTooltip tooltip={tooltip} onClose={() => setTooltip(null)} />
     </div>
   )
 }

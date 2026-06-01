@@ -26,6 +26,7 @@ function MiniMap() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const panRef = useRef({ panning: false, startX: 0, startY: 0, scrollLeft: 0, scrollTop: 0 });
   const shouldCenterOnOpen = useRef(false);
+  const prevZoomRef = useRef(zoom);
 
   useEffect(() => {
     const gs = getGameState();
@@ -68,6 +69,7 @@ function MiniMap() {
     if (overlayOpen && dungeon) {
       setZoom(ZOOM_MAX);
       shouldCenterOnOpen.current = true;
+      prevZoomRef.current = ZOOM_MAX;
     }
   }, [overlayOpen]);
 
@@ -77,6 +79,25 @@ function MiniMap() {
       scrollToPlayer();
       shouldCenterOnOpen.current = false;
     }
+  });
+
+  useEffect(() => {
+    if (!overlayOpen || !dungeon || shouldCenterOnOpen.current) return;
+    const prevZoom = prevZoomRef.current;
+    if (prevZoom === zoom) return;
+    const el = scrollRef.current;
+    if (!el) return;
+    const prevCell = Math.max(2, Math.round(10 * prevZoom));
+    const newCell = Math.max(2, Math.round(10 * zoom));
+    if (prevCell === newCell) return;
+    const gridSize = GAME_CONFIG.dungeon.gridSize;
+    const centerX = el.scrollLeft + el.clientWidth / 2;
+    const centerY = el.scrollTop + el.clientHeight / 2;
+    const gx = (centerX - LG_PAD) / (prevCell + LG_GAP);
+    const gy = (centerY - LG_PAD) / (prevCell + LG_GAP);
+    el.scrollLeft = Math.max(0, LG_PAD + gx * (newCell + LG_GAP) - el.clientWidth / 2);
+    el.scrollTop = Math.max(0, LG_PAD + gy * (newCell + LG_GAP) - el.clientHeight / 2);
+    prevZoomRef.current = zoom;
   });
 
   const scrollToPlayer = useCallback(() => {

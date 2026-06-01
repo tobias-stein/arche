@@ -19,8 +19,23 @@ export interface GenerateRequest {
 
 export interface NameParts {
   base: string
-  prefix: string | null
-  suffix: string | null
+  prefixes: string[]
+  suffixes: string[]
+}
+
+export interface RawAffixAttributeEntry {
+  affix_id: string
+  affix_name: string
+  [key: string]: unknown
+}
+
+export interface RawGenerateResponse {
+  seed: number
+  name: string
+  name_parts: NameParts
+  blueprint_id: string
+  blueprint_attributes: Record<string, unknown>
+  affix_attributes: RawAffixAttributeEntry[]
 }
 
 export interface GeneratedThing {

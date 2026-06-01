@@ -44,11 +44,16 @@ fi
 echo "   Super admin key extracted."
 
 echo "==> Running seed script..."
-docker compose run --rm -e ARCHE_API_KEY="$ARCHE_API_KEY" seed
+SEED_OUTPUT=$(docker compose run --rm -e ARCHE_API_KEY="$ARCHE_API_KEY" seed 2>/dev/null)
+echo "$SEED_OUTPUT"
 echo "   Seed complete."
 
-echo "==> Building and starting dungeon crawler..."
+# Extract the client API key from seed output, fall back to super admin key
+CLIENT_API_KEY=$(echo "$SEED_OUTPUT" | grep "^API Key:" | awk '{print $NF}')
+ARCHE_API_KEY="${CLIENT_API_KEY:-$ARCHE_API_KEY}"
 export ARCHE_API_KEY
+
+echo "==> Building and starting dungeon crawler..."
 docker compose up -d --build dungeon-crawler
 
 PORT="${DUNGEON_CRAWLER_PORT:-5173}"

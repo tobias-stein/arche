@@ -1,6 +1,6 @@
 ---
 title: "Unified inventory/equipment/spellbook dialog"
-status: ready-for-agent
+status: completed
 ---
 
 ## What to build

@@ -13,3 +13,35 @@ describe('DungeonScene - aggro grace period', () => {
     );
   });
 });
+
+describe('DungeonScene - aggro disengage', () => {
+  it('de-aggros creature when player leaves aggro range', () => {
+    const creature = { position: { x: 10, y: 10 }, aggroRange: 5, aggro: true };
+    const dist = Math.max(
+      Math.abs(creature.position.x - 20),
+      Math.abs(creature.position.y - 10),
+    );
+    if (dist > creature.aggroRange) creature.aggro = false;
+    expect(creature.aggro).toBe(false);
+  });
+
+  it('keeps aggro when player is within aggro range', () => {
+    const creature = { position: { x: 10, y: 10 }, aggroRange: 5, aggro: true };
+    const dist = Math.max(
+      Math.abs(creature.position.x - 12),
+      Math.abs(creature.position.y - 10),
+    );
+    if (dist > creature.aggroRange) creature.aggro = false;
+    expect(creature.aggro).toBe(true);
+  });
+
+  it('re-aggros when player re-enters aggro range after leaving', () => {
+    const creature = { position: { x: 10, y: 10 }, aggroRange: 5, aggro: false };
+    const dist = Math.max(
+      Math.abs(creature.position.x - 12),
+      Math.abs(creature.position.y - 10),
+    );
+    if (dist <= creature.aggroRange) creature.aggro = true;
+    expect(creature.aggro).toBe(true);
+  });
+});

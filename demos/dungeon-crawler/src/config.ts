@@ -1,7 +1,11 @@
+declare const __ARCHE_CONFIG__: { apiUrl: string; apiKey: string } | undefined
+
+const runtimeConfig = typeof __ARCHE_CONFIG__ !== 'undefined' ? __ARCHE_CONFIG__ : undefined
+
 export const GAME_CONFIG = {
   arche: {
-    apiUrl: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_ARCHE_API_URL) || 'http://localhost:8080',
-    apiKey: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_ARCHE_API_KEY) || '',
+    apiUrl: runtimeConfig?.apiUrl || (typeof import.meta !== 'undefined' && import.meta.env?.VITE_ARCHE_API_URL) || 'http://localhost:8080',
+    apiKey: runtimeConfig?.apiKey || (typeof import.meta !== 'undefined' && import.meta.env?.VITE_ARCHE_API_KEY) || '',
   },
 
   player: {

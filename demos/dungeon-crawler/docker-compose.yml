@@ -1,0 +1,54 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: arche
+    healthcheck:
+      test: ["CMD-SHELL", "psql -U postgres -d arche -c 'SELECT 1' >/dev/null 2>&1 || exit 1"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+      start_period: 5s
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  arche-service:
+    build:
+      context: ../..
+      dockerfile: crates/arche-service/Dockerfile
+    environment:
+      ARCHE_DATABASE_URL: postgres://postgres:postgres@postgres:5432/arche
+      ARCHE_PORT: "8080"
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  seed:
+    build:
+      context: ./scripts
+      dockerfile: Dockerfile
+    entrypoint: ["npx", "tsx", "seed.ts"]
+    environment:
+      ARCHE_API_URL: http://arche-service:8080
+    depends_on:
+      arche-service:
+        condition: service_started
+
+  dungeon-crawler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "${DUNGEON_CRAWLER_PORT:-5173}:80"
+    environment:
+      ARCHE_API_URL: ${ARCHE_API_URL:-http://localhost:8080}
+      ARCHE_API_KEY: ${ARCHE_API_KEY:-}
+    depends_on:
+      - arche-service
+
+volumes:
+  pgdata:

@@ -41,9 +41,10 @@ let pendingAbandon: DragState | null = null
 
 interface Props {
   onClose?: () => void
+  lootActive?: boolean
 }
 
-function InventoryDialog({ onClose }: Props) {
+function InventoryDialog({ onClose, lootActive }: Props) {
   const [inventory, setInventory] = useState<(ItemState | null)[]>(
     () => [...getGameState().inventory]
   )
@@ -797,7 +798,7 @@ function InventoryDialog({ onClose }: Props) {
 
   return (
     <>
-      <div id="equipment-dialog" className="visible" ref={dialogRef}>
+      <div id="equipment-dialog" className={`visible${lootActive ? ' loot-mode' : ''}`} ref={dialogRef}>
         <div className="ed">
           <div className="eh">
             <h2>INVENTORY &amp; EQUIPMENT</h2>

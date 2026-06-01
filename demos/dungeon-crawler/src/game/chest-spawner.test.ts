@@ -25,7 +25,7 @@ function makeFloorTiles(rw: number, rh: number): TileType[][] {
 describe('generateChestsForRoom', () => {
   it('returns chests with unique ids', () => {
     const tiles = makeFloorTiles(15, 11)
-    const chests = generateChestsForRoom(tiles, { x: 7, y: 1 })
+    const chests = generateChestsForRoom(tiles, [{ x: 7, y: 1 }])
     expect(chests.length).toBeGreaterThanOrEqual(0)
     expect(chests.length).toBeLessThanOrEqual(3)
     const ids = new Set(chests.map(c => c.id))
@@ -34,7 +34,7 @@ describe('generateChestsForRoom', () => {
 
   it('places chests on floor tiles only', () => {
     const tiles = makeFloorTiles(15, 11)
-    const chests = generateChestsForRoom(tiles, { x: 7, y: 1 })
+    const chests = generateChestsForRoom(tiles, [{ x: 7, y: 1 }])
     for (const c of chests) {
       expect(tiles[c.position.y][c.position.x]).toBe(TILE.FLOOR)
     }
@@ -43,16 +43,42 @@ describe('generateChestsForRoom', () => {
   it('excludes tiles within 4-tile radius of entry', () => {
     const tiles = makeFloorTiles(15, 11)
     const entryTile = { x: 7, y: 1 }
-    const chests = generateChestsForRoom(tiles, entryTile)
+    const chests = generateChestsForRoom(tiles, [entryTile])
     for (const c of chests) {
       const dist = Math.max(Math.abs(c.position.x - entryTile.x), Math.abs(c.position.y - entryTile.y))
       expect(dist).toBeGreaterThanOrEqual(4)
     }
   })
 
+  it('excludes player position from chest spawns', () => {
+    const tiles = makeFloorTiles(15, 11)
+    const playerPos = { x: 7, y: 5 }
+    const chests = generateChestsForRoom(tiles, [{ x: 7, y: 1 }, playerPos])
+    for (const c of chests) {
+      expect(c.position).not.toEqual(playerPos)
+    }
+  })
+
+  it('excludes all door entry positions from chest spawns', () => {
+    const tiles = makeFloorTiles(15, 11)
+    const doorPositions = [
+      { x: 7, y: 1 },
+      { x: 7, y: 9 },
+      { x: 1, y: 5 },
+      { x: 13, y: 5 },
+    ]
+    const chests = generateChestsForRoom(tiles, doorPositions)
+    for (const c of chests) {
+      for (const doorPos of doorPositions) {
+        const dist = Math.max(Math.abs(c.position.x - doorPos.x), Math.abs(c.position.y - doorPos.y))
+        expect(dist).toBeGreaterThanOrEqual(4)
+      }
+    }
+  })
+
   it('starts each chest as not opened', () => {
     const tiles = makeFloorTiles(15, 11)
-    const chests = generateChestsForRoom(tiles, { x: 7, y: 1 })
+    const chests = generateChestsForRoom(tiles, [{ x: 7, y: 1 }])
     for (const c of chests) {
       expect(c.opened).toBe(false)
     }

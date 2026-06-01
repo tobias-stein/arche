@@ -8,6 +8,7 @@ import {
   oppositeDir,
   bfsPathfind,
   getDirFromDelta,
+  getDoorEntryPositions,
   TILE,
   type TileType,
 } from './room-tiles';
@@ -15,7 +16,6 @@ import { drawRoom } from './room-renderer';
 import { getGameState } from '../GameState';
 import {
   generateCreaturesForRoom,
-  getEntryTile,
 } from './creature-spawner';
 import { generateChestsForRoom } from './chest-spawner';
 import { drawCreatureTriangle, createCreatureLabel } from './creature-renderer';
@@ -195,15 +195,19 @@ export class DungeonScene extends Phaser.Scene {
     this.destroyChestTexts();
 
     const isBoss = this.currentRoom === this.dungeon.bossRoom;
-    const entryTile = getEntryTile(this.tiles);
     const playerLevel = this.gameState.player.level;
+
+    const exclusionCenters = [
+      ...getDoorEntryPositions(this.tiles),
+      { x: this.playerX, y: this.playerY },
+    ];
 
     this.creatures = await generateCreaturesForRoom(
       this.tiles,
       this.currentRoom,
       isBoss,
       playerLevel,
-      entryTile,
+      exclusionCenters,
     );
 
     this.creatureLabels = this.creatures.map((c) => {
@@ -216,7 +220,7 @@ export class DungeonScene extends Phaser.Scene {
       return label;
     });
 
-    this.chests = generateChestsForRoom(this.tiles, entryTile);
+    this.chests = generateChestsForRoom(this.tiles, exclusionCenters);
     this.chestTexts = this.chests.map((c) => {
       const px = this.offsetX + c.position.x * this.tileSize;
       const py = this.offsetY + c.position.y * this.tileSize;
@@ -346,6 +350,14 @@ export class DungeonScene extends Phaser.Scene {
         this.transitionToRoom(nextRoom, dir);
       }
       return;
+    }
+
+    for (const c of this.creatures) {
+      if (c.stunned) continue;
+      if (c.position.x === nx && c.position.y === ny) {
+        this.gameState.emitEncounterStarted(c.id);
+        return;
+      }
     }
 
     this.startMove(nx, ny);

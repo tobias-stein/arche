@@ -5,7 +5,6 @@ import {
   pickSpawnPositions,
   pickDifficulties,
   generateCreaturesForRoom,
-  getEntryTile,
 } from './creature-spawner';
 
 function makeEmptyRoom(doors?: { n?: boolean; s?: boolean; w?: boolean; e?: boolean }): TileType[][] {
@@ -67,13 +66,13 @@ describe('pickSpawnPositions', () => {
   });
 
   it('returns correct number of positions', () => {
-    const positions = pickSpawnPositions(tiles, 3, { x: 7, y: 0 });
+    const positions = pickSpawnPositions(tiles, 3, [{ x: 7, y: 0 }]);
     expect(positions.length).toBe(3);
   });
 
   it('excludes tiles near entry door', () => {
     const entryTile = { x: 7, y: 0 };
-    const positions = pickSpawnPositions(tiles, 10, entryTile);
+    const positions = pickSpawnPositions(tiles, 10, [entryTile]);
     for (const pos of positions) {
       const dist = Math.max(Math.abs(pos.x - entryTile.x), Math.abs(pos.y - entryTile.y));
       expect(dist).toBeGreaterThanOrEqual(4);
@@ -81,8 +80,7 @@ describe('pickSpawnPositions', () => {
   });
 
   it('returns only floor tiles', () => {
-    const entryTile = { x: 7, y: 0 };
-    const positions = pickSpawnPositions(tiles, 10, entryTile);
+    const positions = pickSpawnPositions(tiles, 10, [{ x: 7, y: 0 }]);
     for (const pos of positions) {
       expect(tiles[pos.y][pos.x]).toBe(TILE.FLOOR);
     }
@@ -95,8 +93,33 @@ describe('pickSpawnPositions', () => {
       [TILE.WALL, TILE.FLOOR, TILE.WALL],
       [TILE.WALL, TILE.WALL, TILE.WALL],
     ];
-    const positions = pickSpawnPositions(smallTiles, 5, { x: 1, y: 0 });
+    const positions = pickSpawnPositions(smallTiles, 5, [{ x: 1, y: 0 }]);
     expect(positions.length).toBeLessThanOrEqual(2);
+  });
+
+  it('excludes player spawn position from spawn pool', () => {
+    const playerPos = { x: 7, y: 5 };
+    const positions = pickSpawnPositions(tiles, 10, [{ x: 7, y: 0 }, playerPos]);
+    for (const pos of positions) {
+      expect(pos).not.toEqual(playerPos);
+    }
+  });
+
+  it('excludes all door entry positions', () => {
+    const tilesWD = makeEmptyRoom({ n: true, s: true, w: true, e: true });
+    const doorPositions = [
+      { x: 7, y: 1 },  // north entry
+      { x: 7, y: 9 },  // south entry
+      { x: 1, y: 5 },  // west entry
+      { x: 13, y: 5 }, // east entry
+    ];
+    const positions = pickSpawnPositions(tilesWD, 20, doorPositions);
+    for (const pos of positions) {
+      for (const doorPos of doorPositions) {
+        const dist = Math.max(Math.abs(pos.x - doorPos.x), Math.abs(pos.y - doorPos.y));
+        expect(dist).toBeGreaterThanOrEqual(4);
+      }
+    }
   });
 });
 
@@ -122,7 +145,7 @@ describe('pickDifficulties', () => {
 describe('generateCreaturesForRoom', () => {
   it('generates creatures for a non-boss room', async () => {
     const tiles = makeEmptyRoom({ n: true });
-    const creatures = await generateCreaturesForRoom(tiles, 0, false, 1, { x: 7, y: 0 });
+    const creatures = await generateCreaturesForRoom(tiles, 0, false, 1, [{ x: 7, y: 0 }]);
     expect(creatures.length).toBeGreaterThanOrEqual(1);
     expect(creatures.length).toBeLessThanOrEqual(4);
     for (const c of creatures) {
@@ -133,14 +156,14 @@ describe('generateCreaturesForRoom', () => {
 
   it('generates exactly 1 boss creature for boss room', async () => {
     const tiles = makeEmptyRoom({ n: true });
-    const creatures = await generateCreaturesForRoom(tiles, 0, true, 5, { x: 7, y: 0 });
+    const creatures = await generateCreaturesForRoom(tiles, 0, true, 5, [{ x: 7, y: 0 }]);
     expect(creatures.length).toBe(1);
     expect(creatures[0].difficulty).toBe('boss');
   });
 
   it('creatures have valid positions within room', async () => {
     const tiles = makeEmptyRoom({ n: true });
-    const creatures = await generateCreaturesForRoom(tiles, 0, false, 1, { x: 7, y: 0 });
+    const creatures = await generateCreaturesForRoom(tiles, 0, false, 1, [{ x: 7, y: 0 }]);
     for (const c of creatures) {
       expect(c.position.x).toBeGreaterThanOrEqual(0);
       expect(c.position.x).toBeLessThan(15);
@@ -151,26 +174,12 @@ describe('generateCreaturesForRoom', () => {
 
   it('respawning generates new creatures', async () => {
     const tiles = makeEmptyRoom({ n: true });
-    const c1 = await generateCreaturesForRoom(tiles, 0, false, 1, { x: 7, y: 0 });
-    const c2 = await generateCreaturesForRoom(tiles, 0, false, 1, { x: 7, y: 0 });
+    const c1 = await generateCreaturesForRoom(tiles, 0, false, 1, [{ x: 7, y: 0 }]);
+    const c2 = await generateCreaturesForRoom(tiles, 0, false, 1, [{ x: 7, y: 0 }]);
     const ids1 = new Set(c1.map(c => c.id));
     const ids2 = new Set(c2.map(c => c.id));
     for (const id of ids1) {
       expect(ids2.has(id)).toBe(false);
     }
-  });
-});
-
-describe('getEntryTile', () => {
-  it('finds the north door tile', () => {
-    const tiles = makeEmptyRoom({ n: true });
-    const entry = getEntryTile(tiles);
-    expect(tiles[entry.y][entry.x]).toBe(TILE.DOOR_N);
-  });
-
-  it('returns center if no door found', () => {
-    const tiles = makeEmptyRoom();
-    const entry = getEntryTile(tiles);
-    expect(entry).toEqual({ x: 7, y: 5 });
   });
 });

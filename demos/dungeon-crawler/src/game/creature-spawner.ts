@@ -1,7 +1,8 @@
 import { GAME_CONFIG } from '../config/game-config';
-import { TILE, type TileType } from './room-tiles';
+import { type TileType } from './room-tiles';
 import type { Difficulty, CreatureState } from '../types';
 import { generate, buildCreatureRequest, buildBossRequest, parseCreature } from '../api';
+import { randInt, pickRandom, getAvailableFloorTiles } from './dungeon-utils';
 
 let nextId = 1;
 
@@ -13,18 +14,6 @@ const CREATURE_STATS: Record<Difficulty, { hp: number; attack: number; defense: 
   elite: { hp: 80, attack: 14, defense: 10, xp: 50 },
   boss: { hp: 150, attack: 20, defense: 15, xp: 100 },
 };
-
-function randInt(min: number, max: number): number {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
-function pickRandom<T>(arr: T[]): T {
-  return arr[Math.floor(Math.random() * arr.length)];
-}
-
-function chebyshev(a: { x: number; y: number }, b: { x: number; y: number }): number {
-  return Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
-}
 
 export function generateMockCreature(
   difficulty: Difficulty,
@@ -63,31 +52,12 @@ export function generateMockCreature(
   };
 }
 
-export interface SpawnSlot {
-  x: number;
-  y: number;
-  difficulty: Difficulty;
-}
-
 export function pickSpawnPositions(
   tiles: TileType[][],
   count: number,
-  entryTile: { x: number; y: number },
+  exclusionCenters: { x: number; y: number }[],
 ): { x: number; y: number }[] {
-  const rw = tiles[0]?.length ?? 0;
-  const rh = tiles.length;
-  const exclusion = GAME_CONFIG.creatureSpawn.entryExclusionRadius;
-
-  const floorTiles: { x: number; y: number }[] = [];
-  for (let y = 0; y < rh; y++) {
-    for (let x = 0; x < rw; x++) {
-      if (tiles[y][x] === TILE.FLOOR) {
-        if (chebyshev({ x, y }, entryTile) >= exclusion) {
-          floorTiles.push({ x, y });
-        }
-      }
-    }
-  }
+  const floorTiles = getAvailableFloorTiles(tiles, exclusionCenters, GAME_CONFIG.creatureSpawn.entryExclusionRadius);
 
   const positions: { x: number; y: number }[] = [];
   const available = [...floorTiles];
@@ -121,7 +91,7 @@ export async function generateCreaturesForRoom(
   roomId: number,
   isBoss: boolean,
   playerLevel: number,
-  entryTile: { x: number; y: number },
+  exclusionCenters: { x: number; y: number }[],
 ): Promise<CreatureState[]> {
   let count: number;
   if (isBoss) {
@@ -130,7 +100,7 @@ export async function generateCreaturesForRoom(
     count = randInt(GAME_CONFIG.creatureSpawn.minPerRoom, GAME_CONFIG.creatureSpawn.maxPerRoom);
   }
 
-  const positions = pickSpawnPositions(tiles, count, entryTile);
+  const positions = pickSpawnPositions(tiles, count, exclusionCenters);
   const difficulties = pickDifficulties(positions.length, isBoss);
 
   try {
@@ -156,13 +126,4 @@ export async function generateCreaturesForRoom(
   return creatures;
 }
 
-export function getEntryTile(tiles: TileType[][]): { x: number; y: number } {
-  const rw = tiles[0]?.length ?? 0;
-  const rh = tiles.length;
-  for (let y = 0; y < rh; y++) {
-    for (let x = 0; x < rw; x++) {
-      if (tiles[y][x] === TILE.DOOR_N) return { x, y };
-    }
-  }
-  return { x: Math.floor(rw / 2), y: Math.floor(rh / 2) };
-}
+

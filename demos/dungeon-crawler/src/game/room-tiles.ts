@@ -97,6 +97,23 @@ export function bfsPathfind(
   return path;
 }
 
+export function getDoorEntryPositions(tiles: TileType[][]): { x: number; y: number }[] {
+  const positions: { x: number; y: number }[] = [];
+  const rw = tiles[0]?.length ?? 0;
+  const rh = tiles.length;
+  const cx = Math.floor(rw / 2);
+  const cy = Math.floor(rh / 2);
+  for (let y = 0; y < rh; y++) {
+    for (let x = 0; x < rw; x++) {
+      if (tiles[y][x] === TILE.DOOR_N) positions.push({ x: cx, y: 1 });
+      if (tiles[y][x] === TILE.DOOR_S) positions.push({ x: cx, y: rh - 2 });
+      if (tiles[y][x] === TILE.DOOR_W) positions.push({ x: 1, y: cy });
+      if (tiles[y][x] === TILE.DOOR_E) positions.push({ x: rw - 2, y: cy });
+    }
+  }
+  return positions;
+}
+
 export function getDirFromDelta(dx: number, dy: number): number {
   if (dx === 0 && dy === -1) return 0;
   if (dx === 0 && dy === 1) return 1;

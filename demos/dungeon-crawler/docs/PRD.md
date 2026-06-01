@@ -1094,7 +1094,7 @@ export const GAME_CONFIG = {
   /** Inventory and spellbook */
   capacity: {
     inventorySlots: 18,
-    spellbookSlots: 7,
+    spellbookSlots: 6,
   },
 
   /** Room tile dimensions */
@@ -1171,7 +1171,7 @@ This two-layer approach keeps Arche's weight system as the source of truth for c
 |---|---|
 | **Empty inventory** | All 18 slots show empty indicators. Tooltip does not appear. "Use Item" in combat shows "No usable items." |
 | **Full inventory** | Cannot pick up new items from loot until space is freed. "Take" action on loot with full inventory results in "Inventory full" feedback. Player must drop/consume/equip items first. |
-| **Full spellbook** | Replacement dialog when trying to add a spell from inventory or loot. Shows 7 current spells + new spell. Must select one to erase. |
+| **Full spellbook** | Replacement dialog when trying to add a spell from inventory or loot. Shows 6 current spells + new spell. Must select one to erase. |
 | **Insufficient mana** | Spell is greyed out in combat spell panel. Tooltip or label shows "Not enough mana." Cannot select. |
 | **No weapon equipped** | Attack stat = 10 (base). Attack action still available, damage formula works with base value. |
 | **No armor equipped** | Defense stat = 5 (base). |

@@ -35,7 +35,7 @@ function CombatOverlay() {
   const scheduleEnemyTurn = useCallback(() => {
     enemyTimerRef.current = setTimeout(() => {
       const gs = getGameState()
-      if (!gs.combatCreature) return
+      if (!gs.combatCreature || !gs.combatActive || gs.combatTurn !== 'enemy' || gs.combatProcessing) return
       const enemyDamage = calculateCreatureDamage(gs.player, gs.combatCreature)
       gs.processEnemyTurn(enemyDamage)
     }, 1000)
@@ -141,7 +141,7 @@ function CombatOverlay() {
 
   const handleAttack = useCallback(async () => {
     const gs = getGameState()
-    if (!gs.combatCreature || gs.combatTurn !== 'player') return
+    if (!gs.combatCreature || gs.combatTurn !== 'player' || gs.combatProcessing) return
 
     setShowMenu(false)
     const damage = calculatePlayerDamage(gs.player, gs.combatCreature)
@@ -178,7 +178,7 @@ function CombatOverlay() {
 
   const handleCastSpellSelect = useCallback(async (spell: ItemState) => {
     const gs = getGameState()
-    if (!gs.combatCreature || gs.combatTurn !== 'player') return
+    if (!gs.combatCreature || gs.combatTurn !== 'player' || gs.combatProcessing) return
 
     const manaCost = spell.stats.mana_cost ?? 0
     if (gs.player.mp.current < manaCost) return
@@ -214,7 +214,7 @@ function CombatOverlay() {
 
   const handleUseItemSelect = useCallback((item: ItemState, idx: number) => {
     const gs = getGameState()
-    if (!gs.combatCreature || gs.combatTurn !== 'player') return
+    if (!gs.combatCreature || gs.combatTurn !== 'player' || gs.combatProcessing) return
 
     const healVal = item.stats.heal ?? 0
     const manaVal = item.stats.mana ?? 0
@@ -238,6 +238,7 @@ function CombatOverlay() {
 
   const handleFleeConfirm = useCallback(() => {
     const gs = getGameState()
+    if (gs.combatProcessing) return
     setPanel(null)
     gs.fleeCombat()
   }, [])

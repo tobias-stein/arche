@@ -41,6 +41,7 @@ class GameState extends EventEmitter {
   combatTurn: 'player' | 'enemy' | null = null
   combatVictory = false
   combatDefeat = false
+  combatProcessing = false
 
   encounterActive = false
   encounterCreature: CreatureState | null = null
@@ -178,31 +179,57 @@ class GameState extends EventEmitter {
     this.combatTurn = 'player'
     this.combatVictory = false
     this.combatDefeat = false
+    this.addLogEntry({
+      type: 'encounter_started',
+      message: `Engaged ${creature.name} (Lv.${creature.level} ${creature.difficulty})`,
+      icon: 'fa-solid fa-crosshairs',
+    })
     this.emit('combat:started', creature)
   }
 
   async processPlayerAttack(damage: number): Promise<void> {
-    if (!this.combatCreature) return
-    this.combatCreature.hp.current = Math.max(0, this.combatCreature.hp.current - damage)
-    this.emit('combat:creature-damaged', damage, this.combatCreature)
+    if (!this.combatCreature || this.combatProcessing || this.combatTurn !== 'player') return
+    this.combatProcessing = true
+    try {
+      this.combatCreature.hp.current = Math.max(0, this.combatCreature.hp.current - damage)
+      this.emit('combat:creature-damaged', damage, this.combatCreature)
+      this.addLogEntry({
+        type: 'player_damage_dealt',
+        message: `Dealt ${damage} damage to ${this.combatCreature.name}`,
+        icon: 'fa-solid fa-bolt',
+      })
 
-    if (this.combatCreature.hp.current <= 0) {
-      await this.resolveVictory()
-    } else {
-      this.combatTurn = 'enemy'
-      this.emit('combat:turn-changed', 'enemy')
+      if (this.combatCreature.hp.current <= 0) {
+        await this.resolveVictory()
+      } else {
+        this.combatTurn = 'enemy'
+        this.emit('combat:turn-changed', 'enemy')
+      }
+    } finally {
+      this.combatProcessing = false
     }
   }
 
   processEnemyTurn(damage: number): void {
-    this.setPlayerHp(this.player.hp.current - damage)
-    this.emit('combat:player-damaged', damage, this.player)
+    if (!this.combatCreature || this.combatProcessing || this.combatTurn !== 'enemy') return
+    this.combatProcessing = true
+    try {
+      this.setPlayerHp(this.player.hp.current - damage)
+      this.emit('combat:player-damaged', damage, this.player)
+      this.addLogEntry({
+        type: 'player_damage_taken',
+        message: `Took ${damage} damage from ${this.combatCreature?.name ?? 'enemy'}`,
+        icon: 'fa-solid fa-heart-pulse',
+      })
 
-    if (this.player.hp.current <= 0) {
-      this.resolveDefeat()
-    } else {
-      this.combatTurn = 'player'
-      this.emit('combat:turn-changed', 'player')
+      if (this.player.hp.current <= 0) {
+        this.resolveDefeat()
+      } else {
+        this.combatTurn = 'player'
+        this.emit('combat:turn-changed', 'player')
+      }
+    } finally {
+      this.combatProcessing = false
     }
   }
 
@@ -259,6 +286,7 @@ class GameState extends EventEmitter {
     this.combatTurn = null
     this.combatVictory = false
     this.combatDefeat = false
+    this.combatProcessing = false
     this.emit('combat:ended')
   }
 
@@ -300,6 +328,7 @@ class GameState extends EventEmitter {
     this.combatTurn = null
     this.combatVictory = false
     this.combatDefeat = false
+    this.combatProcessing = false
     this.encounterActive = false
     this.encounterCreature = null
     this.controlsVisible = false
@@ -341,6 +370,7 @@ class GameState extends EventEmitter {
     this.combatTurn = null
     this.combatVictory = false
     this.combatDefeat = false
+    this.combatProcessing = false
     this.encounterActive = false
     this.encounterCreature = null
     this.controlsVisible = false
@@ -349,8 +379,6 @@ class GameState extends EventEmitter {
     this.inventory = Array(GAME_CONFIG.capacity.inventorySlots).fill(null)
     this.equipment = {}
     this.spellbook = Array(GAME_CONFIG.capacity.spellbookSlots).fill(null)
-    this.lootItems = []
-    this.chestLootItems = []
     this.emit('game:quit')
   }
 

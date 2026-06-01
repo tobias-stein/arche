@@ -128,6 +128,7 @@ describe('GameState combat', () => {
     it('damages player and switches to player turn', () => {
       const creature = makeCreature()
       gs.startCombat(creature)
+      gs.combatTurn = 'enemy'
 
       const damageEvents: unknown[] = []
       const turnEvents: string[] = []
@@ -146,6 +147,7 @@ describe('GameState combat', () => {
       gs.player.hp.current = 5
       const creature = makeCreature()
       gs.startCombat(creature)
+      gs.combatTurn = 'enemy'
 
       const defeatEvents: unknown[] = []
       const gameOverEvents: unknown[] = []

@@ -110,7 +110,11 @@ export class DungeonScene extends Phaser.Scene {
     });
 
     this.generateDungeon();
-    this.setupInput();
+    try {
+      this.setupInput();
+    } catch {
+      // input may not be available (e.g. keyboard plugin not initialized)
+    }
 
     this.boundHandleVictory = (creatureId: string) => this.removeCreature(creatureId)
     this.boundHandleFled = (creatureId: string) => this.stunCreature(creatureId)
@@ -256,12 +260,14 @@ export class DungeonScene extends Phaser.Scene {
   }
 
   private calculateLayout(): void {
+    const w = this.scale.width || this.sys.game.canvas.width || window.innerWidth;
+    const h = this.scale.height || this.sys.game.canvas.height || window.innerHeight;
     this.tileSize = Math.max(1, Math.min(
-      Math.floor(this.scale.width / GAME_CONFIG.room.width),
-      Math.floor(this.scale.height / GAME_CONFIG.room.height),
+      Math.floor(w / GAME_CONFIG.room.width),
+      Math.floor(h / GAME_CONFIG.room.height),
     ));
-    this.offsetX = Math.floor((this.scale.width - GAME_CONFIG.room.width * this.tileSize) / 2);
-    this.offsetY = Math.floor((this.scale.height - GAME_CONFIG.room.height * this.tileSize) / 2);
+    this.offsetX = Math.floor((w - GAME_CONFIG.room.width * this.tileSize) / 2);
+    this.offsetY = Math.floor((h - GAME_CONFIG.room.height * this.tileSize) / 2);
   }
 
   private drawCurrentRoom(): void {
@@ -341,16 +347,23 @@ export class DungeonScene extends Phaser.Scene {
     const w = this.scale.width;
     const h = this.scale.height;
     const grd = this.vignetteGraphics;
-    grd.fillStyle(0x000000, 0);
-    const innerR = Math.min(w, h) * 0.35;
-
+    const cx = w / 2;
+    const cy = h / 2;
+    const clearR = Math.min(w, h) * 0.35;
+    const maxR = Math.max(w, h) * 0.65;
     const totalSteps = 20;
-    for (let i = 0; i < totalSteps; i++) {
+
+    for (let i = totalSteps - 1; i >= 0; i--) {
+      const outerR = clearR + (maxR - clearR) * ((i + 1) / totalSteps);
+      const innerR = clearR + (maxR - clearR) * (i / totalSteps);
       const t = i / totalSteps;
-      const r2 = innerR + (Math.max(w, h) * 0.65 - innerR) * (t + 1 / totalSteps);
       const alpha = t * t * 0.45;
       grd.fillStyle(0x000000, alpha);
-      grd.fillCircle(w / 2, h / 2, r2);
+      grd.beginPath();
+      grd.arc(cx, cy, outerR, 0, Math.PI * 2);
+      grd.arc(cx, cy, innerR, 0, Math.PI * 2, true);
+      grd.closePath();
+      grd.fillPath();
     }
   }
 

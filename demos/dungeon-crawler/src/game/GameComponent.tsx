@@ -11,7 +11,7 @@ export function GameComponent() {
     if (!containerRef.current || gameRef.current) return;
 
     const config: Phaser.Types.Core.GameConfig = {
-      type: Phaser.WEBGL,
+      type: Phaser.AUTO,
       width: window.innerWidth,
       height: window.innerHeight,
       parent: containerRef.current,
@@ -19,7 +19,6 @@ export function GameComponent() {
       scene: [BootScene, DungeonScene],
       scale: {
         mode: Phaser.Scale.RESIZE,
-        autoCenter: Phaser.Scale.CENTER_BOTH,
       },
     };
 

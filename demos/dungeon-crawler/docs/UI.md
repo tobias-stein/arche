@@ -237,9 +237,9 @@ Same area as inventory (right slide panel). Shows:
 ### Spell replacement flow (loot)
 
 1. Player tries to take a spell from loot
-2. If spellbook is full (7/7 slots occupied):
+2. If spellbook is full (6/6 slots occupied):
    - A replacement dialog appears over the loot popup
-   - Shows the 7 current spells and the new spell
+   - Shows the 6 current spells and the new spell
    - Player selects a slot to replace
    - Confirmation: "Replace [old spell] with [new spell]?"
    - If confirmed: old spell is discarded, new spell occupies the slot

@@ -37,6 +37,7 @@ async function waitForService(maxRetries = 30): Promise<void> {
 }
 
 async function getSuperAdminKey(): Promise<string> {
+  if (process.env.ARCHE_API_KEY) return process.env.ARCHE_API_KEY
   const resp = await api<{ bootstrapped: boolean; key?: string; message?: string }>('GET', '/api/bootstrap')
   if (resp.bootstrapped && resp.key) return resp.key
   throw new Error('Arche is already bootstrapped. Set ARCHE_API_KEY env var to the super admin key from server logs.')

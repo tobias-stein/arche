@@ -115,7 +115,7 @@ function MiniMap() {
       canvas.height = h;
     }
 
-    ctx.fillStyle = '#0a0a0a';
+    ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, w, h);
 
     for (let dy = -SM_HALF; dy <= SM_HALF; dy++) {
@@ -181,7 +181,7 @@ function MiniMap() {
     canvas.width = cw;
     canvas.height = ch;
 
-    ctx.fillStyle = '#111';
+    ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, cw, ch);
 
     ctx.lineWidth = Math.max(1, cell * 0.08);
@@ -210,7 +210,7 @@ function MiniMap() {
       const ry = LG_PAD + r.y * (cell + LG_GAP);
 
       if (isUnvisited) {
-        ctx.fillStyle = '#1a1a1e';
+        ctx.fillStyle = '#000';
         ctx.fillRect(rx, ry, cell, cell);
         ctx.strokeStyle = '#900';
         ctx.lineWidth = Math.max(1, cell * 0.12);

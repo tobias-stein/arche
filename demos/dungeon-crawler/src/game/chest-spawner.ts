@@ -8,13 +8,9 @@ function randInt(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-function chebyshev(a: { x: number; y: number }, b: { x: number; y: number }): number {
-  return Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
-}
-
 export function generateChestsForRoom(
   tiles: TileType[][],
-  entryTile: { x: number; y: number },
+  excludedPositions: { x: number; y: number }[],
 ): ChestState[] {
   const count = randInt(
     GAME_CONFIG.chestSpawn.minPerRoom,
@@ -22,15 +18,14 @@ export function generateChestsForRoom(
   );
   const rw = tiles[0]?.length ?? 0;
   const rh = tiles.length;
-  const exclusion = GAME_CONFIG.chestSpawn.entryExclusionRadius;
+
+  const excludeSet = new Set(excludedPositions.map(p => `${p.x},${p.y}`));
 
   const floorTiles: { x: number; y: number }[] = [];
   for (let y = 0; y < rh; y++) {
     for (let x = 0; x < rw; x++) {
-      if (tiles[y][x] === TILE.FLOOR) {
-        if (chebyshev({ x, y }, entryTile) >= exclusion) {
-          floorTiles.push({ x, y });
-        }
+      if (tiles[y][x] === TILE.FLOOR && !excludeSet.has(`${x},${y}`)) {
+        floorTiles.push({ x, y });
       }
     }
   }

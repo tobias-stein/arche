@@ -25,7 +25,7 @@ function makeFloorTiles(rw: number, rh: number): TileType[][] {
 describe('generateChestsForRoom', () => {
   it('returns chests with unique ids', () => {
     const tiles = makeFloorTiles(15, 11)
-    const chests = generateChestsForRoom(tiles, { x: 7, y: 1 })
+    const chests = generateChestsForRoom(tiles, [{ x: 7, y: 0 }, { x: 7, y: 1 }])
     expect(chests.length).toBeGreaterThanOrEqual(0)
     expect(chests.length).toBeLessThanOrEqual(3)
     const ids = new Set(chests.map(c => c.id))
@@ -34,25 +34,24 @@ describe('generateChestsForRoom', () => {
 
   it('places chests on floor tiles only', () => {
     const tiles = makeFloorTiles(15, 11)
-    const chests = generateChestsForRoom(tiles, { x: 7, y: 1 })
+    const chests = generateChestsForRoom(tiles, [{ x: 7, y: 0 }, { x: 7, y: 1 }])
     for (const c of chests) {
       expect(tiles[c.position.y][c.position.x]).toBe(TILE.FLOOR)
     }
   })
 
-  it('excludes tiles within 4-tile radius of entry', () => {
+  it('excludes specified positions', () => {
     const tiles = makeFloorTiles(15, 11)
-    const entryTile = { x: 7, y: 1 }
-    const chests = generateChestsForRoom(tiles, entryTile)
+    const excluded = [{ x: 7, y: 0 }, { x: 7, y: 1 }, { x: 7, y: 2 }, { x: 7, y: 3 }]
+    const chests = generateChestsForRoom(tiles, excluded)
     for (const c of chests) {
-      const dist = Math.max(Math.abs(c.position.x - entryTile.x), Math.abs(c.position.y - entryTile.y))
-      expect(dist).toBeGreaterThanOrEqual(4)
+      expect(excluded.some(e => e.x === c.position.x && e.y === c.position.y)).toBe(false)
     }
   })
 
   it('starts each chest as not opened', () => {
     const tiles = makeFloorTiles(15, 11)
-    const chests = generateChestsForRoom(tiles, { x: 7, y: 1 })
+    const chests = generateChestsForRoom(tiles, [{ x: 7, y: 0 }, { x: 7, y: 1 }])
     for (const c of chests) {
       expect(c.opened).toBe(false)
     }

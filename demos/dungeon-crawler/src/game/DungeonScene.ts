@@ -8,6 +8,8 @@ import {
   oppositeDir,
   bfsPathfind,
   getDirFromDelta,
+  getAllDoorPositions,
+  getTileRegion,
   TILE,
   type TileType,
 } from './room-tiles';
@@ -15,7 +17,6 @@ import { drawRoom } from './room-renderer';
 import { getGameState } from '../GameState';
 import {
   generateCreaturesForRoom,
-  getEntryTile,
 } from './creature-spawner';
 import { generateChestsForRoom } from './chest-spawner';
 import { drawCreatureTriangle, createCreatureLabel } from './creature-renderer';
@@ -195,15 +196,22 @@ export class DungeonScene extends Phaser.Scene {
     this.destroyChestTexts();
 
     const isBoss = this.currentRoom === this.dungeon.bossRoom;
-    const entryTile = getEntryTile(this.tiles);
     const playerLevel = this.gameState.player.level;
+
+    // Exclude all door positions and tiles within 1 tile of any door
+    const doorPositions = getAllDoorPositions(this.tiles);
+    const excludedPositions: { x: number; y: number }[] = [];
+    for (const door of doorPositions) {
+      const region = getTileRegion(this.tiles, door, 1);
+      excludedPositions.push(...region);
+    }
 
     this.creatures = await generateCreaturesForRoom(
       this.tiles,
       this.currentRoom,
       isBoss,
       playerLevel,
-      entryTile,
+      excludedPositions,
     );
 
     this.creatureLabels = this.creatures.map((c) => {
@@ -216,7 +224,12 @@ export class DungeonScene extends Phaser.Scene {
       return label;
     });
 
-    this.chests = generateChestsForRoom(this.tiles, entryTile);
+    // Also exclude creature positions so chests don't overlap
+    const chestExcludedPositions = [
+      ...excludedPositions,
+      ...this.creatures.map(c => c.position),
+    ];
+    this.chests = generateChestsForRoom(this.tiles, chestExcludedPositions);
     this.chestTexts = this.chests.map((c) => {
       const px = this.offsetX + c.position.x * this.tileSize;
       const py = this.offsetY + c.position.y * this.tileSize;

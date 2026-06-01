@@ -32,6 +32,15 @@ function CombatOverlay() {
     setPlayerMp(gs.player.mp.current)
   }, [])
 
+  const scheduleEnemyTurn = useCallback(() => {
+    enemyTimerRef.current = setTimeout(() => {
+      const gs = getGameState()
+      if (!gs.combatCreature) return
+      const enemyDamage = calculateCreatureDamage(gs.player, gs.combatCreature)
+      gs.processEnemyTurn(enemyDamage)
+    }, 1000)
+  }, [])
+
   useEffect(() => {
     const gs = getGameState()
 
@@ -138,15 +147,10 @@ function CombatOverlay() {
     const damage = calculatePlayerDamage(gs.player, gs.combatCreature)
     await gs.processPlayerAttack(damage)
 
-    if (gs.combatCreature.hp.current > 0) {
-      enemyTimerRef.current = setTimeout(() => {
-        const gs2 = getGameState()
-        if (!gs2.combatCreature) return
-        const enemyDamage = calculateCreatureDamage(gs2.player, gs2.combatCreature)
-        gs2.processEnemyTurn(enemyDamage)
-      }, 1000)
+    if (gs.combatCreature && gs.combatCreature.hp.current > 0) {
+      scheduleEnemyTurn()
     }
-  }, [])
+  }, [scheduleEnemyTurn])
 
   const handleCastSpell = useCallback(() => {
     syncState()
@@ -169,13 +173,8 @@ function CombatOverlay() {
   const endPlayerTurn = useCallback(() => {
     setShowMenu(false)
     setPanel(null)
-    enemyTimerRef.current = setTimeout(() => {
-      const gs = getGameState()
-      if (!gs.combatCreature) return
-      const enemyDamage = calculateCreatureDamage(gs.player, gs.combatCreature)
-      gs.processEnemyTurn(enemyDamage)
-    }, 1000)
-  }, [])
+    scheduleEnemyTurn()
+  }, [scheduleEnemyTurn])
 
   const handleCastSpellSelect = useCallback(async (spell: ItemState) => {
     const gs = getGameState()
@@ -189,22 +188,18 @@ function CombatOverlay() {
     const damage = spell.stats.damage ?? 0
     const heal = spell.stats.heal ?? 0
 
+    setPanel(null)
+    setShowMenu(false)
+
     if (damage > 0) {
-      setPanel(null)
-      setShowMenu(false)
       gs.addLogEntry({
         type: 'spell_cast',
         message: `Cast ${spell.name} for ${damage} damage!`,
         icon: 'fa-solid fa-wand-sparkles',
       })
       await gs.processPlayerAttack(damage)
-      if (gs.combatCreature.hp.current > 0) {
-        enemyTimerRef.current = setTimeout(() => {
-          const gs2 = getGameState()
-          if (!gs2.combatCreature) return
-          const enemyDamage = calculateCreatureDamage(gs2.player, gs2.combatCreature)
-          gs2.processEnemyTurn(enemyDamage)
-        }, 1000)
+      if (gs.combatCreature && gs.combatCreature.hp.current > 0) {
+        scheduleEnemyTurn()
       }
     } else if (heal > 0) {
       gs.setPlayerHp(gs.player.hp.current + heal)
@@ -213,9 +208,9 @@ function CombatOverlay() {
         message: `Cast ${spell.name}, healed for ${heal}!`,
         icon: 'fa-solid fa-wand-sparkles',
       })
-      endPlayerTurn()
+      scheduleEnemyTurn()
     }
-  }, [endPlayerTurn])
+  }, [scheduleEnemyTurn])
 
   const handleUseItemSelect = useCallback((item: ItemState, idx: number) => {
     const gs = getGameState()

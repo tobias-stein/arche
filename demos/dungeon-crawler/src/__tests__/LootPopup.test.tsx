@@ -274,4 +274,155 @@ describe('LootPopup', () => {
       expect(['common', 'uncommon', 'rare', 'legendary']).toContain(rarity)
     }
   })
+
+  it('shows tooltip on mouse over an item', async () => {
+    const gs = getGameState()
+    const creature = makeCreature({ difficulty: 'elite', level: 5, hp: { current: 10, max: 80 } })
+
+    const { container } = render(<LootPopup />)
+
+    act(() => {
+      gs.startCombat(creature)
+    })
+    await act(async () => {
+      await gs.resolveVictory()
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText(/LOOT/)).toBeInTheDocument()
+    })
+
+    const item = container.querySelector('.ld-item') as HTMLElement
+    expect(item).toBeInTheDocument()
+
+    fireEvent.mouseOver(item)
+
+    await waitFor(() => {
+      const tooltip = document.querySelector('.inv-tooltip')
+      expect(tooltip).toBeInTheDocument()
+    })
+  })
+
+  it('tooltip displays item name and rarity', async () => {
+    const gs = getGameState()
+    const creature = makeCreature({ difficulty: 'elite', level: 5, hp: { current: 10, max: 80 } })
+
+    const { container } = render(<LootPopup />)
+
+    act(() => {
+      gs.startCombat(creature)
+    })
+    await act(async () => {
+      await gs.resolveVictory()
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText(/LOOT/)).toBeInTheDocument()
+    })
+
+    const item = container.querySelector('.ld-item') as HTMLElement
+    fireEvent.mouseOver(item)
+
+    await waitFor(() => {
+      const tooltip = document.querySelector('.inv-tooltip')
+      expect(tooltip).toBeInTheDocument()
+      const itemName = item.querySelector('.li-name')?.textContent
+      expect(tooltip!.querySelector('.tt-name')?.textContent).toBe(itemName)
+    })
+
+    const rarityElement = document.querySelector('.tt-rarity')
+    expect(rarityElement).toBeInTheDocument()
+  })
+
+  it('hides tooltip on mouse out when not pinned', async () => {
+    const gs = getGameState()
+    const creature = makeCreature({ difficulty: 'elite', level: 5, hp: { current: 10, max: 80 } })
+
+    const { container } = render(<LootPopup />)
+
+    act(() => {
+      gs.startCombat(creature)
+    })
+    await act(async () => {
+      await gs.resolveVictory()
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText(/LOOT/)).toBeInTheDocument()
+    })
+
+    const item = container.querySelector('.ld-item') as HTMLElement
+    fireEvent.mouseOver(item)
+
+    await waitFor(() => {
+      expect(document.querySelector('.inv-tooltip')).toBeInTheDocument()
+    })
+
+    fireEvent.mouseOut(item)
+
+    await waitFor(() => {
+      expect(document.querySelector('.inv-tooltip')).not.toBeInTheDocument()
+    })
+  })
+
+  it('pins tooltip on click and hides on second click', async () => {
+    const gs = getGameState()
+    const creature = makeCreature({ difficulty: 'elite', level: 5, hp: { current: 10, max: 80 } })
+
+    const { container } = render(<LootPopup />)
+
+    act(() => {
+      gs.startCombat(creature)
+    })
+    await act(async () => {
+      await gs.resolveVictory()
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText(/LOOT/)).toBeInTheDocument()
+    })
+
+    const item = container.querySelector('.ld-item') as HTMLElement
+    fireEvent.click(item)
+
+    await waitFor(() => {
+      expect(document.querySelector('.inv-tooltip')).toBeInTheDocument()
+    })
+
+    fireEvent.mouseOut(item)
+    await waitFor(() => {
+      expect(document.querySelector('.inv-tooltip')).toBeInTheDocument()
+    })
+
+    fireEvent.click(item)
+    await waitFor(() => {
+      expect(document.querySelector('.inv-tooltip')).not.toBeInTheDocument()
+    })
+  })
+
+  it('shows stats in tooltip', async () => {
+    const gs = getGameState()
+    const creature = makeCreature({ difficulty: 'elite', level: 5, hp: { current: 10, max: 80 } })
+
+    const { container } = render(<LootPopup />)
+
+    act(() => {
+      gs.startCombat(creature)
+    })
+    await act(async () => {
+      await gs.resolveVictory()
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText(/LOOT/)).toBeInTheDocument()
+    })
+
+    const item = container.querySelector('.ld-item') as HTMLElement
+    fireEvent.mouseOver(item)
+
+    await waitFor(() => {
+      const statsContainer = document.querySelector('.tt-stats')
+      expect(statsContainer).toBeInTheDocument()
+    })
+  })
 })

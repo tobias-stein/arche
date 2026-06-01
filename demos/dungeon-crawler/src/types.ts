@@ -68,4 +68,18 @@ interface LogEvent {
   icon: string
 }
 
+const EQUIP_SLOT_LABELS: Record<EquipSlot, string> = {
+  weapon: 'WEAPON',
+  helmet: 'HEAD',
+  chest: 'CHEST',
+  legs: 'LEGS',
+  boots: 'FEET',
+  gloves: 'HANDS',
+  belt: 'BELT',
+  ring: 'RING',
+  amulet: 'NECK',
+  shield: 'OFFHAND',
+}
+
 export type { Difficulty, Rarity, EquipSlot, PlayerState, CreatureState, ChestState, ItemState, LogEventType, LogEvent }
+export { EQUIP_SLOT_LABELS }

@@ -54,6 +54,7 @@ class GameState extends EventEmitter {
 
   inventory: (ItemState | null)[] = Array(GAME_CONFIG.capacity.inventorySlots).fill(null)
   equipment: Partial<Record<EquipSlot, ItemState>> = {}
+  spellbook: (ItemState | null)[] = Array(GAME_CONFIG.capacity.spellbookSlots).fill(null)
   lootItems: ItemState[] = []
 
   constructor() {
@@ -296,6 +297,7 @@ class GameState extends EventEmitter {
     this.dungeon = null
     this.inventory = Array(GAME_CONFIG.capacity.inventorySlots).fill(null)
     this.equipment = {}
+    this.spellbook = Array(GAME_CONFIG.capacity.spellbookSlots).fill(null)
     this.lootItems = []
     const cfg = GAME_CONFIG.player
     const nextXp = GAME_CONFIG.xpThresholds[cfg.startingLevel - 1] ?? 10
@@ -327,6 +329,7 @@ class GameState extends EventEmitter {
     this.controlsVisible = false
     this.inventory = Array(GAME_CONFIG.capacity.inventorySlots).fill(null)
     this.equipment = {}
+    this.spellbook = Array(GAME_CONFIG.capacity.spellbookSlots).fill(null)
     this.lootItems = []
     this.emit('game:quit')
   }
@@ -387,6 +390,91 @@ class GameState extends EventEmitter {
     if (emptyIdx !== -1) {
       this.inventory[emptyIdx] = item
     }
+  }
+
+  equipItem(invIdx: number): void {
+    const item = this.inventory[invIdx]
+    if (!item || !item.equipSlot) return
+    const slot = item.equipSlot
+    const current = this.equipment[slot]
+    this.equipment[slot] = item
+    this.inventory[invIdx] = current ?? null
+    this.emit('inventory:changed', { inventory: this.inventory, equipment: this.equipment, spellbook: this.spellbook })
+  }
+
+  unequipItem(slot: EquipSlot): void {
+    const item = this.equipment[slot]
+    if (!item) return
+    const emptyIdx = this.inventory.findIndex(s => s === null)
+    if (emptyIdx === -1) return
+    this.inventory[emptyIdx] = item
+    delete this.equipment[slot]
+    this.emit('inventory:changed', { inventory: this.inventory, equipment: this.equipment, spellbook: this.spellbook })
+  }
+
+  swapInventorySlots(from: number, to: number): void {
+    const temp = this.inventory[from]
+    this.inventory[from] = this.inventory[to]
+    this.inventory[to] = temp
+    this.emit('inventory:changed', { inventory: this.inventory, equipment: this.equipment, spellbook: this.spellbook })
+  }
+
+  moveToEquipment(invIdx: number, equipSlot: EquipSlot): void {
+    const item = this.inventory[invIdx]
+    if (!item) return
+    const current = this.equipment[equipSlot]
+    this.equipment[equipSlot] = item
+    this.inventory[invIdx] = current ?? null
+    this.emit('inventory:changed', { inventory: this.inventory, equipment: this.equipment, spellbook: this.spellbook })
+  }
+
+  moveToInventory(equipSlot: EquipSlot, invIdx: number): void {
+    const item = this.equipment[equipSlot]
+    if (!item) return
+    const current = this.inventory[invIdx]
+    this.inventory[invIdx] = item
+    delete this.equipment[equipSlot]
+    if (current && current.equipSlot) {
+      this.equipment[current.equipSlot] = current
+    }
+    this.emit('inventory:changed', { inventory: this.inventory, equipment: this.equipment, spellbook: this.spellbook })
+  }
+
+  dropItemFromInventory(invIdx: number): void {
+    this.inventory[invIdx] = null
+    this.emit('inventory:changed', { inventory: this.inventory, equipment: this.equipment, spellbook: this.spellbook })
+  }
+
+  dropItemFromEquipment(equipSlot: EquipSlot): void {
+    delete this.equipment[equipSlot]
+    this.emit('inventory:changed', { inventory: this.inventory, equipment: this.equipment, spellbook: this.spellbook })
+  }
+
+  dropItemFromSpellbook(slotIdx: number): void {
+    this.spellbook[slotIdx] = null
+    this.emit('inventory:changed', { inventory: this.inventory, equipment: this.equipment, spellbook: this.spellbook })
+  }
+
+  addSpellToBook(spell: ItemState): { success: boolean; replace?: boolean } {
+    const emptyIdx = this.spellbook.findIndex(s => s === null)
+    if (emptyIdx !== -1) {
+      this.spellbook[emptyIdx] = spell
+      this.emit('inventory:changed', { inventory: this.inventory, equipment: this.equipment, spellbook: this.spellbook })
+      return { success: true }
+    }
+    return { success: false, replace: true }
+  }
+
+  replaceSpell(slotIdx: number, newSpell: ItemState): void {
+    this.spellbook[slotIdx] = newSpell
+    this.emit('inventory:changed', { inventory: this.inventory, equipment: this.equipment, spellbook: this.spellbook })
+  }
+
+  swapSpellSlots(from: number, to: number): void {
+    const temp = this.spellbook[from]
+    this.spellbook[from] = this.spellbook[to]
+    this.spellbook[to] = temp
+    this.emit('inventory:changed', { inventory: this.inventory, equipment: this.equipment, spellbook: this.spellbook })
   }
 }
 

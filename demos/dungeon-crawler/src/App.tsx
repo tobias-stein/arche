@@ -12,11 +12,13 @@ import GameOverOverlay from './components/GameOverOverlay'
 import VictoryOverlay from './components/VictoryOverlay'
 import ControlsOverlay from './components/ControlsOverlay'
 import LootPopup from './components/LootPopup'
+import InventoryDialog from './components/InventoryDialog'
 import { useBreakpoint } from './hooks/useBreakpoint'
 import './styles/responsive.css'
 
 function App() {
   const [logExpanded, setLogExpanded] = useState(false)
+  const [showInventory, setShowInventory] = useState(false)
   const bp = useBreakpoint()
 
   const toggleLog = useCallback(() => {
@@ -40,12 +42,18 @@ function App() {
       gs.incrementEnemiesSlain()
     }
 
+    function onInventoryRequested() {
+      setShowInventory(true)
+    }
+
     gs.on('encounter:started', onEncounterStarted)
     gs.on('combat:victory', onEnemySlain)
+    gs.on('inventory:requested', onInventoryRequested)
 
     return () => {
       gs.off('encounter:started', onEncounterStarted)
       gs.off('combat:victory', onEnemySlain)
+      gs.off('inventory:requested', onInventoryRequested)
     }
   }, [])
 
@@ -80,6 +88,19 @@ function App() {
       const gs = getGameState()
       if (gs.encounterActive || gs.combatActive || gs.gameOver || gs.victory) return
 
+      if (e.key === 'i' || e.key === 'I') {
+        e.preventDefault()
+        setShowInventory(prev => !prev)
+        return
+      }
+
+      if (e.key === 'Escape') {
+        if (showInventory) {
+          setShowInventory(false)
+          return
+        }
+      }
+
       if (isHelpKey(e)) {
         e.preventDefault()
         gs.controlsVisible ? gs.setControlsVisible(false) : gs.toggleControls()
@@ -93,7 +114,7 @@ function App() {
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [])
+  }, [showInventory])
 
   return (
     <>
@@ -117,6 +138,7 @@ function App() {
       />
       <ControlsOverlay />
       <LootPopup />
+      {showInventory && <InventoryDialog />}
     </>
   )
 }

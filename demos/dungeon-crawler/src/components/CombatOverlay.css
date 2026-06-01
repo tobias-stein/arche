@@ -167,68 +167,184 @@
   font-weight: 700;
 }
 
-.combat-flee-confirm {
+/* Combat sub-panels (spell, item, flee) */
+.combat-panel-overlay {
   position: fixed;
   inset: 0;
-  z-index: 200;
+  z-index: 170;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(10, 5, 5, 0.85);
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.combat-panel {
+  width: 320px;
+  max-height: 380px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 0 rgba(0, 0, 0, 0.4);
   font-family: monospace;
 }
 
-.cfc-card {
+.spell-panel,
+.item-panel {
+  background: #2d4d38;
+  border: 4px solid #4a7a58;
+}
+
+.flee-panel {
   background: #3a2020;
   border: 4px solid #6a3a3a;
-  padding: 24px 28px;
-  text-align: center;
-  max-width: 320px;
-  box-shadow: 0 8px 0 #1a3a2a;
+  width: 280px;
+  max-height: none;
 }
 
-.cfc-card h3 {
-  color: #ff9090;
-  font-size: 16px;
+.cp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  font-size: 14px;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 1px;
-  text-shadow: 2px 2px 0 #2a1010;
-  margin: 0 0 8px;
+  color: #fff;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+  text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.5);
 }
 
-.cfc-sub {
-  color: #ff9090;
+.cp-close {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 20px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+  font-family: monospace;
+}
+
+.cp-close:hover {
+  color: #fff;
+}
+
+.cp-list {
+  overflow-y: auto;
+  padding: 4px 0;
+  max-height: 300px;
+}
+
+.cp-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.cp-list::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.cp-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+.cp-empty {
+  padding: 24px 14px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 13px;
+}
+
+.cp-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 14px;
+  cursor: pointer;
+  gap: 8px;
+  user-select: none;
+  color: #ddd;
+  font-size: 13px;
+}
+
+.cp-item.focused {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.cp-item.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.cpi-icon {
+  width: 20px;
+  text-align: center;
+  flex-shrink: 0;
+  font-size: 13px;
+}
+
+.cpi-name {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cpi-cost {
+  flex-shrink: 0;
+  color: #6080ff;
   font-size: 12px;
-  margin: 0 0 16px;
-  opacity: 0.85;
 }
 
-.cfc-actions {
+.cpi-effect {
+  flex-shrink: 0;
+  color: #88b898;
+  font-size: 12px;
+}
+
+.flee-sub {
+  padding: 10px 14px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
+  font-style: italic;
+  margin: 0;
+}
+
+.flee-buttons {
   display: flex;
   gap: 10px;
-  justify-content: center;
+  padding: 10px 14px 14px;
 }
 
-.cfc-actions button {
-  padding: 8px 20px;
-  border: 3px solid #4a7a58;
-  background: #2a4a38;
-  color: #d8f0e0;
-  font-size: 12px;
+.flee-buttons button {
+  flex: 1;
+  padding: 8px 0;
+  border: 2px solid;
+  font-size: 13px;
   font-weight: 700;
-  cursor: pointer;
   font-family: monospace;
-  box-shadow: 0 3px 0 #1a3a2a;
+  text-transform: uppercase;
+  cursor: pointer;
+  letter-spacing: 1px;
 }
 
-.cfc-actions .cfc-yes {
-  background: #5a1a1a;
-  border-color: #7a2a2a;
-  color: #ff6060;
+.flee-yes {
+  background: #5a2020;
+  border-color: #8a3a3a;
+  color: #ff7070;
 }
 
-.cfc-actions .cfc-no {
-  background: #2a4a38;
+.flee-yes:hover {
+  background: #7a3030;
+}
+
+.flee-no {
+  background: #2d5a38;
   border-color: #4a7a58;
-  color: #d8f0e0;
+  color: #88d898;
+}
+
+.flee-no:hover {
+  background: #3d7a48;
 }

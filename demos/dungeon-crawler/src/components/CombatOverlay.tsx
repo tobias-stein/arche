@@ -1,9 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { getGameState } from '../GameState'
 import { calculatePlayerDamage, calculateCreatureDamage } from '../game/combat'
-import type { CreatureState } from '../types'
+import type { CreatureState, ItemState } from '../types'
 import EnemyCard from './EnemyCard'
 import ActionMenu from './ActionMenu'
+import SpellPanel from './SpellPanel'
+import UseItemPanel from './UseItemPanel'
+import FleePanel from './FleePanel'
 import './CombatOverlay.css'
 
 function CombatOverlay() {
@@ -16,8 +19,27 @@ function CombatOverlay() {
   const [animating, setAnimating] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
   const [xpGained, setXpGained] = useState(0)
-  const [showFleeConfirm, setShowFleeConfirm] = useState(false)
+  const [panel, setPanel] = useState<'spell' | 'item' | 'flee' | null>(null)
+  const [spellbook, setSpellbook] = useState<(ItemState | null)[]>([])
+  const [inventory, setInventory] = useState<(ItemState | null)[]>([])
+  const [playerMp, setPlayerMp] = useState(0)
   const enemyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const syncState = useCallback(() => {
+    const gs = getGameState()
+    setSpellbook([...gs.spellbook])
+    setInventory([...gs.inventory])
+    setPlayerMp(gs.player.mp.current)
+  }, [])
+
+  const scheduleEnemyTurn = useCallback(() => {
+    enemyTimerRef.current = setTimeout(() => {
+      const gs = getGameState()
+      if (!gs.combatCreature) return
+      const enemyDamage = calculateCreatureDamage(gs.player, gs.combatCreature)
+      gs.processEnemyTurn(enemyDamage)
+    }, 1000)
+  }, [])
 
   useEffect(() => {
     const gs = getGameState()
@@ -31,6 +53,8 @@ function CombatOverlay() {
       setVisible(true)
       setAnimating(true)
       setShowMenu(false)
+      setPanel(null)
+      syncState()
 
       setTimeout(() => {
         setAnimating(false)
@@ -46,6 +70,7 @@ function CombatOverlay() {
       setTurn(t as 'player' | 'enemy')
       if (t === 'player') {
         setShowMenu(true)
+        syncState()
       }
     }
 
@@ -53,6 +78,7 @@ function CombatOverlay() {
       setVictory(true)
       setTurn(null)
       setShowMenu(false)
+      setPanel(null)
       setXpGained(xp)
       setFlash(true)
       setTimeout(() => setFlash(false), 400)
@@ -62,6 +88,7 @@ function CombatOverlay() {
       setDefeat(true)
       setTurn(null)
       setShowMenu(false)
+      setPanel(null)
 
       enemyTimerRef.current = setTimeout(() => {
         gs.endCombat()
@@ -75,12 +102,17 @@ function CombatOverlay() {
       setVictory(false)
       setDefeat(false)
       setShowMenu(false)
-      setShowFleeConfirm(false)
+      setPanel(null)
     }
 
     function onFled() {
       setVisible(false)
       setCreature(null)
+      setPanel(null)
+    }
+
+    function onStatsChanged() {
+      syncState()
     }
 
     gs.on('combat:started', onCombatStarted)
@@ -90,6 +122,8 @@ function CombatOverlay() {
     gs.on('combat:defeat', onDefeat)
     gs.on('combat:ended', onCombatEnded)
     gs.on('combat:fled', onFled)
+    gs.on('player:stats-changed', onStatsChanged)
+    gs.on('inventory:changed', onStatsChanged)
 
     return () => {
       gs.off('combat:started', onCombatStarted)
@@ -99,9 +133,11 @@ function CombatOverlay() {
       gs.off('combat:defeat', onDefeat)
       gs.off('combat:ended', onCombatEnded)
       gs.off('combat:fled', onFled)
+      gs.off('player:stats-changed', onStatsChanged)
+      gs.off('inventory:changed', onStatsChanged)
       if (enemyTimerRef.current) clearTimeout(enemyTimerRef.current)
     }
-  }, [])
+  }, [syncState])
 
   const handleAttack = useCallback(async () => {
     const gs = getGameState()
@@ -111,55 +147,100 @@ function CombatOverlay() {
     const damage = calculatePlayerDamage(gs.player, gs.combatCreature)
     await gs.processPlayerAttack(damage)
 
-    if (!gs.combatCreature) return
-    if (gs.combatCreature.hp.current > 0) {
-      enemyTimerRef.current = setTimeout(() => {
-        const gs2 = getGameState()
-        if (!gs2.combatCreature) return
-        const enemyDamage = calculateCreatureDamage(gs2.player, gs2.combatCreature)
-        gs2.processEnemyTurn(enemyDamage)
-      }, 1000)
+    if (gs.combatCreature && gs.combatCreature.hp.current > 0) {
+      scheduleEnemyTurn()
     }
-  }, [])
+  }, [scheduleEnemyTurn])
 
   const handleCastSpell = useCallback(() => {
-    alert('Cast Spell — will be wired in slice 9')
-  }, [])
+    syncState()
+    setPanel('spell')
+  }, [syncState])
 
   const handleUseItem = useCallback(() => {
-    alert('Use Item — will be wired in slice 9')
-  }, [])
+    syncState()
+    setPanel('item')
+  }, [syncState])
 
   const handleFlee = useCallback(() => {
-    setShowFleeConfirm(true)
+    setPanel('flee')
   }, [])
 
-  const handleConfirmFlee = useCallback(() => {
-    setShowFleeConfirm(false)
+  const handleClosePanel = useCallback(() => {
+    setPanel(null)
+  }, [])
+
+  const endPlayerTurn = useCallback(() => {
+    setShowMenu(false)
+    setPanel(null)
+    scheduleEnemyTurn()
+  }, [scheduleEnemyTurn])
+
+  const handleCastSpellSelect = useCallback(async (spell: ItemState) => {
     const gs = getGameState()
+    if (!gs.combatCreature || gs.combatTurn !== 'player') return
+
+    const manaCost = spell.stats.mana_cost ?? 0
+    if (gs.player.mp.current < manaCost) return
+
+    gs.setPlayerMp(gs.player.mp.current - manaCost)
+
+    const damage = spell.stats.damage ?? 0
+    const heal = spell.stats.heal ?? 0
+
+    setPanel(null)
+    setShowMenu(false)
+
+    if (damage > 0) {
+      gs.addLogEntry({
+        type: 'spell_cast',
+        message: `Cast ${spell.name} for ${damage} damage!`,
+        icon: 'fa-solid fa-wand-sparkles',
+      })
+      await gs.processPlayerAttack(damage)
+      if (gs.combatCreature && gs.combatCreature.hp.current > 0) {
+        scheduleEnemyTurn()
+      }
+    } else if (heal > 0) {
+      gs.setPlayerHp(gs.player.hp.current + heal)
+      gs.addLogEntry({
+        type: 'spell_cast',
+        message: `Cast ${spell.name}, healed for ${heal}!`,
+        icon: 'fa-solid fa-wand-sparkles',
+      })
+      scheduleEnemyTurn()
+    }
+  }, [scheduleEnemyTurn])
+
+  const handleUseItemSelect = useCallback((item: ItemState, idx: number) => {
+    const gs = getGameState()
+    if (!gs.combatCreature || gs.combatTurn !== 'player') return
+
+    const healVal = item.stats.heal ?? 0
+    const manaVal = item.stats.mana ?? 0
+
+    if (healVal > 0) {
+      gs.setPlayerHp(gs.player.hp.current + healVal)
+    }
+    if (manaVal > 0) {
+      gs.setPlayerMp(gs.player.mp.current + manaVal)
+    }
+
+    gs.dropItemFromInventory(idx)
+    gs.addLogEntry({
+      type: 'potion_consumed',
+      message: `Used ${item.name}${healVal > 0 ? `, restored ${healVal} HP` : ''}${manaVal > 0 ? `, restored ${manaVal} MP` : ''}`,
+      icon: 'fa-solid fa-flask',
+    })
+
+    endPlayerTurn()
+  }, [endPlayerTurn])
+
+  const handleFleeConfirm = useCallback(() => {
+    const gs = getGameState()
+    setPanel(null)
     gs.fleeCombat()
   }, [])
-
-  const handleCancelFlee = useCallback(() => {
-    setShowFleeConfirm(false)
-  }, [])
-
-  useEffect(() => {
-    if (!showFleeConfirm) return
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') {
-        e.preventDefault()
-        e.stopImmediatePropagation()
-        handleCancelFlee()
-      } else if (e.key === 'Enter') {
-        e.preventDefault()
-        e.stopImmediatePropagation()
-        handleConfirmFlee()
-      }
-    }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [showFleeConfirm, handleConfirmFlee, handleCancelFlee])
 
   if (!visible || !creature) return null
 
@@ -180,26 +261,37 @@ function CombatOverlay() {
 
       <EnemyCard creature={creature} />
 
-      {showMenu && turn === 'player' && !victory && !defeat && (
+      {panel === 'spell' && (
+        <SpellPanel
+          spells={spellbook}
+          playerMp={playerMp}
+          onSelect={handleCastSpellSelect}
+          onClose={handleClosePanel}
+        />
+      )}
+
+      {panel === 'item' && (
+        <UseItemPanel
+          inventory={inventory}
+          onSelect={handleUseItemSelect}
+          onClose={handleClosePanel}
+        />
+      )}
+
+      {panel === 'flee' && (
+        <FleePanel
+          onFlee={handleFleeConfirm}
+          onClose={handleClosePanel}
+        />
+      )}
+
+      {showMenu && turn === 'player' && !victory && !defeat && !panel && (
         <ActionMenu
           onAttack={handleAttack}
           onCastSpell={handleCastSpell}
           onUseItem={handleUseItem}
           onFlee={handleFlee}
         />
-      )}
-
-      {showFleeConfirm && (
-        <div className="combat-flee-confirm">
-          <div className="cfc-card">
-            <h3>Flee from combat?</h3>
-            <p className="cfc-sub">Cowardice has its rewards.</p>
-            <div className="cfc-actions">
-              <button className="cfc-yes" onClick={handleConfirmFlee}>Yes, Flee</button>
-              <button className="cfc-no" onClick={handleCancelFlee}>Stay & Fight</button>
-            </div>
-          </div>
-        </div>
       )}
 
       {turn === 'enemy' && !victory && !defeat && (

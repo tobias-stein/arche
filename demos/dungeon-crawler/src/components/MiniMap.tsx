@@ -115,7 +115,7 @@ function MiniMap() {
       canvas.height = h;
     }
 
-    ctx.fillStyle = '#000';
+    ctx.fillStyle = 'transparent';
     ctx.fillRect(0, 0, w, h);
 
     for (let dy = -SM_HALF; dy <= SM_HALF; dy++) {
@@ -181,7 +181,7 @@ function MiniMap() {
     canvas.width = cw;
     canvas.height = ch;
 
-    ctx.fillStyle = '#000';
+    ctx.fillStyle = 'transparent';
     ctx.fillRect(0, 0, cw, ch);
 
     ctx.lineWidth = Math.max(1, cell * 0.08);

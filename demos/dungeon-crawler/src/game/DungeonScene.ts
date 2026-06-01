@@ -198,13 +198,9 @@ export class DungeonScene extends Phaser.Scene {
     const isBoss = this.currentRoom === this.dungeon.bossRoom;
     const playerLevel = this.gameState.player.level;
 
-    // Exclude all door positions and tiles within 1 tile of any door
-    const doorPositions = getAllDoorPositions(this.tiles);
-    const excludedPositions: { x: number; y: number }[] = [];
-    for (const door of doorPositions) {
-      const region = getTileRegion(this.tiles, door, 1);
-      excludedPositions.push(...region);
-    }
+    // Exclude floor tiles within 1 tile of any door
+    const excludedPositions = getAllDoorPositions(this.tiles)
+      .flatMap(door => getTileRegion(this.tiles, door, 1));
 
     this.creatures = await generateCreaturesForRoom(
       this.tiles,

@@ -151,13 +151,4 @@ export async function generateCreaturesForRoom(
   return creatures;
 }
 
-export function getEntryTile(tiles: TileType[][]): { x: number; y: number } {
-  const rw = tiles[0]?.length ?? 0;
-  const rh = tiles.length;
-  for (let y = 0; y < rh; y++) {
-    for (let x = 0; x < rw; x++) {
-      if (tiles[y][x] === TILE.DOOR_N) return { x, y };
-    }
-  }
-  return { x: Math.floor(rw / 2), y: Math.floor(rh / 2) };
-}
+

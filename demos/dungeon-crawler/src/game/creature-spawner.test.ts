@@ -5,7 +5,6 @@ import {
   pickSpawnPositions,
   pickDifficulties,
   generateCreaturesForRoom,
-  getEntryTile,
 } from './creature-spawner';
 
 function makeEmptyRoom(doors?: { n?: boolean; s?: boolean; w?: boolean; e?: boolean }): TileType[][] {
@@ -159,16 +158,3 @@ describe('generateCreaturesForRoom', () => {
   });
 });
 
-describe('getEntryTile', () => {
-  it('finds the north door tile', () => {
-    const tiles = makeEmptyRoom({ n: true });
-    const entry = getEntryTile(tiles);
-    expect(tiles[entry.y][entry.x]).toBe(TILE.DOOR_N);
-  });
-
-  it('returns center if no door found', () => {
-    const tiles = makeEmptyRoom();
-    const entry = getEntryTile(tiles);
-    expect(entry).toEqual({ x: 7, y: 5 });
-  });
-});

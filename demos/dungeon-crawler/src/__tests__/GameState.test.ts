@@ -183,6 +183,81 @@ describe('GameState', () => {
     expect(calls).toEqual([])
   })
 
+  it('addItemToInventoryOrEquip emits inventory:changed when equipping', () => {
+    const events: object[] = []
+    gs.on('inventory:changed', (data) => events.push(data as object))
+
+    const item: ItemState = { id: 'sword_1', name: 'Iron Sword', archeType: 'weapon', rarity: 'common', level: 1, stats: { attack: 5 }, affixes: [], equipSlot: 'weapon' }
+
+    ;(gs as unknown as { addItemToInventoryOrEquip(item: ItemState): void }).addItemToInventoryOrEquip(item)
+
+    expect(events.length).toBe(1)
+    expect(gs.equipment.weapon?.name).toBe('Iron Sword')
+  })
+
+  it('addItemToInventoryOrEquip emits inventory:changed when adding to inventory', () => {
+    gs.equipment.weapon = { id: 'existing', name: 'Existing', archeType: 'weapon', rarity: 'common', level: 1, stats: {}, affixes: [], equipSlot: 'weapon' }
+
+    const events: object[] = []
+    gs.on('inventory:changed', (data) => events.push(data as object))
+
+    const item: ItemState = { id: 'potion_1', name: 'Health Potion', archeType: 'consumable', rarity: 'common', level: 1, stats: { heal: 50 }, affixes: [] }
+
+    ;(gs as unknown as { addItemToInventoryOrEquip(item: ItemState): void }).addItemToInventoryOrEquip(item)
+
+    expect(events.length).toBe(1)
+    expect(gs.inventory[0]?.name).toBe('Health Potion')
+  })
+
+  it('takeLootItem emits inventory:changed after taking an item', () => {
+    const item: ItemState = { id: 'sword_1', name: 'Iron Sword', archeType: 'weapon', rarity: 'common', level: 1, stats: { attack: 5 }, affixes: [], equipSlot: 'weapon' }
+    gs.lootItems = [item]
+
+    const events: string[] = []
+    gs.on('inventory:changed', () => events.push('inventory:changed'))
+
+    gs.takeLootItem(item.id)
+
+    expect(events).toContain('inventory:changed')
+    expect(gs.equipment.weapon?.name).toBe('Iron Sword')
+  })
+
+  it('takeAllLoot emits inventory:changed after taking all items', () => {
+    const item: ItemState = { id: 'sword_1', name: 'Iron Sword', archeType: 'weapon', rarity: 'common', level: 1, stats: { attack: 5 }, affixes: [], equipSlot: 'weapon' }
+    gs.lootItems = [item]
+
+    const events: string[] = []
+    gs.on('inventory:changed', () => events.push('inventory:changed'))
+
+    gs.takeAllLoot()
+
+    expect(events).toContain('inventory:changed')
+  })
+
+  it('takeChestItem emits inventory:changed after taking a chest item', () => {
+    const item: ItemState = { id: 'chest_sword', name: 'Chest Sword', archeType: 'weapon', rarity: 'common', level: 1, stats: { attack: 5 }, affixes: [], equipSlot: 'weapon' }
+    gs.chestLootItems = [item]
+
+    const events: string[] = []
+    gs.on('inventory:changed', () => events.push('inventory:changed'))
+
+    gs.takeChestItem(item.id)
+
+    expect(events).toContain('inventory:changed')
+  })
+
+  it('takeAllChestLoot emits inventory:changed after taking all chest items', () => {
+    const item: ItemState = { id: 'chest_sword', name: 'Chest Sword', archeType: 'weapon', rarity: 'common', level: 1, stats: { attack: 5 }, affixes: [], equipSlot: 'weapon' }
+    gs.chestLootItems = [item]
+
+    const events: string[] = []
+    gs.on('inventory:changed', () => events.push('inventory:changed'))
+
+    gs.takeAllChestLoot()
+
+    expect(events).toContain('inventory:changed')
+  })
+
   describe('dialogOpen flags', () => {
     it('initially both flags are false', () => {
       expect(gs.inventoryOpen).toBe(false)

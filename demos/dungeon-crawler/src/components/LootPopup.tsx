@@ -4,6 +4,7 @@ import { getRarityColor, getItemIcon } from '../game/loot'
 import type { ItemState, CreatureState } from '../types'
 import ItemTooltip from './ItemTooltip'
 import type { TooltipData } from './ItemTooltip'
+import { initDragFromItem } from './dragDrop'
 import './LootPopup.css'
 
 interface Props {
@@ -143,6 +144,21 @@ function LootPopup({ inventoryOpen }: Props) {
     setTooltip(null)
   }
 
+  function handleDragStart(e: React.MouseEvent, item: ItemState, idx: number) {
+    initDragFromItem(
+      e.nativeEvent,
+      e.currentTarget as HTMLElement,
+      'inventory',
+      item.name,
+      item.rarity,
+      item.id,
+      item.equipSlot ? 'equipment' : 'consumable',
+      item.equipSlot,
+      getItemIcon(item),
+      idx,
+    )
+  }
+
   function handleTooltipClick(e: React.MouseEvent, item: ItemState) {
     e.stopPropagation()
     if (tooltip?.pinned) {
@@ -250,6 +266,7 @@ function LootPopup({ inventoryOpen }: Props) {
                 key={item.id}
                 className={`ld-item ${idx === selectedIdx ? 'selected' : ''}`}
                 data-rarity={item.rarity}
+                onMouseDown={(e) => handleDragStart(e, item, idx)}
                 onClick={(e) => handleTooltipClick(e, item)}
                 onMouseOver={(e) => handleMouseEnter(e, item)}
                 onMouseOut={handleMouseLeave}

@@ -4,6 +4,7 @@ import { getGameState, resetGameState } from '../GameState'
 import LootPopup from '../components/LootPopup'
 import type { CreatureState } from '../types'
 import { resetItemIdCounter } from '../game/loot'
+import { dragState } from '../components/dragDrop'
 
 function makeCreature(overrides?: Partial<CreatureState>): CreatureState {
   return {
@@ -425,4 +426,73 @@ describe('LootPopup', () => {
       expect(statsContainer).toBeInTheDocument()
     })
   })
+
+  it('initiates drag on mousedown on loot item', async () => {
+    const gs = getGameState()
+    const creature = makeCreature({ difficulty: 'elite', level: 5, hp: { current: 10, max: 80 } })
+
+    const { container } = render(<LootPopup />)
+
+    act(() => {
+      gs.startCombat(creature)
+    })
+    await act(async () => {
+      await gs.resolveVictory()
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText(/LOOT/)).toBeInTheDocument()
+    })
+
+    const firstItem = container.querySelector('.ld-item') as HTMLElement
+    expect(firstItem).toBeInTheDocument()
+
+    fireEvent.mouseDown(firstItem)
+
+    await waitFor(() => {
+      expect(firstItem.classList.contains('dragging')).toBe(true)
+    })
+
+    const dragFloat = document.querySelector('.drag-float')
+    expect(dragFloat).toBeInTheDocument()
+
+    cleanup()
+  })
+
+  it('sets correct DragState on drag start', async () => {
+    const gs = getGameState()
+    const creature = makeCreature({ difficulty: 'elite', level: 5, hp: { current: 10, max: 80 } })
+
+    const { container } = render(<LootPopup />)
+
+    act(() => {
+      gs.startCombat(creature)
+    })
+    await act(async () => {
+      await gs.resolveVictory()
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText(/LOOT/)).toBeInTheDocument()
+    })
+
+    const firstItem = container.querySelector('.ld-item') as HTMLElement
+    const itemName = firstItem.querySelector('.li-name')?.textContent
+    const lootItem = gs.lootItems.find(i => i.name === itemName)
+    expect(lootItem).toBeDefined()
+
+    fireEvent.mouseDown(firstItem)
+    await vi.waitFor(() => {
+      expect(firstItem.classList.contains('dragging')).toBe(true)
+    })
+
+    expect(dragState).not.toBeNull()
+    expect(dragState!.sourceType).toBe('inventory')
+    expect(dragState!.itemName).toBe(itemName)
+    expect(dragState!.itemId).toBe(lootItem!.id)
+    expect(dragState!.rarity).toBe(lootItem!.rarity)
+
+    cleanup()
+  })
+
 })

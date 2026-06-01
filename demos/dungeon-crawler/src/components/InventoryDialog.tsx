@@ -6,28 +6,17 @@ import { EQUIP_SLOT_LABELS } from '../types'
 import { GAME_CONFIG } from '../config'
 import ItemTooltip from './ItemTooltip'
 import type { TooltipData } from './ItemTooltip'
+import {
+  dragState, dragFloat, dragOffX, dragOffY, pendingAbandon,
+  setPendingAbandon,
+  clearDragUI as sharedClearDragUI,
+  cleanupDragState,
+  initDragFromItem,
+} from './dragDrop'
+import type { DragState } from './dragDrop'
 import './InventoryDialog.css'
 
 const EQUIP_SLOTS: EquipSlot[] = ['weapon', 'helmet', 'chest', 'legs', 'boots', 'gloves', 'belt', 'ring', 'amulet', 'shield']
-interface DragState {
-  source: HTMLElement
-  sourceType: 'equipment' | 'inventory' | 'spell'
-  sourceEquipSlot?: EquipSlot
-  sourceIdx?: number
-  itemType: string
-  equipSlot?: EquipSlot
-  itemId: string
-  html: string
-  itemName: string
-  itemIcon: string
-  rarity: string
-}
-
-let dragState: DragState | null = null
-let dragFloat: HTMLElement | null = null
-let dragOffX = 0
-let dragOffY = 0
-let pendingAbandon: DragState | null = null
 
 interface Props {
   onClose?: () => void
@@ -95,15 +84,13 @@ function InventoryDialog({ onClose, lootActive }: Props) {
       }
     }
 
-    if (dragActive) {
-      window.addEventListener('mousemove', onMouseMove)
-      window.addEventListener('mouseup', onMouseUp)
-      return () => {
-        window.removeEventListener('mousemove', onMouseMove)
-        window.removeEventListener('mouseup', onMouseUp)
-      }
+    window.addEventListener('mousemove', onMouseMove)
+    window.addEventListener('mouseup', onMouseUp)
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove)
+      window.removeEventListener('mouseup', onMouseUp)
     }
-  }, [dragActive])
+  }, [])
 
   const syncState = useCallback(() => {
     const gs = getGameState()
@@ -123,22 +110,14 @@ function InventoryDialog({ onClose, lootActive }: Props) {
   }, [onClose])
 
   const clearDragUI = useCallback(() => {
-    document.querySelectorAll('.dragging, .drag-valid, .drag-invalid, .drag-over-trash')
-      .forEach(el => el.classList.remove('dragging', 'drag-valid', 'drag-invalid', 'drag-over-trash'))
-    const et = document.querySelector('.et')
-    if (et) et.classList.remove('et-active')
-    if (dragFloat) {
-      dragFloat.remove()
-      dragFloat = null
-    }
+    sharedClearDragUI()
     setDragActive(false)
   }, [])
 
   const cleanupDrag = useCallback(() => {
-    clearDragUI()
-    dragState = null
-    pendingAbandon = null
-  }, [clearDragUI])
+    cleanupDragState()
+    setDragActive(false)
+  }, [])
 
   const getTargetAtPosition = useCallback((x: number, y: number): {
     type: 'equipment' | 'inventory' | 'spell' | 'trash' | null
@@ -243,7 +222,7 @@ function InventoryDialog({ onClose, lootActive }: Props) {
   }
 
   function showAbandonConfirm(source: DragState) {
-    pendingAbandon = source
+    setPendingAbandon(source)
     setAbandonItem(source)
     clearDragUI()
   }
@@ -261,13 +240,13 @@ function InventoryDialog({ onClose, lootActive }: Props) {
       syncState()
     }
     setAbandonItem(null)
-    pendingAbandon = null
+    setPendingAbandon(null)
     cleanupDrag()
   }
 
   function cancelAbandon() {
     setAbandonItem(null)
-    pendingAbandon = null
+    setPendingAbandon(null)
     cleanupDrag()
   }
 
@@ -280,9 +259,7 @@ function InventoryDialog({ onClose, lootActive }: Props) {
     e.preventDefault()
     const gs = getGameState()
     let item: ItemState | undefined
-    let html = ''
     let itemName = ''
-    let itemIcon = ''
     let rarity = ''
     let itemType = ''
     let itemEquipSlot: EquipSlot | undefined
@@ -313,41 +290,19 @@ function InventoryDialog({ onClose, lootActive }: Props) {
 
     if (!item) return
 
-    html = `<span class="ei"><i class="${getItemIcon(item)}"></i></span><span class="en">${item.name}</span>`
-
-    dragState = {
-      source: e.currentTarget as HTMLElement,
+    initDragFromItem(
+      e.nativeEvent,
+      e.currentTarget as HTMLElement,
       sourceType,
-      sourceEquipSlot: equipSlot,
-      sourceIdx: idx,
-      itemType,
-      equipSlot: itemEquipSlot,
-      itemId: item.id,
-      html,
       itemName,
-      itemIcon,
       rarity,
-    }
-
-    const sourceEl = e.currentTarget as HTMLElement
-    sourceEl.classList.add('dragging')
-
-    const fl = document.createElement('div')
-    fl.className = 'drag-float'
-    if (itemEquipSlot) fl.dataset.equipSlot = itemEquipSlot
-    fl.innerHTML = html
-    const sr = sourceEl.getBoundingClientRect()
-    dragOffX = e.clientX - sr.left
-    dragOffY = e.clientY - sr.top
-    fl.style.left = (e.clientX - dragOffX) + 'px'
-    fl.style.top = (e.clientY - dragOffY) + 'px'
-    fl.style.width = sr.width + 'px'
-    fl.style.height = sr.height + 'px'
-    document.body.appendChild(fl)
-    dragFloat = fl
-
-    const dropZone = document.querySelector('.et')
-    if (dropZone) dropZone.classList.add('et-active')
+      item.id,
+      itemType,
+      itemEquipSlot,
+      getItemIcon(item),
+      idx,
+      equipSlot,
+    )
 
     setDragActive(true)
   }

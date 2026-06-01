@@ -361,6 +361,13 @@ function InventoryDialog({ onClose }: Props) {
     setDragActive(true)
   }
 
+  function getTargetType(slotType?: string): 'equipment' | 'inventory' | 'spell' | null {
+    if (slotType === 'equipment') return 'equipment'
+    if (slotType === 'inventory') return 'inventory'
+    if (slotType === 'spell') return 'spell'
+    return null
+  }
+
   function handleDragOver(e: React.MouseEvent, equipSlot?: EquipSlot, idx?: number, slotType?: string) {
     if (!dragState) return
 
@@ -368,11 +375,7 @@ function InventoryDialog({ onClose }: Props) {
       .forEach(el => el.classList.remove('drag-valid', 'drag-invalid'))
 
     const target = e.currentTarget as HTMLElement
-
-    let targetType: 'equipment' | 'inventory' | 'spell' | null = null
-    if (slotType === 'equipment') targetType = 'equipment'
-    else if (slotType === 'inventory') targetType = 'inventory'
-    else if (slotType === 'spell') targetType = 'spell'
+    const targetType = getTargetType(slotType)
 
     if (targetType && isValidDrop(dragState, { type: targetType, equipSlot, idx })) {
       e.preventDefault()
@@ -386,10 +389,7 @@ function InventoryDialog({ onClose }: Props) {
     e.preventDefault()
     if (!dragState) return
 
-    let targetType: 'equipment' | 'inventory' | 'spell' | null = null
-    if (slotType === 'equipment') targetType = 'equipment'
-    else if (slotType === 'inventory') targetType = 'inventory'
-    else if (slotType === 'spell') targetType = 'spell'
+    const targetType = getTargetType(slotType)
 
     if (targetType && isValidDrop(dragState, { type: targetType, equipSlot, idx })) {
       performSwap(dragState, { type: targetType, equipSlot, idx })
@@ -689,7 +689,7 @@ function InventoryDialog({ onClose }: Props) {
     )
   }
 
-  function renderEquipmentSlot(equipSlot: EquipSlot, idx: number) {
+  function renderEquipmentSlot(equipSlot: EquipSlot) {
     const item = equipment[equipSlot]
     const label = EQUIP_SLOT_LABELS[equipSlot]
 
@@ -717,10 +717,6 @@ function InventoryDialog({ onClose }: Props) {
           <>
             <span className="ei"><i className={getItemIcon(item)} style={{ color: getRarityColor(item.rarity) }} /></span>
             <span className="en">{item.name}</span>
-            <span
-              className="li-rarity-corner"
-              style={{ borderColor: `transparent transparent ${getRarityColor(item.rarity)} transparent` }}
-            />
           </>
         ) : null}
       </div>
@@ -754,10 +750,6 @@ function InventoryDialog({ onClose }: Props) {
             <>
               <span className="ei"><i className={getItemIcon(item)} style={{ color: getRarityColor(item.rarity) }} /></span>
               <span className="en">{item.name}</span>
-              <span
-                className="li-rarity-corner"
-                style={{ borderColor: `transparent transparent ${getRarityColor(item.rarity)} transparent` }}
-              />
             </>
           ) : null}
         </div>,
@@ -767,12 +759,10 @@ function InventoryDialog({ onClose }: Props) {
   }
 
   function renderSpellSlots() {
-    const gs = getGameState()
-    const spells = gs.spellbook
     const slots: React.ReactNode[] = []
 
     for (let i = 0; i < GAME_CONFIG.capacity.spellbookSlots; i++) {
-      const item = spells[i]
+      const item = spellbook[i]
       slots.push(
         <div
           key={`spell-${i}`}
@@ -797,10 +787,6 @@ function InventoryDialog({ onClose }: Props) {
             <>
               <span className="ei"><i className={getItemIcon(item)} style={{ color: getRarityColor(item.rarity) }} /></span>
               <span className="en">{item.name}</span>
-              <span
-                className="li-rarity-corner"
-                style={{ borderColor: `transparent transparent ${getRarityColor(item.rarity)} transparent` }}
-              />
             </>
           ) : null}
         </div>,
@@ -824,7 +810,7 @@ function InventoryDialog({ onClose }: Props) {
 
           <div className="es-title">Equipment</div>
           <div className="eg eq-grid">
-            {EQUIP_SLOTS.map((slot, idx) => renderEquipmentSlot(slot, idx))}
+            {EQUIP_SLOTS.map(slot => renderEquipmentSlot(slot))}
           </div>
 
           <div className="es-title">Inventory</div>

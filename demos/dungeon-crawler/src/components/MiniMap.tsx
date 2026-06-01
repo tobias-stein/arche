@@ -317,6 +317,8 @@ function MiniMap() {
   }, []);
 
   function openOverlay() {
+    const gs = getGameState();
+    if (gs.encounterActive || gs.combatActive || gs.gameOver || gs.victory) return;
     setOverlayOpen(true);
   }
 
@@ -327,6 +329,8 @@ function MiniMap() {
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === 'm' || e.key === 'M') {
+        const gs = getGameState();
+        if (gs.encounterActive || gs.combatActive || gs.gameOver || gs.victory) return;
         e.preventDefault();
         setOverlayOpen(prev => !prev);
       }

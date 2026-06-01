@@ -32,10 +32,12 @@ function PlayerCard() {
   }, [])
 
   const handleClick = useCallback(() => {
+    const gs = getGameState()
+    if (gs.encounterActive || gs.combatActive || gs.gameOver || gs.victory) return
     if (bp === 'mobile') {
       setMobileExpanded(prev => !prev)
     } else {
-      getGameState().emitInventoryRequested()
+      gs.emitInventoryRequested()
     }
   }, [bp])
 

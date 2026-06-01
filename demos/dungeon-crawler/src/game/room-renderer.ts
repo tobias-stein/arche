@@ -41,6 +41,22 @@ export function drawWallTile(graphics: Phaser.GameObjects.Graphics, px: number, 
   }
 }
 
+function drawQuadraticCurve(
+  graphics: Phaser.GameObjects.Graphics,
+  fromX: number, fromY: number,
+  cpX: number, cpY: number,
+  toX: number, toY: number,
+  segments = 12,
+): void {
+  for (let i = 1; i <= segments; i++) {
+    const t = i / segments;
+    const mt = 1 - t;
+    const x = mt * mt * fromX + 2 * mt * t * cpX + t * t * toX;
+    const y = mt * mt * fromY + 2 * mt * t * cpY + t * t * toY;
+    graphics.lineTo(x, y);
+  }
+}
+
 export function drawArchway(graphics: Phaser.GameObjects.Graphics, px: number, py: number, ts: number, dir: string): void {
   drawWallTile(graphics, px, py, ts);
 
@@ -56,29 +72,29 @@ export function drawArchway(graphics: Phaser.GameObjects.Graphics, px: number, p
     const s = py + ts * split;
     graphics.moveTo(px + pad, py + ts - pad);
     graphics.lineTo(px + pad, s);
-    graphics.lineTo(cx, py + pad);
-    graphics.lineTo(px + ts - pad, s);
+    drawQuadraticCurve(graphics, px + pad, s, px + pad, py + pad, cx, py + pad);
+    drawQuadraticCurve(graphics, cx, py + pad, px + ts - pad, py + pad, px + ts - pad, s);
     graphics.lineTo(px + ts - pad, py + ts - pad);
   } else if (dir === 'S') {
     const s = py + ts * (1 - split);
     graphics.moveTo(px + pad, py + pad);
     graphics.lineTo(px + pad, s);
-    graphics.lineTo(cx, py + ts - pad);
-    graphics.lineTo(px + ts - pad, s);
+    drawQuadraticCurve(graphics, px + pad, s, px + pad, py + ts - pad, cx, py + ts - pad);
+    drawQuadraticCurve(graphics, cx, py + ts - pad, px + ts - pad, py + ts - pad, px + ts - pad, s);
     graphics.lineTo(px + ts - pad, py + pad);
   } else if (dir === 'W') {
     const s = px + ts * split;
     graphics.moveTo(px + ts - pad, py + pad);
     graphics.lineTo(s, py + pad);
-    graphics.lineTo(px + pad, cy);
-    graphics.lineTo(s, py + ts - pad);
+    drawQuadraticCurve(graphics, s, py + pad, px + pad, py + pad, px + pad, cy);
+    drawQuadraticCurve(graphics, px + pad, cy, px + pad, py + ts - pad, s, py + ts - pad);
     graphics.lineTo(px + ts - pad, py + ts - pad);
   } else if (dir === 'E') {
     const s = px + ts * (1 - split);
     graphics.moveTo(px + pad, py + pad);
     graphics.lineTo(s, py + pad);
-    graphics.lineTo(px + ts - pad, cy);
-    graphics.lineTo(s, py + ts - pad);
+    drawQuadraticCurve(graphics, s, py + pad, px + ts - pad, py + pad, px + ts - pad, cy);
+    drawQuadraticCurve(graphics, px + ts - pad, cy, px + ts - pad, py + ts - pad, s, py + ts - pad);
     graphics.lineTo(px + pad, py + ts - pad);
   }
 
@@ -145,7 +161,6 @@ export function drawRoom(
         case TILE.DOOR_E:
         case TILE.DOOR_W:
           drawArchway(graphics, px, py, tileSize, DOOR_DIR[t]);
-          drawDoorGlow(graphics, px, py, tileSize, time, DOOR_DIR[t]);
           break;
       }
     }

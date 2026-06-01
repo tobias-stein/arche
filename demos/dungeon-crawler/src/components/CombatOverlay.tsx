@@ -171,6 +171,9 @@ function CombatOverlay() {
   }, [])
 
   const endPlayerTurn = useCallback(() => {
+    const gs = getGameState()
+    gs.combatTurn = 'enemy'
+    gs.emit('combat:turn-changed', 'enemy')
     setShowMenu(false)
     setPanel(null)
     scheduleEnemyTurn()
@@ -208,6 +211,8 @@ function CombatOverlay() {
         message: `Cast ${spell.name}, healed for ${heal}!`,
         icon: 'fa-solid fa-wand-sparkles',
       })
+      gs.combatTurn = 'enemy'
+      gs.emit('combat:turn-changed', 'enemy')
       scheduleEnemyTurn()
     }
   }, [scheduleEnemyTurn])

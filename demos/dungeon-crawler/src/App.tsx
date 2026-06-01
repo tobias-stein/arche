@@ -13,6 +13,7 @@ import VictoryOverlay from './components/VictoryOverlay'
 import ControlsOverlay from './components/ControlsOverlay'
 import LootPopup from './components/LootPopup'
 import InventoryDialog from './components/InventoryDialog'
+import PlayerCard from './components/PlayerCard'
 import { useBreakpoint } from './hooks/useBreakpoint'
 import './styles/responsive.css'
 
@@ -119,6 +120,7 @@ function App() {
   return (
     <>
       <TitleScreen onStart={handleStart} />
+      <PlayerCard />
       <GameComponent />
       <ActivityLog
         expanded={isMobile ? logExpanded : undefined}

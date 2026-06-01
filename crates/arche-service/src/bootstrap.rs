@@ -1,5 +1,6 @@
 use rand::Rng;
 use sqlx::PgPool;
+use std::env;
 
 fn generate_api_key() -> String {
     let random_part: String = rand::thread_rng()
@@ -22,7 +23,7 @@ pub async fn bootstrap_super_admin(pool: &PgPool) -> Option<String> {
         return None;
     }
 
-    let raw_key = generate_api_key();
+    let raw_key = env::var("ARCHE_SUPER_ADMIN_KEY").unwrap_or_else(|_| generate_api_key());
     let key_hash =
         bcrypt::hash(&raw_key, bcrypt::DEFAULT_COST).expect("failed to hash super admin key");
 

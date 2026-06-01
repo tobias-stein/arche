@@ -21,6 +21,7 @@ services:
     environment:
       ARCHE_DATABASE_URL: postgres://postgres:postgres@postgres:5432/arche
       ARCHE_PORT: "8080"
+      ARCHE_SUPER_ADMIN_KEY: ${ARCHE_SUPER_ADMIN_KEY:-arche_k_demo}
     ports:
       - "8080:8080"
     depends_on:
@@ -34,7 +35,7 @@ services:
     entrypoint: ["npx", "tsx", "seed.ts"]
     environment:
       ARCHE_API_URL: http://arche-service:8080
-      ARCHE_API_KEY: ${ARCHE_API_KEY:-}
+      ARCHE_API_KEY: ${ARCHE_API_KEY:-arche_k_demo}
     depends_on:
       arche-service:
         condition: service_started
@@ -47,7 +48,7 @@ services:
       - "${DUNGEON_CRAWLER_PORT:-5173}:80"
     environment:
       ARCHE_API_URL: ${ARCHE_API_URL:-http://localhost:8080}
-      ARCHE_API_KEY: ${ARCHE_API_KEY:-}
+      ARCHE_API_KEY: ${ARCHE_API_KEY:-arche_k_demo}
     depends_on:
       - arche-service
 

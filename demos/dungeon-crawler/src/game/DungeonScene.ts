@@ -278,7 +278,7 @@ export class DungeonScene extends Phaser.Scene {
     this.creatureGraphics.clear();
     this.chestGraphics.clear();
 
-    drawRoom(this.roomGraphics, this.tiles, this.tileSize, this.offsetX, this.offsetY, this.elapsed);
+    drawRoom(this.roomGraphics, this.tiles, this.tileSize, this.offsetX, this.offsetY);
 
     this.drawPlayer();
     this.drawChests();

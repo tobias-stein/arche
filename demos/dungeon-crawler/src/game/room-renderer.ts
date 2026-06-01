@@ -109,30 +109,12 @@ const DOOR_DIR: Record<number, string> = {
   [TILE.DOOR_W]: 'W',
 };
 
-export function drawDoorGlow(graphics: Phaser.GameObjects.Graphics, px: number, py: number, ts: number, time: number, dir: string): void {
-  const glow = 0.5 + 0.5 * Math.sin(time * 0.003);
-  const g = Math.floor(lerp(80, 200, glow));
-  const isNS = dir === 'N' || dir === 'S';
-
-  graphics.fillStyle(Phaser.Display.Color.GetColor(g + 40, g, 0));
-  graphics.fillRect(px + 4, py + (isNS ? 2 : 0), ts - 8, ts - (isNS ? 4 : 0));
-
-  graphics.fillStyle(Phaser.Display.Color.GetColor(Math.min(255, g + 80), Math.min(255, g + 40), 40));
-  graphics.fillRect(px + 8, py + 4, ts - 16, ts - 8);
-
-  if (glow > 0.7) {
-    graphics.fillStyle(Phaser.Display.Color.GetColor(255, 220, 100));
-    graphics.fillRect(px + 4 + Math.floor(Math.random() * (ts - 8)), py + 4 + Math.floor(Math.random() * (ts - 8)), 3, 3);
-  }
-}
-
 export function drawRoom(
   graphics: Phaser.GameObjects.Graphics,
   tiles: TileType[][],
   tileSize: number,
   offsetX: number,
   offsetY: number,
-  time: number,
 ): void {
   const rw = GAME_CONFIG.room.width;
   const rh = GAME_CONFIG.room.height;
@@ -167,6 +149,4 @@ export function drawRoom(
   }
 }
 
-function lerp(a: number, b: number, t: number): number {
-  return a + (b - a) * t;
-}
+

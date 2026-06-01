@@ -1,3 +1,122 @@
+:root {
+  --clr-card-bg: #2d4d38;
+  --clr-card-border: #4a7a58;
+  --clr-card-shadow: #1a3a2a;
+  --clr-card-inset: #3a6a48;
+
+  --clr-header-bg: #3a6a48;
+  --clr-header-border: #4a7a58;
+
+  --clr-heading: #ffffff;
+  --clr-label: #88b898;
+  --clr-body: #d8f0e0;
+  --clr-secondary: #b8d8c8;
+  --clr-item-name: #a8c8b8;
+  --clr-subtle: #6a9a7a;
+
+  --clr-overlay-inventory: rgba(10, 25, 15, 0.95);
+  --clr-overlay-encounter: rgba(10, 25, 15, 0.85);
+  --clr-overlay-controls: rgba(10, 25, 15, 0.97);
+  --clr-overlay-abandon: rgba(10, 25, 15, 0.9);
+  --clr-overlay-victory: rgba(10, 25, 15, 0.5);
+  --clr-overlay-gameover: rgba(30, 5, 5, 0.92);
+  --clr-overlay-defeat: rgba(30, 5, 5, 0.85);
+
+  --clr-danger-bg: #4a1a1a;
+  --clr-danger-border: #6a2a2a;
+  --clr-danger-text: #ff9090;
+  --clr-danger-hover: #5a2a2a;
+  --clr-danger-strong: #ff7070;
+  --clr-danger-accent: #ff4444;
+
+  --clr-enemy-bg: #3a2020;
+  --clr-enemy-border: #6a3a3a;
+  --clr-enemy-inset: #4a2a2a;
+  --clr-enemy-header: #4a2a2a;
+  --clr-enemy-name: #ff7070;
+  --clr-enemy-level-bg: #2a1010;
+  --clr-enemy-level-text: #ff9090;
+  --clr-enemy-stat-bg: #2a1818;
+  --clr-enemy-stat-border: #5a2a2a;
+  --clr-enemy-hp-bg: #1a0a0a;
+  --clr-enemy-hp-border: #5a2a2a;
+
+  --clr-slot-empty-bg: #1a3a2a;
+  --clr-slot-empty-border: #3a6a48;
+  --clr-slot-empty-text: #6a9a7a;
+  --clr-slot-empty-hover-border: #6a9a7a;
+  --clr-slot-empty-hover-bg: #2a4a38;
+
+  --clr-slot-filled-bg: #2d4d38;
+  --clr-slot-filled-border: #4a7a58;
+  --clr-slot-filled-text: #d8f0e0;
+  --clr-slot-filled-hover-border: #6a9a7a;
+  --clr-slot-filled-hover-bg: #3a6a48;
+
+  --clr-btn-bg: #2a4a38;
+  --clr-btn-hover-bg: #3a6a48;
+  --clr-btn-border: #4a7a58;
+  --clr-btn-text: #d8f0e0;
+  --clr-btn-shadow: #1a3a2a;
+
+  --clr-scrollbar-track: #1a3a2a;
+  --clr-scrollbar-thumb: #4a7a58;
+
+  --clr-xp: #e0e060;
+  --clr-gold: #ffd700;
+  --clr-title: #60e060;
+  --clr-combat-bg: #0a0a0a;
+  --clr-combat-floor: #3a1a1a;
+  --clr-combat-vs: rgba(200, 60, 60, 0.12);
+
+  --clr-hp-bar-fill: linear-gradient(90deg, #d04040, #ff6060);
+  --clr-mp-bar-fill: linear-gradient(90deg, #4060d0, #6080ff);
+
+  --clr-drag-valid-border: #6aaa7a;
+  --clr-drag-valid-bg: #2a5a3a;
+  --clr-drag-invalid-border: #6a3a3a;
+  --clr-drag-invalid-bg: #3a2020;
+  --clr-drag-trash-border: #e04040;
+  --clr-drag-trash-bg: rgba(74, 26, 26, 0.7);
+  --clr-drag-trash-text: #ff6060;
+  --clr-drag-float-border: #ffd700;
+  --clr-drag-float-shadow: rgba(0, 0, 0, 0.5);
+
+  --clr-rarity-common: #888;
+  --clr-rarity-uncommon: #4488ff;
+  --clr-rarity-rare: #44cc66;
+  --clr-rarity-legendary: #aa44ff;
+
+  --clr-close-btn-border: #4a7a58;
+  --clr-close-btn-text: #88b898;
+  --clr-close-btn-hover-bg: #3a6a48;
+  --clr-close-btn-hover-text: #ffffff;
+
+  --clr-drop-zone-bg: rgba(26, 58, 42, 0.4);
+  --clr-drop-zone-hover-bg: rgba(26, 58, 42, 0.7);
+  --clr-drop-zone-border: #4a7a58;
+
+  --clr-slot-label-bg: rgba(26, 58, 42, 0.85);
+  --clr-slot-label-border: #3a6a48;
+
+  --clr-selected-border: #ffd700;
+  --clr-highlight-bg: #3a5a28;
+
+  --clr-hp-gradient: linear-gradient(90deg, #d04040, #ff6060);
+  --clr-mp-gradient: linear-gradient(90deg, #4060d0, #6080ff);
+  --clr-xp-fill: #60e060;
+
+  --clr-tooltip-bg: #2d4d38;
+  --clr-tooltip-border: #4a7a58;
+  --clr-tooltip-shadow: #1a3a2a;
+
+  --clr-button-hover-border: #5a9a68;
+
+  --clr-abandon-sub: #8a9a8a;
+  --clr-item-compare: #8aaa8a;
+  --clr-item-compare-empty: #6a7a6a;
+}
+
 * {
   margin: 0;
   padding: 0;

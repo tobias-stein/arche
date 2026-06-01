@@ -4,6 +4,8 @@ import type { Dungeon } from './game/dungeon-generator'
 import { generateMockItems, generateChestLoot } from './game/loot'
 import { resetCreatureIdCounter, resetItemIdCounter } from './api'
 
+const EQUIP_SLOTS: EquipSlot[] = ['weapon', 'helmet', 'chest', 'legs', 'boots', 'gloves', 'belt', 'ring', 'amulet', 'shield']
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type EventCallback = (...args: any[]) => void
 
@@ -360,6 +362,14 @@ class GameState extends EventEmitter {
   }
 
   takeLootItem(itemId: string): void {
+    if (this.isInventoryFull()) {
+      this.addLogEntry({
+        type: 'item_dropped',
+        message: 'Inventory is full!',
+        icon: 'fa-solid fa-box-open',
+      })
+      return
+    }
     const idx = this.lootItems.findIndex(i => i.id === itemId)
     if (idx === -1) return
     const item = this.lootItems[idx]
@@ -374,6 +384,14 @@ class GameState extends EventEmitter {
   }
 
   takeAllLoot(): void {
+    if (this.isInventoryFull()) {
+      this.addLogEntry({
+        type: 'item_dropped',
+        message: 'Inventory is full!',
+        icon: 'fa-solid fa-box-open',
+      })
+      return
+    }
     const items = [...this.lootItems]
     this.lootItems = []
     for (const item of items) {
@@ -405,6 +423,14 @@ class GameState extends EventEmitter {
   }
 
   takeChestItem(itemId: string): void {
+    if (this.isInventoryFull()) {
+      this.addLogEntry({
+        type: 'item_dropped',
+        message: 'Inventory is full!',
+        icon: 'fa-solid fa-box-open',
+      });
+      return;
+    }
     const idx = this.chestLootItems.findIndex(i => i.id === itemId);
     if (idx === -1) return;
     const item = this.chestLootItems[idx];
@@ -423,6 +449,14 @@ class GameState extends EventEmitter {
   }
 
   takeAllChestLoot(): void {
+    if (this.isInventoryFull()) {
+      this.addLogEntry({
+        type: 'item_dropped',
+        message: 'Inventory is full!',
+        icon: 'fa-solid fa-box-open',
+      });
+      return;
+    }
     const items = [...this.chestLootItems];
     this.chestLootItems = [];
     for (const item of items) {
@@ -446,6 +480,11 @@ class GameState extends EventEmitter {
     }
     this.chestLootItems = [];
     this.emit('chest:loot-dismissed');
+  }
+
+  private isInventoryFull(): boolean {
+    return this.inventory.every(slot => slot !== null)
+        && Object.keys(this.equipment).length >= EQUIP_SLOTS.length
   }
 
   private addItemToInventoryOrEquip(item: ItemState): void {

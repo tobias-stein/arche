@@ -1,6 +1,6 @@
 ---
 title: Loot dialog items cannot be dragged into inventory + inventory not updated after taking loot
-status: ready-for-agent
+status: completed
 ---
 
 ## Summary

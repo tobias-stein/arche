@@ -43,6 +43,9 @@ class GameState extends EventEmitter {
   encounterActive = false
   encounterCreature: CreatureState | null = null
 
+  inventoryOpen = false
+  lootOpen = false
+
   gameOver = false
   victory = false
   controlsVisible = false
@@ -275,6 +278,14 @@ class GameState extends EventEmitter {
     this.emit('controls:visible', visible)
   }
 
+  setInventoryOpen(value: boolean): void {
+    this.inventoryOpen = value
+  }
+
+  setLootOpen(value: boolean): void {
+    this.lootOpen = value
+  }
+
   restartGame(): void {
     resetCreatureIdCounter()
     resetItemIdCounter()
@@ -290,6 +301,8 @@ class GameState extends EventEmitter {
     this.encounterActive = false
     this.encounterCreature = null
     this.controlsVisible = false
+    this.inventoryOpen = false
+    this.lootOpen = false
     this.enemiesSlain = 0
     this.itemsCollected = 0
     this.gameStartTime = 0
@@ -329,6 +342,8 @@ class GameState extends EventEmitter {
     this.encounterActive = false
     this.encounterCreature = null
     this.controlsVisible = false
+    this.inventoryOpen = false
+    this.lootOpen = false
     this.inventory = Array(GAME_CONFIG.capacity.inventorySlots).fill(null)
     this.equipment = {}
     this.spellbook = Array(GAME_CONFIG.capacity.spellbookSlots).fill(null)

@@ -137,7 +137,7 @@ function InventoryDialog({ onClose, lootActive }: Props) {
     onClose?.()
   }, [onClose])
 
-  const cleanupDrag = useCallback(() => {
+  const clearDragUI = useCallback(() => {
     document.querySelectorAll('.dragging, .drag-valid, .drag-invalid, .drag-over-trash')
       .forEach(el => el.classList.remove('dragging', 'drag-valid', 'drag-invalid', 'drag-over-trash'))
     const et = document.querySelector('.et')
@@ -146,10 +146,14 @@ function InventoryDialog({ onClose, lootActive }: Props) {
       dragFloat.remove()
       dragFloat = null
     }
-    dragState = null
-    pendingAbandon = null
     setDragActive(false)
   }, [])
+
+  const cleanupDrag = useCallback(() => {
+    clearDragUI()
+    dragState = null
+    pendingAbandon = null
+  }, [clearDragUI])
 
   const getTargetAtPosition = useCallback((x: number, y: number): {
     type: 'equipment' | 'inventory' | 'spell' | 'trash' | null
@@ -256,6 +260,7 @@ function InventoryDialog({ onClose, lootActive }: Props) {
   function showAbandonConfirm(source: DragState) {
     pendingAbandon = source
     setAbandonItem(source)
+    clearDragUI()
   }
 
   function confirmAbandon() {
@@ -706,7 +711,7 @@ function InventoryDialog({ onClose, lootActive }: Props) {
         onMouseOut={handleMouseLeave}
         onClick={(e) => item && handleTooltipClick(e, item)}
         onMouseMove={(e) => item && handleDragOver(e, equipSlot, undefined, 'equipment')}
-        onMouseUp={(e) => item && handleDrop(e, equipSlot, undefined, 'equipment')}
+        onMouseUp={(e) => handleDrop(e, equipSlot, undefined, 'equipment')}
         onKeyDown={(e) => {
           if (e.key === 'Enter' && item) handleEnterOnItem('equipment', equipSlot)
           if (e.key === 'x' || e.key === 'X') handleXOnItem('equipment', equipSlot)
@@ -728,6 +733,7 @@ function InventoryDialog({ onClose, lootActive }: Props) {
     const slots: React.ReactNode[] = []
     for (let i = 0; i < GAME_CONFIG.capacity.inventorySlots; i++) {
       const item = inventory[i]
+      const equipSlotLabel = item?.equipSlot && EQUIP_SLOT_LABELS[item.equipSlot]
       slots.push(
         <div
           key={`inv-${i}`}
@@ -735,12 +741,13 @@ function InventoryDialog({ onClose, lootActive }: Props) {
           data-slot-type="inventory"
           data-slot-idx={i}
           data-rarity={item?.rarity ?? ''}
+          data-equip-slot={equipSlotLabel || undefined}
           onMouseDown={(e) => item && handleDragStart(e, 'inventory', undefined, i)}
           onMouseOver={(e) => item && handleMouseEnter(e, item)}
           onMouseOut={handleMouseLeave}
           onClick={(e) => item && handleTooltipClick(e, item)}
           onMouseMove={(e) => item && handleDragOver(e, undefined, i, 'inventory')}
-          onMouseUp={(e) => item && handleDrop(e, undefined, i, 'inventory')}
+          onMouseUp={(e) => handleDrop(e, undefined, i, 'inventory')}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && item) handleEnterOnItem('inventory', undefined, i)
             if (e.key === 'x' || e.key === 'X') handleXOnItem('inventory', undefined, i)
@@ -776,7 +783,7 @@ function InventoryDialog({ onClose, lootActive }: Props) {
           onMouseOut={handleMouseLeave}
           onClick={(e) => item && handleTooltipClick(e, item)}
           onMouseMove={(e) => item && handleDragOver(e, undefined, i, 'spell')}
-          onMouseUp={(e) => item && handleDrop(e, undefined, i, 'spell')}
+          onMouseUp={(e) => handleDrop(e, undefined, i, 'spell')}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && item) handleEnterOnItem('spell', undefined, i)
             if (e.key === 'x' || e.key === 'X') handleXOnItem('spell', undefined, i)

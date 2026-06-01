@@ -182,4 +182,41 @@ describe('GameState', () => {
     gs.setPlayerHp(80)
     expect(calls).toEqual([])
   })
+
+  describe('dialogOpen flags', () => {
+    it('initially both flags are false', () => {
+      expect(gs.inventoryOpen).toBe(false)
+      expect(gs.lootOpen).toBe(false)
+    })
+
+    it('setInventoryOpen sets inventoryOpen', () => {
+      gs.setInventoryOpen(true)
+      expect(gs.inventoryOpen).toBe(true)
+      gs.setInventoryOpen(false)
+      expect(gs.inventoryOpen).toBe(false)
+    })
+
+    it('setLootOpen sets lootOpen', () => {
+      gs.setLootOpen(true)
+      expect(gs.lootOpen).toBe(true)
+      gs.setLootOpen(false)
+      expect(gs.lootOpen).toBe(false)
+    })
+
+    it('restartGame resets both flags', () => {
+      gs.setInventoryOpen(true)
+      gs.setLootOpen(true)
+      gs.restartGame()
+      expect(gs.inventoryOpen).toBe(false)
+      expect(gs.lootOpen).toBe(false)
+    })
+
+    it('quitToTitle resets both flags', () => {
+      gs.setInventoryOpen(true)
+      gs.setLootOpen(true)
+      gs.quitToTitle()
+      expect(gs.inventoryOpen).toBe(false)
+      expect(gs.lootOpen).toBe(false)
+    })
+  })
 })

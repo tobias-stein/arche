@@ -46,14 +46,17 @@ function App() {
 
     function onInventoryRequested() {
       setShowInventory(true)
+      gs.setInventoryOpen(true)
     }
 
     function onLootShow() {
       setLootVisible(true)
+      gs.setLootOpen(true)
     }
 
     function onLootOrChestClosed() {
       setLootVisible(false)
+      gs.setLootOpen(false)
     }
 
     gs.on('encounter:started', onEncounterStarted)
@@ -81,6 +84,7 @@ function App() {
 
   const handleCloseInventory = useCallback(() => {
     setShowInventory(false)
+    getGameState().setInventoryOpen(false)
   }, [])
 
   const handleRestartDungeon = useCallback(() => {
@@ -113,13 +117,17 @@ function App() {
 
       if (e.key === 'i' || e.key === 'I') {
         e.preventDefault()
-        setShowInventory(prev => !prev)
+        setShowInventory(prev => {
+          gs.setInventoryOpen(!prev)
+          return !prev
+        })
         return
       }
 
       if (e.key === 'Escape') {
         if (showInventory) {
           setShowInventory(false)
+          gs.setInventoryOpen(false)
           return
         }
       }

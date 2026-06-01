@@ -41,6 +41,22 @@ export function drawWallTile(graphics: Phaser.GameObjects.Graphics, px: number, 
   }
 }
 
+function drawQuadraticCurve(
+  graphics: Phaser.GameObjects.Graphics,
+  fromX: number, fromY: number,
+  cpX: number, cpY: number,
+  toX: number, toY: number,
+  segments = 12,
+): void {
+  for (let i = 1; i <= segments; i++) {
+    const t = i / segments;
+    const mt = 1 - t;
+    const x = mt * mt * fromX + 2 * mt * t * cpX + t * t * toX;
+    const y = mt * mt * fromY + 2 * mt * t * cpY + t * t * toY;
+    graphics.lineTo(x, y);
+  }
+}
+
 export function drawArchway(graphics: Phaser.GameObjects.Graphics, px: number, py: number, ts: number, dir: string): void {
   drawWallTile(graphics, px, py, ts);
 
@@ -56,29 +72,29 @@ export function drawArchway(graphics: Phaser.GameObjects.Graphics, px: number, p
     const s = py + ts * split;
     graphics.moveTo(px + pad, py + ts - pad);
     graphics.lineTo(px + pad, s);
-    graphics.lineTo(cx, py + pad);
-    graphics.lineTo(px + ts - pad, s);
+    drawQuadraticCurve(graphics, px + pad, s, px + pad, py + pad, cx, py + pad);
+    drawQuadraticCurve(graphics, cx, py + pad, px + ts - pad, py + pad, px + ts - pad, s);
     graphics.lineTo(px + ts - pad, py + ts - pad);
   } else if (dir === 'S') {
     const s = py + ts * (1 - split);
     graphics.moveTo(px + pad, py + pad);
     graphics.lineTo(px + pad, s);
-    graphics.lineTo(cx, py + ts - pad);
-    graphics.lineTo(px + ts - pad, s);
+    drawQuadraticCurve(graphics, px + pad, s, px + pad, py + ts - pad, cx, py + ts - pad);
+    drawQuadraticCurve(graphics, cx, py + ts - pad, px + ts - pad, py + ts - pad, px + ts - pad, s);
     graphics.lineTo(px + ts - pad, py + pad);
   } else if (dir === 'W') {
     const s = px + ts * split;
     graphics.moveTo(px + ts - pad, py + pad);
     graphics.lineTo(s, py + pad);
-    graphics.lineTo(px + pad, cy);
-    graphics.lineTo(s, py + ts - pad);
+    drawQuadraticCurve(graphics, s, py + pad, px + pad, py + pad, px + pad, cy);
+    drawQuadraticCurve(graphics, px + pad, cy, px + pad, py + ts - pad, s, py + ts - pad);
     graphics.lineTo(px + ts - pad, py + ts - pad);
   } else if (dir === 'E') {
     const s = px + ts * (1 - split);
     graphics.moveTo(px + pad, py + pad);
     graphics.lineTo(s, py + pad);
-    graphics.lineTo(px + ts - pad, cy);
-    graphics.lineTo(s, py + ts - pad);
+    drawQuadraticCurve(graphics, s, py + pad, px + ts - pad, py + pad, px + ts - pad, cy);
+    drawQuadraticCurve(graphics, px + ts - pad, cy, px + ts - pad, py + ts - pad, s, py + ts - pad);
     graphics.lineTo(px + pad, py + ts - pad);
   }
 
@@ -93,30 +109,12 @@ const DOOR_DIR: Record<number, string> = {
   [TILE.DOOR_W]: 'W',
 };
 
-export function drawDoorGlow(graphics: Phaser.GameObjects.Graphics, px: number, py: number, ts: number, time: number, dir: string): void {
-  const glow = 0.5 + 0.5 * Math.sin(time * 0.003);
-  const g = Math.floor(lerp(80, 200, glow));
-  const isNS = dir === 'N' || dir === 'S';
-
-  graphics.fillStyle(Phaser.Display.Color.GetColor(g + 40, g, 0));
-  graphics.fillRect(px + 4, py + (isNS ? 2 : 0), ts - 8, ts - (isNS ? 4 : 0));
-
-  graphics.fillStyle(Phaser.Display.Color.GetColor(Math.min(255, g + 80), Math.min(255, g + 40), 40));
-  graphics.fillRect(px + 8, py + 4, ts - 16, ts - 8);
-
-  if (glow > 0.7) {
-    graphics.fillStyle(Phaser.Display.Color.GetColor(255, 220, 100));
-    graphics.fillRect(px + 4 + Math.floor(Math.random() * (ts - 8)), py + 4 + Math.floor(Math.random() * (ts - 8)), 3, 3);
-  }
-}
-
 export function drawRoom(
   graphics: Phaser.GameObjects.Graphics,
   tiles: TileType[][],
   tileSize: number,
   offsetX: number,
   offsetY: number,
-  time: number,
 ): void {
   const rw = GAME_CONFIG.room.width;
   const rh = GAME_CONFIG.room.height;
@@ -145,13 +143,10 @@ export function drawRoom(
         case TILE.DOOR_E:
         case TILE.DOOR_W:
           drawArchway(graphics, px, py, tileSize, DOOR_DIR[t]);
-          drawDoorGlow(graphics, px, py, tileSize, time, DOOR_DIR[t]);
           break;
       }
     }
   }
 }
 
-function lerp(a: number, b: number, t: number): number {
-  return a + (b - a) * t;
-}
+

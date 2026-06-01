@@ -14,17 +14,6 @@ const LG_PAD = 8;
 const ZOOM_MIN = 0.25;
 const ZOOM_MAX = 5;
 
-function getScrollContainerSize() {
-  return { w: window.innerWidth * 0.85 - 32, h: window.innerHeight * 0.85 - 90 };
-}
-
-function computeFillZoom(gridSize: number) {
-  const c = getScrollContainerSize();
-  const fillCell = (Math.min(c.w, c.h) - 16 - (gridSize - 1) * LG_GAP) / gridSize;
-  const baseCell = Math.max(2, Math.min(28, Math.floor(fillCell)));
-  return Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, Math.ceil(fillCell) / baseCell));
-}
-
 function MiniMap() {
   const [dungeon, setDungeon] = useState<Dungeon | null>(null);
   const [currentRoom, setCurrentRoom] = useState(0);
@@ -76,8 +65,7 @@ function MiniMap() {
 
   useEffect(() => {
     if (overlayOpen && dungeon) {
-      const fill = computeFillZoom(GAME_CONFIG.dungeon.gridSize);
-      setZoom(fill);
+      setZoom(ZOOM_MAX);
       requestAnimationFrame(() => scrollToPlayer());
     }
   }, [overlayOpen]);
@@ -261,12 +249,6 @@ function MiniMap() {
     handleZoomChange(parseInt(e.target.value, 10) / 100);
   }
 
-  function handleWheel(e: React.WheelEvent) {
-    e.preventDefault();
-    const delta = e.deltaY > 0 ? -0.25 : 0.25;
-    handleZoomChange(zoom + delta);
-  }
-
   function handleMouseDown(e: React.MouseEvent) {
     if (e.button !== 0) return;
     const el = scrollRef.current;
@@ -341,7 +323,6 @@ function MiniMap() {
           <div
             className="map-scroll"
             ref={scrollRef}
-            onWheel={handleWheel}
             onMouseDown={handleMouseDown}
           >
             <canvas ref={largeCanvasRef} data-testid="mini-canvas-large" />
@@ -358,7 +339,7 @@ function MiniMap() {
             />
             <span className="level">{zoomLabel}\u00d7</span>
           </div>
-          <div className="label">Scroll to zoom \u00b7 <kbd>M</kbd> close</div>
+          <div className="label">Drag to pan \u00b7 <kbd>M</kbd> close</div>
           <button id="minimap-close" aria-label="Close minimap" onClick={closeOverlay}>
             &times;
           </button>

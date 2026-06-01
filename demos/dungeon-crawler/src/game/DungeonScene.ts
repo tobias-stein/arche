@@ -682,7 +682,7 @@ export class DungeonScene extends Phaser.Scene {
 
   update(_time: number, delta: number): void {
     this.elapsed += delta;
-    if (this.gameState.combatActive || this.gameState.encounterActive) {
+    if (this.gameState.combatActive || this.gameState.encounterActive || this.gameState.inventoryOpen || this.gameState.lootOpen) {
       this.drawCurrentRoom();
       return;
     }

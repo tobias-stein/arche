@@ -400,7 +400,11 @@ class GameState extends EventEmitter {
       message: `Picked up ${item.name} from chest`,
       icon: 'fa-solid fa-box-open',
     });
-    this.emit('chest:loot-items-changed', [...this.chestLootItems]);
+    if (this.chestLootItems.length === 0) {
+      this.emit('chest:loot-dismissed');
+    } else {
+      this.emit('chest:loot-items-changed', [...this.chestLootItems]);
+    }
   }
 
   takeAllChestLoot(): void {

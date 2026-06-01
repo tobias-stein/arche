@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { GameState } from '../GameState'
 import { GAME_CONFIG } from '../config'
+import type { ItemState } from '../types'
 
 describe('GameState', () => {
   let gs: GameState
@@ -126,6 +127,51 @@ describe('GameState', () => {
     gs.on('inventory:requested', () => events.push('inventory:requested'))
     gs.emitInventoryRequested()
     expect(events).toEqual(['inventory:requested'])
+  })
+
+  describe('chest loot', () => {
+    it('takeAllChestLoot emits chest:loot-dismissed', () => {
+      gs.generateChestLootItems()
+      const events: string[] = []
+      gs.on('chest:loot-dismissed', () => events.push('dismissed'))
+      gs.takeAllChestLoot()
+      expect(events).toEqual(['dismissed'])
+    })
+
+    it('dismissChestLoot emits chest:loot-dismissed', () => {
+      gs.generateChestLootItems()
+      const events: string[] = []
+      gs.on('chest:loot-dismissed', () => events.push('dismissed'))
+      gs.dismissChestLoot()
+      expect(events).toEqual(['dismissed'])
+    })
+
+    it('takeChestItem emits chest:loot-dismissed when last item taken', () => {
+      const item: ItemState = { id: 'test_item_1', name: 'Test Item', archeType: 'weapon', rarity: 'common', level: 1, stats: {}, affixes: [] }
+      gs.chestLootItems = [item]
+
+      const dismissed: string[] = []
+      gs.on('chest:loot-dismissed', () => dismissed.push('dismissed'))
+
+      gs.takeChestItem(item.id)
+
+      expect(dismissed).toEqual(['dismissed'])
+    })
+
+    it('takeChestItem does not emit chest:loot-dismissed when items remain', () => {
+      gs.generateChestLootItems()
+      while (gs.chestLootItems.length < 2) {
+        gs.generateChestLootItems()
+      }
+
+      const dismissed: string[] = []
+      gs.on('chest:loot-dismissed', () => dismissed.push('dismissed'))
+
+      gs.takeChestItem(gs.chestLootItems[0].id)
+
+      expect(dismissed).toEqual([])
+      expect(gs.chestLootItems.length).toBeGreaterThanOrEqual(1)
+    })
   })
 
   it('supports off to unsubscribe', () => {

@@ -546,14 +546,14 @@ export class DungeonScene extends Phaser.Scene {
 
       if (now < this.aggroGraceTimer) continue;
 
+      const dist = Math.max(
+        Math.abs(c.position.x - this.playerX),
+        Math.abs(c.position.y - this.playerY),
+      );
       if (!c.aggro) {
-        const dist = Math.max(
-          Math.abs(c.position.x - this.playerX),
-          Math.abs(c.position.y - this.playerY),
-        );
-        if (dist <= c.aggroRange) {
-          c.aggro = true;
-        }
+        if (dist <= c.aggroRange) c.aggro = true;
+      } else {
+        if (dist > c.aggroRange) c.aggro = false;
       }
     }
 

@@ -12,9 +12,9 @@
 #action-menu button {
   width: 150px;
   height: 80px;
-  border: 4px solid #4a7a58;
-  background: #2d4d38;
-  color: #d8f0e0;
+  border: 4px solid var(--clr-card-border);
+  background: var(--clr-card-bg);
+  color: var(--clr-body);
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
@@ -25,26 +25,26 @@
   gap: 4px;
   transition: 0.1s;
   font-family: 'Courier New', monospace;
-  box-shadow: 0 4px 0 #1a3a2a;
+  box-shadow: 0 4px 0 var(--clr-card-shadow);
 }
 
 #action-menu button:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 6px 0 #1a3a2a;
-  background: #3a6a48;
-  border-color: #5a9a68;
+  box-shadow: 0 6px 0 var(--clr-card-shadow);
+  background: var(--clr-header-bg);
+  border-color: var(--clr-button-hover-border);
 }
 
 #action-menu button:active:not(:disabled) {
   transform: translateY(2px);
-  box-shadow: 0 2px 0 #1a3a2a;
+  box-shadow: 0 2px 0 var(--clr-card-shadow);
 }
 
 #action-menu button.focused {
   transform: translateY(-2px);
-  box-shadow: 0 6px 0 #1a3a2a;
-  background: #3a6a48;
-  border-color: #5a9a68;
+  box-shadow: 0 6px 0 var(--clr-card-shadow);
+  background: var(--clr-header-bg);
+  border-color: var(--clr-button-hover-border);
 }
 
 #action-menu button:disabled {
@@ -58,6 +58,6 @@
 
 #action-menu button .al {
   font-size: 12px;
-  text-shadow: 1px 1px 0 #1a3a2a;
+  text-shadow: 1px 1px 0 var(--clr-card-shadow);
   font-family: monospace;
 }

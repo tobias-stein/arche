@@ -2,12 +2,13 @@
   position: fixed;
   top: 60px;
   right: 12px;
-  z-index: 5;
-  background: rgba(0, 0, 0, 0.85);
-  border: 1px solid #555;
-  border-radius: 6px;
+  z-index: 55;
+  background: var(--clr-overlay-controls);
+  border: 3px solid var(--clr-card-border);
+  border-radius: 4px;
   padding: 4px;
   cursor: pointer;
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.3);
 }
 
 #minimap-small canvas {
@@ -20,28 +21,34 @@
 
 #minimap-wrap {
   position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: rgba(0, 0, 0, 0.92);
-  border: 2px solid #555;
-  border-radius: 8px;
-  padding: 16px;
-  z-index: 10;
+  inset: 0;
+  z-index: 300;
+  background: rgba(10, 25, 15, 0.97);
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: 85vw;
-  height: 85vh;
+  justify-content: center;
+}
+
+#minimap-wrap h2 {
+  color: var(--clr-label);
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: 12px;
+  text-shadow: 1px 1px 0 var(--clr-card-shadow);
+  font-family: monospace;
 }
 
 #minimap-wrap .map-scroll {
   overflow: auto;
-  width: 100%;
-  flex: 1;
-  min-height: 0;
+  width: 85vw;
+  height: 70vh;
+  background: #0f1f14;
+  border: 4px solid var(--clr-card-border);
   cursor: grab;
   display: flex;
+  min-height: 200px;
 }
 
 #minimap-wrap .map-scroll.panning {
@@ -55,9 +62,18 @@
 }
 
 #minimap-wrap .label {
-  color: #aaa;
-  font-size: 12px;
-  margin-top: 6px;
+  color: var(--clr-label);
+  font-size: 11px;
+  margin-top: 8px;
+  text-shadow: 1px 1px 0 var(--clr-card-shadow);
+  font-family: monospace;
+}
+
+#minimap-wrap .label kbd {
+  background: var(--clr-slot-empty-hover-bg);
+  border: 1px solid var(--clr-card-border);
+  padding: 1px 4px;
+  font-size: 10px;
   font-family: monospace;
 }
 
@@ -72,13 +88,13 @@
 
 .minimap-zoom input[type=range] {
   width: 160px;
-  accent-color: #ffd700;
+  accent-color: var(--clr-card-border);
   cursor: pointer;
 }
 
 .minimap-zoom .level {
-  color: #aaa;
-  font-size: 12px;
+  color: var(--clr-label);
+  font-size: 11px;
   min-width: 36px;
   text-align: center;
   font-family: monospace;
@@ -86,18 +102,22 @@
 
 #minimap-close {
   position: absolute;
-  top: 6px;
-  right: 10px;
+  top: 16px;
+  right: 16px;
+  width: 44px;
+  height: 44px;
   background: none;
-  border: none;
-  color: #888;
-  font-size: 22px;
+  border: 2px solid var(--clr-card-border);
+  color: var(--clr-label);
+  font-size: 20px;
   cursor: pointer;
-  line-height: 1;
-  padding: 2px 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   z-index: 11;
 }
 
 #minimap-close:hover {
-  color: #fff;
+  background: var(--clr-header-bg);
+  color: var(--clr-heading);
 }

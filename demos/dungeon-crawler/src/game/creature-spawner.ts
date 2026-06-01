@@ -1,8 +1,8 @@
 import { GAME_CONFIG } from '../config/game-config';
-import { type TileType } from './room-tiles';
+import { TILE, type TileType } from './room-tiles';
 import type { Difficulty, CreatureState } from '../types';
 import { generate, buildCreatureRequest, buildBossRequest, parseCreature } from '../api';
-import { randInt, pickRandom, getAvailableFloorTiles } from './dungeon-utils';
+import { randInt, pickRandom } from './dungeon-utils';
 
 let nextId = 1;
 
@@ -55,9 +55,21 @@ export function generateMockCreature(
 export function pickSpawnPositions(
   tiles: TileType[][],
   count: number,
-  exclusionCenters: { x: number; y: number }[],
+  excludedPositions: { x: number; y: number }[],
 ): { x: number; y: number }[] {
-  const floorTiles = getAvailableFloorTiles(tiles, exclusionCenters, GAME_CONFIG.creatureSpawn.entryExclusionRadius);
+  const rw = tiles[0]?.length ?? 0;
+  const rh = tiles.length;
+
+  const excludeSet = new Set(excludedPositions.map(p => `${p.x},${p.y}`));
+
+  const floorTiles: { x: number; y: number }[] = [];
+  for (let y = 0; y < rh; y++) {
+    for (let x = 0; x < rw; x++) {
+      if (tiles[y][x] === TILE.FLOOR && !excludeSet.has(`${x},${y}`)) {
+        floorTiles.push({ x, y });
+      }
+    }
+  }
 
   const positions: { x: number; y: number }[] = [];
   const available = [...floorTiles];
@@ -91,7 +103,7 @@ export async function generateCreaturesForRoom(
   roomId: number,
   isBoss: boolean,
   playerLevel: number,
-  exclusionCenters: { x: number; y: number }[],
+  excludedPositions: { x: number; y: number }[],
 ): Promise<CreatureState[]> {
   let count: number;
   if (isBoss) {
@@ -100,7 +112,7 @@ export async function generateCreaturesForRoom(
     count = randInt(GAME_CONFIG.creatureSpawn.minPerRoom, GAME_CONFIG.creatureSpawn.maxPerRoom);
   }
 
-  const positions = pickSpawnPositions(tiles, count, exclusionCenters);
+  const positions = pickSpawnPositions(tiles, count, excludedPositions);
   const difficulties = pickDifficulties(positions.length, isBoss);
 
   try {

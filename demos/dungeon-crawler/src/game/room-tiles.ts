@@ -121,3 +121,38 @@ export function getDirFromDelta(dx: number, dy: number): number {
   if (dx === 1 && dy === 0) return 3;
   return -1;
 }
+
+export function getAllDoorPositions(tiles: TileType[][]): { x: number; y: number }[] {
+  const doors: { x: number; y: number }[] = [];
+  for (let y = 0; y < tiles.length; y++) {
+    for (let x = 0; x < tiles[y].length; x++) {
+      const t = tiles[y][x];
+      if (t === TILE.DOOR_N || t === TILE.DOOR_S || t === TILE.DOOR_E || t === TILE.DOOR_W) {
+        doors.push({ x, y });
+      }
+    }
+  }
+  return doors;
+}
+
+export function getTileRegion(
+  tiles: TileType[][],
+  center: { x: number; y: number },
+  radius: number,
+): { x: number; y: number }[] {
+  const positions: { x: number; y: number }[] = [];
+  const rh = tiles.length;
+  const rw = tiles[0]?.length ?? 0;
+  for (let dy = -radius; dy <= radius; dy++) {
+    for (let dx = -radius; dx <= radius; dx++) {
+      const x = center.x + dx;
+      const y = center.y + dy;
+      if (x >= 0 && x < rw && y >= 0 && y < rh) {
+        if (tiles[y][x] === TILE.FLOOR) {
+          positions.push({ x, y });
+        }
+      }
+    }
+  }
+  return positions;
+}

@@ -66,21 +66,20 @@ describe('pickSpawnPositions', () => {
   });
 
   it('returns correct number of positions', () => {
-    const positions = pickSpawnPositions(tiles, 3, [{ x: 7, y: 0 }]);
+    const positions = pickSpawnPositions(tiles, 3, [{ x: 7, y: 0 }, { x: 7, y: 1 }]);
     expect(positions.length).toBe(3);
   });
 
-  it('excludes tiles near entry door', () => {
-    const entryTile = { x: 7, y: 0 };
-    const positions = pickSpawnPositions(tiles, 10, [entryTile]);
+  it('excludes specified positions', () => {
+    const excluded = [{ x: 7, y: 0 }, { x: 7, y: 1 }, { x: 7, y: 2 }, { x: 7, y: 3 }];
+    const positions = pickSpawnPositions(tiles, 10, excluded);
     for (const pos of positions) {
-      const dist = Math.max(Math.abs(pos.x - entryTile.x), Math.abs(pos.y - entryTile.y));
-      expect(dist).toBeGreaterThanOrEqual(4);
+      expect(excluded.some(e => e.x === pos.x && e.y === pos.y)).toBe(false);
     }
   });
 
   it('returns only floor tiles', () => {
-    const positions = pickSpawnPositions(tiles, 10, [{ x: 7, y: 0 }]);
+    const positions = pickSpawnPositions(tiles, 10, [{ x: 7, y: 0 }, { x: 7, y: 1 }]);
     for (const pos of positions) {
       expect(tiles[pos.y][pos.x]).toBe(TILE.FLOOR);
     }
@@ -93,7 +92,7 @@ describe('pickSpawnPositions', () => {
       [TILE.WALL, TILE.FLOOR, TILE.WALL],
       [TILE.WALL, TILE.WALL, TILE.WALL],
     ];
-    const positions = pickSpawnPositions(smallTiles, 5, [{ x: 1, y: 0 }]);
+    const positions = pickSpawnPositions(smallTiles, 5, []);
     expect(positions.length).toBeLessThanOrEqual(2);
   });
 
@@ -145,7 +144,7 @@ describe('pickDifficulties', () => {
 describe('generateCreaturesForRoom', () => {
   it('generates creatures for a non-boss room', async () => {
     const tiles = makeEmptyRoom({ n: true });
-    const creatures = await generateCreaturesForRoom(tiles, 0, false, 1, [{ x: 7, y: 0 }]);
+    const creatures = await generateCreaturesForRoom(tiles, 0, false, 1, [{ x: 7, y: 0 }, { x: 7, y: 1 }]);
     expect(creatures.length).toBeGreaterThanOrEqual(1);
     expect(creatures.length).toBeLessThanOrEqual(4);
     for (const c of creatures) {
@@ -156,14 +155,14 @@ describe('generateCreaturesForRoom', () => {
 
   it('generates exactly 1 boss creature for boss room', async () => {
     const tiles = makeEmptyRoom({ n: true });
-    const creatures = await generateCreaturesForRoom(tiles, 0, true, 5, [{ x: 7, y: 0 }]);
+    const creatures = await generateCreaturesForRoom(tiles, 0, true, 5, [{ x: 7, y: 0 }, { x: 7, y: 1 }]);
     expect(creatures.length).toBe(1);
     expect(creatures[0].difficulty).toBe('boss');
   });
 
   it('creatures have valid positions within room', async () => {
     const tiles = makeEmptyRoom({ n: true });
-    const creatures = await generateCreaturesForRoom(tiles, 0, false, 1, [{ x: 7, y: 0 }]);
+    const creatures = await generateCreaturesForRoom(tiles, 0, false, 1, [{ x: 7, y: 0 }, { x: 7, y: 1 }]);
     for (const c of creatures) {
       expect(c.position.x).toBeGreaterThanOrEqual(0);
       expect(c.position.x).toBeLessThan(15);
@@ -174,8 +173,8 @@ describe('generateCreaturesForRoom', () => {
 
   it('respawning generates new creatures', async () => {
     const tiles = makeEmptyRoom({ n: true });
-    const c1 = await generateCreaturesForRoom(tiles, 0, false, 1, [{ x: 7, y: 0 }]);
-    const c2 = await generateCreaturesForRoom(tiles, 0, false, 1, [{ x: 7, y: 0 }]);
+    const c1 = await generateCreaturesForRoom(tiles, 0, false, 1, [{ x: 7, y: 0 }, { x: 7, y: 1 }]);
+    const c2 = await generateCreaturesForRoom(tiles, 0, false, 1, [{ x: 7, y: 0 }, { x: 7, y: 1 }]);
     const ids1 = new Set(c1.map(c => c.id));
     const ids2 = new Set(c2.map(c => c.id));
     for (const id of ids1) {

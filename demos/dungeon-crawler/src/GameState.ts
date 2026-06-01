@@ -390,47 +390,46 @@ class GameState extends EventEmitter {
   }
 
   takeLootItem(itemId: string): void {
-    if (this.isInventoryFull()) {
-      this.addLogEntry({
-        type: 'item_dropped',
-        message: 'Inventory is full!',
-        icon: 'fa-solid fa-box-open',
-      })
-      return
-    }
     const idx = this.lootItems.findIndex(i => i.id === itemId)
     if (idx === -1) return
     const item = this.lootItems[idx]
     this.lootItems.splice(idx, 1)
-    this.addItemToInventoryOrEquip(item)
-    this.addLogEntry({
-      type: 'item_picked_up',
-      message: `Picked up ${item.name}`,
-      icon: 'fa-solid fa-box-open',
-    })
+    if (this.addItemToInventoryOrEquip(item)) {
+      this.addLogEntry({
+        type: 'item_picked_up',
+        message: `Picked up ${item.name}`,
+        icon: 'fa-solid fa-box-open',
+      })
+    } else {
+      this.addLogEntry({
+        type: 'item_dropped',
+        message: item.archeType === 'spell' ? 'Spellbook is full!' : 'Inventory is full!',
+        icon: 'fa-solid fa-box-open',
+      })
+      this.lootItems.push(item)
+    }
     this.emit('loot:items-changed', [...this.lootItems])
   }
 
   takeAllLoot(): void {
-    if (this.isInventoryFull()) {
-      this.addLogEntry({
-        type: 'item_dropped',
-        message: 'Inventory is full!',
-        icon: 'fa-solid fa-box-open',
-      })
-      return
-    }
     const items = [...this.lootItems]
     this.lootItems = []
+    const remaining: ItemState[] = []
     for (const item of items) {
-      this.addItemToInventoryOrEquip(item)
+      if (!this.addItemToInventoryOrEquip(item)) {
+        remaining.push(item)
+      }
     }
-    this.addLogEntry({
-      type: 'item_picked_up',
-      message: `Took all items (${items.length})`,
-      icon: 'fa-solid fa-box-open',
-    })
-    this.emit('loot:items-changed', [])
+    this.lootItems = remaining
+    const taken = items.length - remaining.length
+    if (taken > 0) {
+      this.addLogEntry({
+        type: 'item_picked_up',
+        message: `Took all items (${taken})`,
+        icon: 'fa-solid fa-box-open',
+      })
+    }
+    this.emit('loot:items-changed', [...this.lootItems])
   }
 
   dismissLoot(): void {
@@ -451,24 +450,24 @@ class GameState extends EventEmitter {
   }
 
   takeChestItem(itemId: string): void {
-    if (this.isInventoryFull()) {
-      this.addLogEntry({
-        type: 'item_dropped',
-        message: 'Inventory is full!',
-        icon: 'fa-solid fa-box-open',
-      });
-      return;
-    }
     const idx = this.chestLootItems.findIndex(i => i.id === itemId);
     if (idx === -1) return;
     const item = this.chestLootItems[idx];
     this.chestLootItems.splice(idx, 1);
-    this.addItemToInventoryOrEquip(item);
-    this.addLogEntry({
-      type: 'item_picked_up',
-      message: `Picked up ${item.name} from chest`,
-      icon: 'fa-solid fa-box-open',
-    });
+    if (this.addItemToInventoryOrEquip(item)) {
+      this.addLogEntry({
+        type: 'item_picked_up',
+        message: `Picked up ${item.name} from chest`,
+        icon: 'fa-solid fa-box-open',
+      });
+    } else {
+      this.addLogEntry({
+        type: 'item_dropped',
+        message: item.archeType === 'spell' ? 'Spellbook is full!' : 'Inventory is full!',
+        icon: 'fa-solid fa-box-open',
+      });
+      this.chestLootItems.push(item);
+    }
     if (this.chestLootItems.length === 0) {
       this.emit('chest:loot-dismissed');
     } else {
@@ -477,25 +476,28 @@ class GameState extends EventEmitter {
   }
 
   takeAllChestLoot(): void {
-    if (this.isInventoryFull()) {
-      this.addLogEntry({
-        type: 'item_dropped',
-        message: 'Inventory is full!',
-        icon: 'fa-solid fa-box-open',
-      });
-      return;
-    }
     const items = [...this.chestLootItems];
     this.chestLootItems = [];
+    const remaining: ItemState[] = [];
     for (const item of items) {
-      this.addItemToInventoryOrEquip(item);
+      if (!this.addItemToInventoryOrEquip(item)) {
+        remaining.push(item);
+      }
     }
-    this.addLogEntry({
-      type: 'item_picked_up',
-      message: `Took all items from chest (${items.length})`,
-      icon: 'fa-solid fa-box-open',
-    });
-    this.emit('chest:loot-dismissed');
+    this.chestLootItems = remaining;
+    const taken = items.length - remaining.length;
+    if (taken > 0) {
+      this.addLogEntry({
+        type: 'item_picked_up',
+        message: `Took all items from chest (${taken})`,
+        icon: 'fa-solid fa-box-open',
+      });
+    }
+    if (this.chestLootItems.length === 0) {
+      this.emit('chest:loot-dismissed');
+    } else {
+      this.emit('chest:loot-items-changed', [...this.chestLootItems]);
+    }
   }
 
   dismissChestLoot(): void {
@@ -510,20 +512,20 @@ class GameState extends EventEmitter {
     this.emit('chest:loot-dismissed');
   }
 
-  private isInventoryFull(): boolean {
-    return this.inventory.every(slot => slot !== null)
-        && Object.keys(this.equipment).length >= EQUIP_SLOTS.length
-  }
-
-  private addItemToInventoryOrEquip(item: ItemState): void {
-    if (item.equipSlot && !this.equipment[item.equipSlot]) {
+  private addItemToInventoryOrEquip(item: ItemState): boolean {
+    if (item.archeType === 'spell') {
+      const emptySpellSlot = this.spellbook.findIndex(s => s === null)
+      if (emptySpellSlot === -1) return false
+      this.spellbook[emptySpellSlot] = item
+    } else if (item.equipSlot && !this.equipment[item.equipSlot]) {
       this.equipment[item.equipSlot] = item
     } else {
       const emptyIdx = this.inventory.findIndex(slot => slot === null)
-      if (emptyIdx === -1) return
+      if (emptyIdx === -1) return false
       this.inventory[emptyIdx] = item
     }
     this.emit('inventory:changed', { inventory: this.inventory, equipment: this.equipment, spellbook: this.spellbook })
+    return true
   }
 
   equipItem(invIdx: number): void {

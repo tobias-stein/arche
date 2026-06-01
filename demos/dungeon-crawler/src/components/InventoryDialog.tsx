@@ -39,6 +39,7 @@ function InventoryDialog({ onClose, lootActive }: Props) {
   const [showSpellReplace, setShowSpellReplace] = useState(false)
   const [pendingSpell, setPendingSpell] = useState<ItemState | null>(null)
   const [replaceConfirmIdx, setReplaceConfirmIdx] = useState<number | null>(null)
+  const [pendingSpellInvIdx, setPendingSpellInvIdx] = useState<number | null>(null)
 
   const dialogRef = useRef<HTMLDivElement>(null)
 
@@ -106,6 +107,7 @@ function InventoryDialog({ onClose, lootActive }: Props) {
     setShowSpellReplace(false)
     setPendingSpell(null)
     setReplaceConfirmIdx(null)
+    setPendingSpellInvIdx(null)
     onClose?.()
   }, [onClose])
 
@@ -195,6 +197,18 @@ function InventoryDialog({ onClose, lootActive }: Props) {
       }
     } else if (source.sourceType === 'spell' && target.type === 'spell' && target.idx !== undefined) {
       gs.swapSpellSlots(source.sourceIdx!, target.idx)
+    } else if (source.sourceType === 'inventory' && target.type === 'spell' && target.idx !== undefined) {
+      const item = gs.inventory[source.sourceIdx!]
+      if (item) {
+        const existing = gs.spellbook[target.idx]
+        if (existing) {
+          gs.inventory[source.sourceIdx!] = existing
+        } else {
+          gs.inventory[source.sourceIdx!] = null
+        }
+        gs.spellbook[target.idx] = item
+        gs.emit('inventory:changed', { inventory: gs.inventory, equipment: gs.equipment, spellbook: gs.spellbook })
+      }
     }
 
     syncState()
@@ -267,7 +281,7 @@ function InventoryDialog({ onClose, lootActive }: Props) {
 
     if (!item) return
 
-    const itemType = sourceType === 'spell' ? 'spell' : item.equipSlot ? 'equipment' : 'consumable'
+    const itemType = sourceType === 'spell' ? 'spell' : item.equipSlot ? 'equipment' : item.archeType === 'spell' ? 'spell' : 'consumable'
 
     initDragFromItem(
       e.nativeEvent,
@@ -364,6 +378,8 @@ function InventoryDialog({ onClose, lootActive }: Props) {
       } else if (item.archeType === 'consumable') {
         consumeItem(item)
         gs.dropItemFromInventory(idx)
+      } else if (item.archeType === 'spell') {
+        handleAddSpellFromInventory(item, idx)
       }
     } else if (sourceType === 'equipment' && equipSlot) {
       gs.unequipItem(equipSlot)
@@ -455,6 +471,19 @@ function InventoryDialog({ onClose, lootActive }: Props) {
     syncState()
   }
 
+  function handleAddSpellFromInventory(spell: ItemState, invIdx: number) {
+    const gs = getGameState()
+    const result = gs.addSpellToBook(spell)
+    if (result.success) {
+      gs.dropItemFromInventory(invIdx)
+    } else if (result.replace) {
+      setPendingSpell(spell)
+      setPendingSpellInvIdx(invIdx)
+      setShowSpellReplace(true)
+    }
+    syncState()
+  }
+
   function handleReplaceSpell(slotIdx: number) {
     setReplaceConfirmIdx(slotIdx)
   }
@@ -463,17 +492,22 @@ function InventoryDialog({ onClose, lootActive }: Props) {
     if (replaceConfirmIdx !== null && pendingSpell) {
       const gs = getGameState()
       gs.replaceSpell(replaceConfirmIdx, pendingSpell)
+      if (pendingSpellInvIdx !== null) {
+        gs.dropItemFromInventory(pendingSpellInvIdx)
+      }
       syncState()
     }
     setShowSpellReplace(false)
     setPendingSpell(null)
     setReplaceConfirmIdx(null)
+    setPendingSpellInvIdx(null)
   }
 
   function cancelReplace() {
     setShowSpellReplace(false)
     setPendingSpell(null)
     setReplaceConfirmIdx(null)
+    setPendingSpellInvIdx(null)
   }
 
   function renderAbandonDialog() {

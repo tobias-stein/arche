@@ -30,6 +30,7 @@ function LootPopup({ inventoryOpen }: Props) {
       setCreature(gs.combatCreature)
       setSelectedIdx(0)
       setSource('combat')
+      setTooltip(null)
       setVisible(true)
     }
 
@@ -39,6 +40,7 @@ function LootPopup({ inventoryOpen }: Props) {
       setXpGained(0)
       setSelectedIdx(0)
       setSource('chest')
+      setTooltip(null)
       setVisible(true)
     }
 
@@ -56,6 +58,7 @@ function LootPopup({ inventoryOpen }: Props) {
     function onChestLootDismissed() {
       setVisible(false)
       setItems([])
+      setTooltip(null)
     }
 
     function onVictory(_creatureId: string, xp: number) {
@@ -70,6 +73,7 @@ function LootPopup({ inventoryOpen }: Props) {
       setVisible(false)
       setItems([])
       setLevelUp(false)
+      setTooltip(null)
     }
 
     gs.on('loot:show', onLootShow)
@@ -119,8 +123,9 @@ function LootPopup({ inventoryOpen }: Props) {
       gs.dismissLoot()
       gs.endCombat()
     }
-    setVisible(false)
-    setItems([])
+      setVisible(false)
+      setItems([])
+      setTooltip(null)
   }, [source])
 
   const handleOpenInventory = useCallback(() => {

@@ -2,7 +2,6 @@ import Phaser from 'phaser';
 
 const CHEST_COLOR = 0x8b7355;
 const CHEST_LIGHT = 0xa99173;
-const CHEST_DARK = 0x6a5a40;
 const SYM_COLOR = '#f0e8d8';
 const CHEST_OPEN = 0x6a5a40;
 const CHEST_OPEN_LIGHT = 0x8a7a60;
@@ -52,25 +51,15 @@ export function drawChestText(
   px: number,
   py: number,
   ts: number,
-  opened: boolean,
-): Phaser.GameObjects.Text | null {
-  const key = `_chest_${px}_${py}`;
-  const existing = scene.children.getByName(key) as Phaser.GameObjects.Text | undefined;
-  if (existing) {
-    existing.destroy();
-  }
-  if (opened) return null;
-
+): Phaser.GameObjects.Text {
   const cx = Math.round(px + ts / 2);
   const fontSize = Math.round(ts * 0.34);
-  const text = scene.add.text(cx, Math.round(py + ts / 2 + ts * 0.01), '?', {
+  return scene.add.text(cx, Math.round(py + ts / 2 + ts * 0.01), '?', {
     fontFamily: 'sans-serif',
     fontSize: `${fontSize}px`,
     color: SYM_COLOR,
     fontStyle: 'bold',
   }).setOrigin(0.5).setDepth(35);
-  text.setName(key);
-  return text;
 }
 
 export function drawOpenChest(

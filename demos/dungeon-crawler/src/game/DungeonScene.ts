@@ -220,7 +220,7 @@ export class DungeonScene extends Phaser.Scene {
     this.chestTexts = this.chests.map((c) => {
       const px = this.offsetX + c.position.x * this.tileSize;
       const py = this.offsetY + c.position.y * this.tileSize;
-      return drawChestText(this, px, py, this.tileSize, c.opened);
+      return c.opened ? null : drawChestText(this, px, py, this.tileSize);
     });
 
     this.chaseTarget = null;
@@ -610,10 +610,6 @@ export class DungeonScene extends Phaser.Scene {
         }
       }
     }
-  }
-
-  findChestById(id: string): ChestState | undefined {
-    return this.chests.find(c => c.id === id)
   }
 
   removeCreature(creatureId: string): void {

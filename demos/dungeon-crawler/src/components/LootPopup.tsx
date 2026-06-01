@@ -107,14 +107,12 @@ function LootPopup() {
     const gs = getGameState()
     if (source === 'chest') {
       gs.dismissChestLoot()
-      setVisible(false)
-      setItems([])
     } else {
       gs.dismissLoot()
       gs.endCombat()
-      setVisible(false)
-      setItems([])
     }
+    setVisible(false)
+    setItems([])
   }, [source])
 
   const handleOpenInventory = useCallback(() => {

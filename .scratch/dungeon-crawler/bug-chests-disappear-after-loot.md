@@ -1,6 +1,6 @@
 ---
 title: "Chests should disappear from the map after looting"
-status: needs-triage
+status: completed
 ---
 
 ## Description

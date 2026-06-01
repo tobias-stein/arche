@@ -1,6 +1,6 @@
 ---
 title: "Cast Spell and Use Item actions still show placeholder alerts"
-status: needs-triage
+status: completed
 ---
 
 ## Description

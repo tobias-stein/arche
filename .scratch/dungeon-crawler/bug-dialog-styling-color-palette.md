@@ -1,6 +1,6 @@
 ---
 title: "Dialog styling does not match the established colour palette and prototype"
-status: needs-triage
+status: completed
 ---
 
 ## Description

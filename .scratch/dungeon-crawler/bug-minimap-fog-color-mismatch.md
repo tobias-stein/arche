@@ -1,6 +1,6 @@
 ---
 title: "Minimap fog/background colour has hard cut against dialog frame"
-status: needs-triage
+status: completed
 ---
 
 ## Description

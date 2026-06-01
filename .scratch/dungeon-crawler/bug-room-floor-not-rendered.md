@@ -1,6 +1,6 @@
 ---
 title: "Room floor tiles and walls not rendered — only dark Phaser background visible"
-status: needs-triage
+status: completed
 ---
 
 ## Description

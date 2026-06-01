@@ -1,6 +1,6 @@
 ---
 title: "Flee action does not show confirmation dialog"
-status: needs-triage
+status: completed
 ---
 
 ## Description

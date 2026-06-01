@@ -1,6 +1,6 @@
 ---
 title: "Inventory dialog renders behind/over the loot popup instead of side-by-side"
-status: needs-triage
+status: completed
 ---
 
 ## Description

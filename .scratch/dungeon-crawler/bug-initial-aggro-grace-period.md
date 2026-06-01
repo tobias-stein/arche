@@ -1,6 +1,6 @@
 ---
 title: "Enemies aggro immediately on game start and room entry with no grace period"
-status: needs-triage
+status: completed
 ---
 
 ## Description

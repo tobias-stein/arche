@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dungeon Room — Layout &amp; Assets</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#0f2818}
+canvas{display:block;image-rendering:pixelated;position:absolute;top:0;left:0}
+</style>
+</head>
+<body>
+<canvas id="gc"></canvas>
+<script>
+const RW = 15;
+const RH = 11;
+
+const TILE = { WALL: 0, FLOOR: 1, DOOR_N: 2, DOOR_S: 3, DOOR_E: 4, DOOR_W: 5 };
+
+function generateRoomTiles() {
+  const tiles = [];
+  for (let y = 0; y < RH; y++) {
+    tiles[y] = [];
+    for (let x = 0; x < RW; x++) {
+      tiles[y][x] = TILE.FLOOR;
+    }
+  }
+  for (let x = 0; x < RW; x++) {
+    tiles[0][x] = TILE.WALL;
+    tiles[RH - 1][x] = TILE.WALL;
+  }
+  for (let y = 0; y < RH; y++) {
+    tiles[y][0] = TILE.WALL;
+    tiles[y][RW - 1] = TILE.WALL;
+  }
+  tiles[0][7] = TILE.DOOR_N;
+  tiles[RH - 1][7] = TILE.DOOR_S;
+  tiles[5][0] = TILE.DOOR_W;
+  tiles[5][RW - 1] = TILE.DOOR_E;
+  return tiles;
+}
+
+const gc = document.getElementById('gc');
+const gcx = gc.getContext('2d');
+
+let W, H, tileSize, offsetX, offsetY;
+
+function resize() {
+  W = window.innerWidth;
+  H = window.innerHeight;
+  gc.width = W;
+  gc.height = H;
+  tileSize = Math.min(Math.floor(W / RW), Math.floor(H / RH));
+  offsetX = Math.floor((W - RW * tileSize) / 2);
+  offsetY = Math.floor((H - RH * tileSize) / 2);
+}
+
+const PALETTE = {
+  bg:        '#0f2818',
+  wallBase:  '#2d4d38',
+  wallHi:    '#4a7a58',
+  wallLo:    '#1a3a2a',
+  wallDark:  '#1a2e22',
+  wallBrick: '#3a5a44',
+  floorA:    '#3a6a48',
+  floorB:    '#2a4a38',
+  floorLine: 'rgba(0,0,0,0.12)',
+  tunnelBg:  '#0a1a10',
+};
+
+function drawWallTile(px, py, ts) {
+  gcx.fillStyle = PALETTE.wallBase;
+  gcx.fillRect(px, py, ts, ts);
+  gcx.fillStyle = PALETTE.wallHi;
+  gcx.fillRect(px, py, ts, 2);
+  gcx.fillRect(px, py, 2, ts);
+  gcx.fillStyle = PALETTE.wallLo;
+  gcx.fillRect(px + ts - 2, py, 2, ts);
+  gcx.fillRect(px, py + ts - 2, ts, 2);
+  const row = Math.floor((py - offsetY) / ts);
+  if (row % 2 === 0) {
+    gcx.fillStyle = PALETTE.wallBrick;
+    gcx.fillRect(px + 2, py + 3, ts - 8, 1);
+  } else {
+    gcx.fillStyle = PALETTE.wallBrick;
+    gcx.fillRect(px + 6, py + 3, ts - 10, 1);
+  }
+  const col = Math.floor((px - offsetX) / ts);
+  if (col % 3 === 1) {
+    gcx.fillStyle = PALETTE.wallDark;
+    gcx.fillRect(px + 5, py + 2, 1, ts - 4);
+  }
+}
+
+function drawArchway(px, py, ts, dir) {
+  drawWallTile(px, py, ts);
+
+  const pad = Math.max(2, Math.floor(ts * 0.04));
+  const cx = px + ts * 0.5;
+  const cy = py + ts * 0.5;
+  const split = 0.35;
+
+  gcx.fillStyle = PALETTE.tunnelBg;
+  gcx.beginPath();
+
+  if (dir === 'N') {
+    const s = py + ts * split;
+    gcx.moveTo(px + pad, py + ts - pad);
+    gcx.lineTo(px + pad, s);
+    gcx.quadraticCurveTo(px + pad, py + pad, cx, py + pad);
+    gcx.quadraticCurveTo(px + ts - pad, py + pad, px + ts - pad, s);
+    gcx.lineTo(px + ts - pad, py + ts - pad);
+  } else if (dir === 'S') {
+    const s = py + ts * (1 - split);
+    gcx.moveTo(px + pad, py + pad);
+    gcx.lineTo(px + pad, s);
+    gcx.quadraticCurveTo(px + pad, py + ts - pad, cx, py + ts - pad);
+    gcx.quadraticCurveTo(px + ts - pad, py + ts - pad, px + ts - pad, s);
+    gcx.lineTo(px + ts - pad, py + pad);
+  } else if (dir === 'W') {
+    const s = px + ts * split;
+    gcx.moveTo(px + ts - pad, py + pad);
+    gcx.lineTo(s, py + pad);
+    gcx.quadraticCurveTo(px + pad, py + pad, px + pad, cy);
+    gcx.quadraticCurveTo(px + pad, py + ts - pad, s, py + ts - pad);
+    gcx.lineTo(px + ts - pad, py + ts - pad);
+  } else if (dir === 'E') {
+    const s = px + ts * (1 - split);
+    gcx.moveTo(px + pad, py + pad);
+    gcx.lineTo(s, py + pad);
+    gcx.quadraticCurveTo(px + ts - pad, py + pad, px + ts - pad, cy);
+    gcx.quadraticCurveTo(px + ts - pad, py + ts - pad, s, py + ts - pad);
+    gcx.lineTo(px + pad, py + ts - pad);
+  }
+
+  gcx.closePath();
+  gcx.fill();
+}
+
+function drawRoom(tiles) {
+  gcx.fillStyle = PALETTE.bg;
+  gcx.fillRect(0, 0, W, H);
+
+  const ts = tileSize;
+  const ox = offsetX;
+  const oy = offsetY;
+
+  for (let y = 0; y < RH; y++) {
+    for (let x = 0; x < RW; x++) {
+      const px = ox + x * ts;
+      const py = oy + y * ts;
+      const t = tiles[y][x];
+
+      switch (t) {
+        case TILE.WALL:
+          drawWallTile(px, py, ts);
+          break;
+        case TILE.FLOOR: {
+          const isLight = (x + y) % 2 === 0;
+          gcx.fillStyle = isLight ? PALETTE.floorA : PALETTE.floorB;
+          gcx.fillRect(px, py, ts, ts);
+          gcx.fillStyle = PALETTE.floorLine;
+          gcx.fillRect(px, py, ts, 1);
+          gcx.fillRect(px, py, 1, ts);
+          break;
+        }
+        case TILE.DOOR_N: drawArchway(px, py, ts, 'N'); break;
+        case TILE.DOOR_S: drawArchway(px, py, ts, 'S'); break;
+        case TILE.DOOR_W: drawArchway(px, py, ts, 'W'); break;
+        case TILE.DOOR_E: drawArchway(px, py, ts, 'E'); break;
+      }
+    }
+  }
+
+  const grad = gcx.createRadialGradient(
+    W / 2, H / 2, Math.min(W, H) * 0.35,
+    W / 2, H / 2, Math.max(W, H) * 0.65
+  );
+  grad.addColorStop(0, 'rgba(0,0,0,0)');
+  grad.addColorStop(1, 'rgba(0,0,0,0.45)');
+  gcx.fillStyle = grad;
+  gcx.fillRect(0, 0, W, H);
+
+  gcx.strokeStyle = 'rgba(255,255,255,0.04)';
+  gcx.lineWidth = 0.5;
+  for (let y = 0; y <= RH; y++) {
+    const ly = oy + y * ts;
+    gcx.beginPath();
+    gcx.moveTo(ox, ly);
+    gcx.lineTo(ox + RW * ts, ly);
+    gcx.stroke();
+  }
+  for (let x = 0; x <= RW; x++) {
+    const lx = ox + x * ts;
+    gcx.beginPath();
+    gcx.moveTo(lx, oy);
+    gcx.lineTo(lx, oy + RH * ts);
+    gcx.stroke();
+  }
+}
+
+window.addEventListener('resize', () => { resize(); if (tiles) drawRoom(tiles); });
+
+let tiles;
+resize();
+tiles = generateRoomTiles();
+drawRoom(tiles);
+</script>
+</body>
+</html>

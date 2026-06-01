@@ -1,6 +1,6 @@
 ---
 title: "Creature chase speed should be configurable with a step interval delay"
-status: needs-triage
+status: completed
 ---
 
 ## Description

@@ -1,6 +1,6 @@
 ---
 title: "Creatures and chests can spawn on the same tile (no occupancy check)"
-status: needs-triage
+status: completed
 ---
 
 ## Description

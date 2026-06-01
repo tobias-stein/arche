@@ -1,6 +1,6 @@
 ---
 title: "Player card is never rendered on screen"
-status: needs-triage
+status: completed
 ---
 
 ## Description

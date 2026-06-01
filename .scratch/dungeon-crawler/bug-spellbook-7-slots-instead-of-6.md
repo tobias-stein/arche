@@ -1,6 +1,6 @@
 ---
 title: "Spellbook has 7 slots instead of the designed 6"
-status: needs-triage
+status: completed
 ---
 
 ## Description

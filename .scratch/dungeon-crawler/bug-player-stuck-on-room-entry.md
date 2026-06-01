@@ -1,6 +1,6 @@
 ---
 title: "Player sometimes cannot move after game start or room transition (stuck)"
-status: needs-triage
+status: completed
 ---
 
 ## Description

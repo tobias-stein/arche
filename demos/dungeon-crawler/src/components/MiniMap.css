@@ -23,7 +23,7 @@
   position: fixed;
   inset: 0;
   z-index: 300;
-  background: rgba(10, 25, 15, 0.97);
+  background: var(--clr-overlay-controls);
   display: flex;
   flex-direction: column;
   align-items: center;

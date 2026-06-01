@@ -89,7 +89,7 @@
   left: 50%;
   transform: translate(-50%, -50%);
   z-index: 155;
-  color: #ff9090;
+  color: var(--clr-enemy-level-text);
   font-size: 16px;
   font-weight: 700;
   text-shadow: 1px 1px 0 #2a1010;

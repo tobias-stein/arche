@@ -293,6 +293,6 @@
     right: 0;
     width: 100%;
     border: none;
-    border-bottom: 4px solid #4a7a58;
+    border-bottom: 4px solid var(--clr-card-border);
   }
 }

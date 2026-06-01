@@ -20,10 +20,6 @@ export let dragOffX = 0
 export let dragOffY = 0
 export let pendingAbandon: DragState | null = null
 
-export function setDragState(v: DragState | null): void {
-  dragState = v
-}
-
 export function setPendingAbandon(v: DragState | null): void {
   pendingAbandon = v
 }

@@ -258,47 +258,26 @@ function InventoryDialog({ onClose, lootActive }: Props) {
   ) {
     e.preventDefault()
     const gs = getGameState()
-    let item: ItemState | undefined
-    let itemName = ''
-    let rarity = ''
-    let itemType = ''
-    let itemEquipSlot: EquipSlot | undefined
 
-    if (sourceType === 'equipment' && equipSlot) {
-      item = gs.equipment[equipSlot]
-      if (!item) return
-      itemType = 'equipment'
-      itemEquipSlot = item.equipSlot
-      itemName = item.name
-      rarity = item.rarity
-    } else if (sourceType === 'inventory' && idx !== undefined) {
-      const invItem = gs.inventory[idx]
-      if (!invItem) return
-      item = invItem
-      itemType = item.equipSlot ? 'equipment' : 'consumable'
-      itemEquipSlot = item.equipSlot
-      itemName = item.name
-      rarity = item.rarity
-    } else if (sourceType === 'spell' && idx !== undefined) {
-      const s = gs.spellbook[idx]
-      if (s) item = s
-      if (!item) return
-      itemType = 'spell'
-      itemName = item.name
-      rarity = item.rarity
-    }
+    const item: ItemState | undefined =
+      sourceType === 'equipment' && equipSlot ? gs.equipment[equipSlot] :
+      sourceType === 'inventory' && idx !== undefined ? gs.inventory[idx] ?? undefined :
+      sourceType === 'spell' && idx !== undefined ? gs.spellbook[idx] ?? undefined :
+      undefined
 
     if (!item) return
+
+    const itemType = sourceType === 'spell' ? 'spell' : item.equipSlot ? 'equipment' : 'consumable'
 
     initDragFromItem(
       e.nativeEvent,
       e.currentTarget as HTMLElement,
       sourceType,
-      itemName,
-      rarity,
+      item.name,
+      item.rarity,
       item.id,
       itemType,
-      itemEquipSlot,
+      item.equipSlot,
       getItemIcon(item),
       idx,
       equipSlot,

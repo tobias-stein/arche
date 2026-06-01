@@ -490,14 +490,12 @@ class GameState extends EventEmitter {
   private addItemToInventoryOrEquip(item: ItemState): void {
     if (item.equipSlot && !this.equipment[item.equipSlot]) {
       this.equipment[item.equipSlot] = item
-      this.emit('inventory:changed', { inventory: this.inventory, equipment: this.equipment, spellbook: this.spellbook })
-      return
-    }
-    const emptyIdx = this.inventory.findIndex(slot => slot === null)
-    if (emptyIdx !== -1) {
+    } else {
+      const emptyIdx = this.inventory.findIndex(slot => slot === null)
+      if (emptyIdx === -1) return
       this.inventory[emptyIdx] = item
-      this.emit('inventory:changed', { inventory: this.inventory, equipment: this.equipment, spellbook: this.spellbook })
     }
+    this.emit('inventory:changed', { inventory: this.inventory, equipment: this.equipment, spellbook: this.spellbook })
   }
 
   equipItem(invIdx: number): void {

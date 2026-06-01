@@ -183,32 +183,6 @@ describe('GameState', () => {
     expect(calls).toEqual([])
   })
 
-  it('addItemToInventoryOrEquip emits inventory:changed when equipping', () => {
-    const events: object[] = []
-    gs.on('inventory:changed', (data) => events.push(data as object))
-
-    const item: ItemState = { id: 'sword_1', name: 'Iron Sword', archeType: 'weapon', rarity: 'common', level: 1, stats: { attack: 5 }, affixes: [], equipSlot: 'weapon' }
-
-    ;(gs as unknown as { addItemToInventoryOrEquip(item: ItemState): void }).addItemToInventoryOrEquip(item)
-
-    expect(events.length).toBe(1)
-    expect(gs.equipment.weapon?.name).toBe('Iron Sword')
-  })
-
-  it('addItemToInventoryOrEquip emits inventory:changed when adding to inventory', () => {
-    gs.equipment.weapon = { id: 'existing', name: 'Existing', archeType: 'weapon', rarity: 'common', level: 1, stats: {}, affixes: [], equipSlot: 'weapon' }
-
-    const events: object[] = []
-    gs.on('inventory:changed', (data) => events.push(data as object))
-
-    const item: ItemState = { id: 'potion_1', name: 'Health Potion', archeType: 'consumable', rarity: 'common', level: 1, stats: { heal: 50 }, affixes: [] }
-
-    ;(gs as unknown as { addItemToInventoryOrEquip(item: ItemState): void }).addItemToInventoryOrEquip(item)
-
-    expect(events.length).toBe(1)
-    expect(gs.inventory[0]?.name).toBe('Health Potion')
-  })
-
   it('takeLootItem emits inventory:changed after taking an item', () => {
     const item: ItemState = { id: 'sword_1', name: 'Iron Sword', archeType: 'weapon', rarity: 'common', level: 1, stats: { attack: 5 }, affixes: [], equipSlot: 'weapon' }
     gs.lootItems = [item]

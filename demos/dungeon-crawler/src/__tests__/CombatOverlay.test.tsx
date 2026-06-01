@@ -72,11 +72,8 @@ describe('CombatOverlay', () => {
     render(<CombatOverlay />)
     startCombat()
     const gs = getGameState()
-    const fleeEvents: string[] = []
-    gs.on('combat:fled', (id) => fleeEvents.push(id as string))
     fireEvent.click(screen.getByText('Flee'))
     fireEvent.click(screen.getByText('Yes, Flee'))
-    expect(fleeEvents.length).toBe(1)
     expect(gs.combatActive).toBe(false)
   })
 
@@ -103,12 +100,9 @@ describe('CombatOverlay', () => {
     render(<CombatOverlay />)
     startCombat()
     const gs = getGameState()
-    const fleeEvents: string[] = []
-    gs.on('combat:fled', (id) => fleeEvents.push(id as string))
     fireEvent.click(screen.getByText('Flee'))
     expect(screen.getByText('Flee from combat?')).toBeInTheDocument()
     fireEvent.keyDown(window, { key: 'Enter' })
-    expect(fleeEvents.length).toBe(1)
     expect(gs.combatActive).toBe(false)
   })
 

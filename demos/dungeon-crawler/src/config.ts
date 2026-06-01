@@ -56,6 +56,11 @@ export const GAME_CONFIG = {
     maxPerRoom: 4,
     entryExclusionRadius: 4,
   },
+  chestSpawn: {
+    minPerRoom: 0,
+    maxPerRoom: 3,
+    entryExclusionRadius: 4,
+  },
   aggroRanges: {
     normal: 1,
     champion: 2,

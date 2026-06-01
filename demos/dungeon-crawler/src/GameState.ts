@@ -1,7 +1,7 @@
 import { GAME_CONFIG } from './config'
 import type { PlayerState, CreatureState, ItemState, EquipSlot, LogEvent } from './types'
 import type { Dungeon } from './game/dungeon-generator'
-import { generateMockItems } from './game/loot'
+import { generateMockItems, generateChestLoot } from './game/loot'
 import { resetCreatureIdCounter, resetItemIdCounter } from './api'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -56,6 +56,7 @@ class GameState extends EventEmitter {
   equipment: Partial<Record<EquipSlot, ItemState>> = {}
   spellbook: (ItemState | null)[] = Array(GAME_CONFIG.capacity.spellbookSlots).fill(null)
   lootItems: ItemState[] = []
+  chestLootItems: ItemState[] = []
 
   constructor() {
     super()
@@ -299,6 +300,7 @@ class GameState extends EventEmitter {
     this.equipment = {}
     this.spellbook = Array(GAME_CONFIG.capacity.spellbookSlots).fill(null)
     this.lootItems = []
+    this.chestLootItems = []
     const cfg = GAME_CONFIG.player
     const nextXp = GAME_CONFIG.xpThresholds[cfg.startingLevel - 1] ?? 10
     this.player = {
@@ -331,6 +333,7 @@ class GameState extends EventEmitter {
     this.equipment = {}
     this.spellbook = Array(GAME_CONFIG.capacity.spellbookSlots).fill(null)
     this.lootItems = []
+    this.chestLootItems = []
     this.emit('game:quit')
   }
 
@@ -379,6 +382,51 @@ class GameState extends EventEmitter {
     }
     this.lootItems = []
     this.emit('loot:items-changed', [])
+  }
+
+  generateChestLootItems(): void {
+    this.chestLootItems = generateChestLoot(this.player.level);
+    this.emit('chest:loot-show', this.chestLootItems);
+  }
+
+  takeChestItem(itemId: string): void {
+    const idx = this.chestLootItems.findIndex(i => i.id === itemId);
+    if (idx === -1) return;
+    const item = this.chestLootItems[idx];
+    this.chestLootItems.splice(idx, 1);
+    this.addItemToInventoryOrEquip(item);
+    this.addLogEntry({
+      type: 'item_picked_up',
+      message: `Picked up ${item.name} from chest`,
+      icon: 'fa-solid fa-box-open',
+    });
+    this.emit('chest:loot-items-changed', [...this.chestLootItems]);
+  }
+
+  takeAllChestLoot(): void {
+    const items = [...this.chestLootItems];
+    this.chestLootItems = [];
+    for (const item of items) {
+      this.addItemToInventoryOrEquip(item);
+    }
+    this.addLogEntry({
+      type: 'item_picked_up',
+      message: `Took all items from chest (${items.length})`,
+      icon: 'fa-solid fa-box-open',
+    });
+    this.emit('chest:loot-dismissed');
+  }
+
+  dismissChestLoot(): void {
+    if (this.chestLootItems.length > 0) {
+      this.addLogEntry({
+        type: 'item_dropped',
+        message: `Left ${this.chestLootItems.length} item(s) in chest`,
+        icon: 'fa-solid fa-box-open',
+      });
+    }
+    this.chestLootItems = [];
+    this.emit('chest:loot-dismissed');
   }
 
   private addItemToInventoryOrEquip(item: ItemState): void {

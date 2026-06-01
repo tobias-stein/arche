@@ -17,8 +17,10 @@ import {
   generateCreaturesForRoom,
   getEntryTile,
 } from './creature-spawner';
+import { generateChestsForRoom } from './chest-spawner';
 import { drawCreatureTriangle, createCreatureLabel } from './creature-renderer';
-import type { CreatureState } from '../types';
+import { drawChest, drawOpenChest, drawChestText } from './chest-renderer';
+import type { CreatureState, ChestState } from '../types';
 
 const DIRS: [number, number][] = [[0, -1], [0, 1], [-1, 0], [1, 0]];
 
@@ -47,6 +49,7 @@ export class DungeonScene extends Phaser.Scene {
   private transitionOverlay!: Phaser.GameObjects.Graphics;
   private playerGraphics!: Phaser.GameObjects.Graphics;
   private creatureGraphics!: Phaser.GameObjects.Graphics;
+  private chestGraphics!: Phaser.GameObjects.Graphics;
   private transitioning = false;
   private elapsed = 0;
 
@@ -69,6 +72,9 @@ export class DungeonScene extends Phaser.Scene {
   private creatures: CreatureState[] = [];
   private creatureLabels: Phaser.GameObjects.Text[] = [];
   private chaseTarget: CreatureState | null = null;
+  private chests: ChestState[] = [];
+  private chestTexts: (Phaser.GameObjects.Text | null)[] = [];
+  private adjacentChest: ChestState | null = null;
   private chaseTickAccum = 0;
 
   constructor() {
@@ -93,6 +99,8 @@ export class DungeonScene extends Phaser.Scene {
     this.playerGraphics.setDepth(50);
     this.creatureGraphics = this.add.graphics();
     this.creatureGraphics.setDepth(40);
+    this.chestGraphics = this.add.graphics();
+    this.chestGraphics.setDepth(30);
     this.transitionOverlay = this.add.graphics();
     this.transitionOverlay.setDepth(100);
 
@@ -111,6 +119,14 @@ export class DungeonScene extends Phaser.Scene {
 
   private setupInput(): void {
     this.input.keyboard!.on('keydown', (e: KeyboardEvent) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (!this.transitioning && !this.moving) {
+          this.interactWithAdjacentChest();
+        }
+        return;
+      }
+
       const dir = KEY_MAP[e.key];
       if (dir !== undefined) {
         e.preventDefault();
@@ -176,6 +192,7 @@ export class DungeonScene extends Phaser.Scene {
 
   private async spawnCreatures(): Promise<void> {
     this.destroyCreatureLabels();
+    this.destroyChestTexts();
 
     const isBoss = this.currentRoom === this.dungeon.bossRoom;
     const entryTile = getEntryTile(this.tiles);
@@ -199,8 +216,22 @@ export class DungeonScene extends Phaser.Scene {
       return label;
     });
 
+    this.chests = generateChestsForRoom(this.tiles, entryTile);
+    this.chestTexts = this.chests.map((c) => {
+      const px = this.offsetX + c.position.x * this.tileSize;
+      const py = this.offsetY + c.position.y * this.tileSize;
+      return c.opened ? null : drawChestText(this, px, py, this.tileSize);
+    });
+
     this.chaseTarget = null;
     this.chaseTickAccum = 0;
+  }
+
+  private destroyChestTexts(): void {
+    for (const t of this.chestTexts) {
+      if (t) t.destroy();
+    }
+    this.chestTexts = [];
   }
 
   private destroyCreatureLabels(): void {
@@ -215,12 +246,39 @@ export class DungeonScene extends Phaser.Scene {
     this.vignetteGraphics.clear();
     this.playerGraphics.clear();
     this.creatureGraphics.clear();
+    this.chestGraphics.clear();
 
     drawRoom(this.roomGraphics, this.tiles, this.tileSize, this.offsetX, this.offsetY, this.elapsed);
 
     this.drawPlayer();
+    this.drawChests();
     this.drawCreatures();
     this.drawVignette();
+  }
+
+  private drawChests(): void {
+    for (let i = 0; i < this.chests.length; i++) {
+      const c = this.chests[i];
+      const px = this.offsetX + c.position.x * this.tileSize;
+      const py = this.offsetY + c.position.y * this.tileSize;
+      const isHighlighted = this.adjacentChest?.id === c.id;
+
+      if (c.opened) {
+        drawOpenChest(this.chestGraphics, px, py, this.tileSize);
+      } else {
+        drawChest(this.chestGraphics, px, py, this.tileSize, isHighlighted);
+      }
+
+      if (this.chestTexts[i]) {
+        if (c.opened) {
+          this.chestTexts[i]!.setVisible(false);
+        } else {
+          const cx = Math.round(px + this.tileSize / 2);
+          const cy = Math.round(py + this.tileSize / 2 + this.tileSize * 0.01);
+          this.chestTexts[i]!.setPosition(cx, cy);
+        }
+      }
+    }
   }
 
   private drawCreatures(): void {
@@ -305,7 +363,20 @@ export class DungeonScene extends Phaser.Scene {
     this.playerX = tx;
     this.playerY = ty;
     this.gameState.setPlayerPosition(tx, ty);
-    this.checkEncounter(tx, ty);
+    if (!this.checkChestInteraction(tx, ty)) {
+      this.checkEncounter(tx, ty);
+    }
+  }
+
+  private checkChestInteraction(tx: number, ty: number): boolean {
+    for (const c of this.chests) {
+      if (c.opened) continue;
+      if (c.position.x === tx && c.position.y === ty) {
+        this.openChest(c);
+        return true;
+      }
+    }
+    return false;
   }
 
   private checkEncounter(tx: number, ty: number): void {
@@ -521,6 +592,26 @@ export class DungeonScene extends Phaser.Scene {
     return this.creatures.find(c => c.id === id)
   }
 
+  private openChest(chest: ChestState): void {
+    if (chest.opened) return;
+    chest.opened = true;
+    this.gameState.generateChestLootItems();
+  }
+
+  private interactWithAdjacentChest(): void {
+    for (const c of this.chests) {
+      if (c.opened) continue;
+      for (const [dx, dy] of DIRS) {
+        const nx = this.playerX + dx;
+        const ny = this.playerY + dy;
+        if (c.position.x === nx && c.position.y === ny) {
+          this.openChest(c);
+          return;
+        }
+      }
+    }
+  }
+
   removeCreature(creatureId: string): void {
     const idx = this.creatures.findIndex(c => c.id === creatureId);
     if (idx !== -1) {
@@ -539,9 +630,25 @@ export class DungeonScene extends Phaser.Scene {
       this.drawCurrentRoom();
       return;
     }
+    this.updateAdjacentChest();
     this.processInput();
     this.updateMovement();
     this.updateCreatures();
     this.drawCurrentRoom();
+  }
+
+  private updateAdjacentChest(): void {
+    this.adjacentChest = null;
+    for (const c of this.chests) {
+      if (c.opened) continue;
+      for (const [dx, dy] of DIRS) {
+        const nx = this.playerX + dx;
+        const ny = this.playerY + dy;
+        if (c.position.x === nx && c.position.y === ny) {
+          this.adjacentChest = c;
+          return;
+        }
+      }
+    }
   }
 }

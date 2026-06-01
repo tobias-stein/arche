@@ -11,6 +11,7 @@ function LootPopup() {
   const [visible, setVisible] = useState(false)
   const [selectedIdx, setSelectedIdx] = useState(0)
   const [levelUp, setLevelUp] = useState(false)
+  const [source, setSource] = useState<'combat' | 'chest'>('combat')
   const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -20,6 +21,16 @@ function LootPopup() {
       setItems([...lootItems])
       setCreature(gs.combatCreature)
       setSelectedIdx(0)
+      setSource('combat')
+      setVisible(true)
+    }
+
+    function onChestLootShow(lootItems: ItemState[]) {
+      setItems([...lootItems])
+      setCreature(null)
+      setXpGained(0)
+      setSelectedIdx(0)
+      setSource('chest')
       setVisible(true)
     }
 
@@ -28,6 +39,15 @@ function LootPopup() {
       if (updatedItems.length === 0 && gs.combatActive) {
         gs.endCombat()
       }
+    }
+
+    function onChestLootChanged(updatedItems: ItemState[]) {
+      setItems([...updatedItems])
+    }
+
+    function onChestLootDismissed() {
+      setVisible(false)
+      setItems([])
     }
 
     function onVictory(_creatureId: string, xp: number) {
@@ -45,14 +65,20 @@ function LootPopup() {
     }
 
     gs.on('loot:show', onLootShow)
+    gs.on('chest:loot-show', onChestLootShow)
     gs.on('loot:items-changed', onLootChanged)
+    gs.on('chest:loot-items-changed', onChestLootChanged)
+    gs.on('chest:loot-dismissed', onChestLootDismissed)
     gs.on('combat:victory', onVictory)
     gs.on('xp:level-up', onLevelUp)
     gs.on('combat:ended', onCombatEnded)
 
     return () => {
       gs.off('loot:show', onLootShow)
+      gs.off('chest:loot-show', onChestLootShow)
       gs.off('loot:items-changed', onLootChanged)
+      gs.off('chest:loot-items-changed', onChestLootChanged)
+      gs.off('chest:loot-dismissed', onChestLootDismissed)
       gs.off('combat:victory', onVictory)
       gs.off('xp:level-up', onLevelUp)
       gs.off('combat:ended', onCombatEnded)
@@ -61,21 +87,33 @@ function LootPopup() {
 
   const handleTakeItem = useCallback((itemId: string) => {
     const gs = getGameState()
-    gs.takeLootItem(itemId)
-  }, [])
+    if (source === 'chest') {
+      gs.takeChestItem(itemId)
+    } else {
+      gs.takeLootItem(itemId)
+    }
+  }, [source])
 
   const handleTakeAll = useCallback(() => {
     const gs = getGameState()
-    gs.takeAllLoot()
-  }, [])
+    if (source === 'chest') {
+      gs.takeAllChestLoot()
+    } else {
+      gs.takeAllLoot()
+    }
+  }, [source])
 
   const handleLeave = useCallback(() => {
     const gs = getGameState()
-    gs.dismissLoot()
-    gs.endCombat()
+    if (source === 'chest') {
+      gs.dismissChestLoot()
+    } else {
+      gs.dismissLoot()
+      gs.endCombat()
+    }
     setVisible(false)
     setItems([])
-  }, [])
+  }, [source])
 
   const handleOpenInventory = useCallback(() => {
     const gs = getGameState()
@@ -114,14 +152,16 @@ function LootPopup() {
         case 'i':
         case 'I':
           e.preventDefault()
-          handleOpenInventory()
+          if (source === 'combat') {
+            handleOpenInventory()
+          }
           break
       }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [visible, items, selectedIdx, handleTakeItem, handleTakeAll, handleLeave, handleOpenInventory])
+  }, [visible, items, selectedIdx, handleTakeItem, handleTakeAll, handleLeave, handleOpenInventory, source])
 
   useEffect(() => {
     if (visible && containerRef.current) {
@@ -138,20 +178,27 @@ function LootPopup() {
       <div className="victory-bg" onClick={handleLeave} />
 
       <div className="loot-dialog">
-        {levelUp && (
+        {levelUp && source === 'combat' && (
           <div className="ld-level-badge">
             <i className="fa-solid fa-star" /> Level Up!
           </div>
         )}
 
-        <div className="ld-header">
-          <h3><i className="fa-solid fa-crosshairs" /> Victory!</h3>
-          <span className="ld-xp">+{xpGained} XP</span>
-        </div>
-
-        <div className="ld-subtitle">
-          Defeated <strong>{creatureName}</strong>
-        </div>
+        {source === 'combat' ? (
+          <>
+            <div className="ld-header">
+              <h3><i className="fa-solid fa-crosshairs" /> Victory!</h3>
+              <span className="ld-xp">+{xpGained} XP</span>
+            </div>
+            <div className="ld-subtitle">
+              Defeated <strong>{creatureName}</strong>
+            </div>
+          </>
+        ) : (
+          <div className="ld-header">
+            <h3><i className="fa-solid fa-chest" /> Chest!</h3>
+          </div>
+        )}
 
         <div className="ld-label">LOOT</div>
 

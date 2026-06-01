@@ -137,7 +137,7 @@ function InventoryDialog({ onClose, lootActive }: Props) {
     onClose?.()
   }, [onClose])
 
-  const cleanupDrag = useCallback(() => {
+  const clearDragUI = useCallback(() => {
     document.querySelectorAll('.dragging, .drag-valid, .drag-invalid, .drag-over-trash')
       .forEach(el => el.classList.remove('dragging', 'drag-valid', 'drag-invalid', 'drag-over-trash'))
     const et = document.querySelector('.et')
@@ -146,10 +146,14 @@ function InventoryDialog({ onClose, lootActive }: Props) {
       dragFloat.remove()
       dragFloat = null
     }
-    dragState = null
-    pendingAbandon = null
     setDragActive(false)
   }, [])
+
+  const cleanupDrag = useCallback(() => {
+    clearDragUI()
+    dragState = null
+    pendingAbandon = null
+  }, [clearDragUI])
 
   const getTargetAtPosition = useCallback((x: number, y: number): {
     type: 'equipment' | 'inventory' | 'spell' | 'trash' | null
@@ -256,16 +260,7 @@ function InventoryDialog({ onClose, lootActive }: Props) {
   function showAbandonConfirm(source: DragState) {
     pendingAbandon = source
     setAbandonItem(source)
-    // Remove drag float and visual drag indicators
-    document.querySelectorAll('.dragging, .drag-valid, .drag-invalid, .drag-over-trash')
-      .forEach(el => el.classList.remove('dragging', 'drag-valid', 'drag-invalid', 'drag-over-trash'))
-    const et = document.querySelector('.et')
-    if (et) et.classList.remove('et-active')
-    if (dragFloat) {
-      dragFloat.remove()
-      dragFloat = null
-    }
-    setDragActive(false)
+    clearDragUI()
   }
 
   function confirmAbandon() {
@@ -738,7 +733,7 @@ function InventoryDialog({ onClose, lootActive }: Props) {
     const slots: React.ReactNode[] = []
     for (let i = 0; i < GAME_CONFIG.capacity.inventorySlots; i++) {
       const item = inventory[i]
-      const equipSlotLabel = item?.equipSlot ? EQUIP_SLOT_LABELS[item.equipSlot] : undefined
+      const equipSlotLabel = item?.equipSlot && EQUIP_SLOT_LABELS[item.equipSlot]
       slots.push(
         <div
           key={`inv-${i}`}
@@ -746,7 +741,7 @@ function InventoryDialog({ onClose, lootActive }: Props) {
           data-slot-type="inventory"
           data-slot-idx={i}
           data-rarity={item?.rarity ?? ''}
-          {...(equipSlotLabel ? { 'data-equip-slot': equipSlotLabel } : {})}
+          data-equip-slot={equipSlotLabel || undefined}
           onMouseDown={(e) => item && handleDragStart(e, 'inventory', undefined, i)}
           onMouseOver={(e) => item && handleMouseEnter(e, item)}
           onMouseOut={handleMouseLeave}

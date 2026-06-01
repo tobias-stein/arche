@@ -170,6 +170,15 @@ export async function generateMockItems(
   return fallback
 }
 
+export function generateChestLoot(playerLevel: number): ItemState[] {
+  const count = randInt(1, 2);
+  const items: ItemState[] = [];
+  for (let i = 0; i < count; i++) {
+    items.push(generateMockItem(playerLevel, GAME_CONFIG.generationWindow.itemLevelVariance));
+  }
+  return items;
+}
+
 export function resetItemIdCounter(): void {
   nextItemId = 1
 }

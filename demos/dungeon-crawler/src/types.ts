@@ -31,6 +31,12 @@ interface CreatureState {
   stunTimer: number
 }
 
+interface ChestState {
+  id: string
+  position: { x: number; y: number }
+  opened: boolean
+}
+
 interface ItemState {
   id: string
   name: string
@@ -62,4 +68,4 @@ interface LogEvent {
   icon: string
 }
 
-export type { Difficulty, Rarity, EquipSlot, PlayerState, CreatureState, ItemState, LogEventType, LogEvent }
+export type { Difficulty, Rarity, EquipSlot, PlayerState, CreatureState, ChestState, ItemState, LogEventType, LogEvent }

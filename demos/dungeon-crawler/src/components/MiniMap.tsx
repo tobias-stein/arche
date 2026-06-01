@@ -115,9 +115,6 @@ function MiniMap() {
       canvas.height = h;
     }
 
-    ctx.fillStyle = 'transparent';
-    ctx.fillRect(0, 0, w, h);
-
     for (let dy = -SM_HALF; dy <= SM_HALF; dy++) {
       for (let dx = -SM_HALF; dx <= SM_HALF; dx++) {
         const gx = pr.x + dx;
@@ -180,9 +177,6 @@ function MiniMap() {
     const ch = gridSize * cell + (gridSize - 1) * LG_GAP + LG_PAD * 2;
     canvas.width = cw;
     canvas.height = ch;
-
-    ctx.fillStyle = 'transparent';
-    ctx.fillRect(0, 0, cw, ch);
 
     ctx.lineWidth = Math.max(1, cell * 0.08);
     const allEdges = [...dun.treeEdges, ...dun.extraEdges];

@@ -77,6 +77,7 @@ export class DungeonScene extends Phaser.Scene {
   private chestTexts: (Phaser.GameObjects.Text | null)[] = [];
   private adjacentChest: ChestState | null = null;
   private chaseTickAccum = 0;
+  private aggroGraceTimer = 0;
 
   constructor() {
     super({ key: 'DungeonScene' });
@@ -190,6 +191,7 @@ export class DungeonScene extends Phaser.Scene {
     this.gameState.setDungeonData(this.dungeon);
     this.gameState.setCurrentRoom(this.currentRoom);
     this.gameState.setPlayerPosition(this.playerX, this.playerY);
+    this.aggroGraceTimer = this.time.now + GAME_CONFIG.aggroGracePeriodMs.initial;
     void this.spawnCreatures();
     this.drawCurrentRoom();
   }
@@ -434,6 +436,7 @@ export class DungeonScene extends Phaser.Scene {
         this.gameState.setPlayerPosition(pos.x, pos.y);
 
         void this.spawnCreatures();
+        this.aggroGraceTimer = this.time.now + GAME_CONFIG.aggroGracePeriodMs.transition;
 
         const fadeOutTarget = { alpha: 1 };
         this.tweens.add({
@@ -515,6 +518,8 @@ export class DungeonScene extends Phaser.Scene {
         }
         continue;
       }
+
+      if (now < this.aggroGraceTimer) continue;
 
       if (!c.aggro) {
         const dist = Math.max(

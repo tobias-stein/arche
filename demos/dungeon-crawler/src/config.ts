@@ -73,6 +73,10 @@ export const GAME_CONFIG = {
   },
   creatureChaseSpeed: 0.5,
   fleeStunDuration: 1500,
+  aggroGracePeriodMs: {
+    initial: 1500,
+    transition: 800,
+  },
   lootDrops: {
     normal: { min: 0, max: 1 },
     champion: { min: 1, max: 3 },

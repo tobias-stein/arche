@@ -52,4 +52,9 @@ export const GAME_CONFIG = {
   creatureChaseSpeed: 0.5,
 
   fleeStunDuration: 1500,
+
+  aggroGracePeriodMs: {
+    initial: 1500,
+    transition: 800,
+  },
 } as const;

@@ -84,6 +84,7 @@ export class DungeonScene extends Phaser.Scene {
   private boundHandleVictory: ((creatureId: string) => void) | null = null
   private boundHandleFled: ((creatureId: string) => void) | null = null
   private boundHandleBackAway: ((creatureId: string) => void) | null = null
+  private boundHandleChestLootDismissed: (() => void) | null = null
 
   create(): void {
     this.tileSize = Math.min(
@@ -110,9 +111,11 @@ export class DungeonScene extends Phaser.Scene {
     this.boundHandleVictory = (creatureId: string) => this.removeCreature(creatureId)
     this.boundHandleFled = (creatureId: string) => this.stunCreature(creatureId)
     this.boundHandleBackAway = (_creatureId: string) => this.movePlayerBack()
+    this.boundHandleChestLootDismissed = () => this.removeLootedChest()
     this.gameState.on('combat:victory', this.boundHandleVictory)
     this.gameState.on('combat:fled', this.boundHandleFled)
     this.gameState.on('encounter:backed-away', this.boundHandleBackAway)
+    this.gameState.on('chest:loot-dismissed', this.boundHandleChestLootDismissed)
 
     DungeonScene.currentInstance = this
   }
@@ -609,6 +612,15 @@ export class DungeonScene extends Phaser.Scene {
           return;
         }
       }
+    }
+  }
+
+  private removeLootedChest(): void {
+    const idx = this.chests.findIndex(c => c.opened);
+    if (idx !== -1) {
+      if (this.chestTexts[idx]) this.chestTexts[idx]!.destroy();
+      this.chests.splice(idx, 1);
+      this.chestTexts.splice(idx, 1);
     }
   }
 

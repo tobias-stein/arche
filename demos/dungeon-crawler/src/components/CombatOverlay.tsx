@@ -16,6 +16,7 @@ function CombatOverlay() {
   const [animating, setAnimating] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
   const [xpGained, setXpGained] = useState(0)
+  const [showFleeConfirm, setShowFleeConfirm] = useState(false)
   const enemyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
@@ -74,6 +75,7 @@ function CombatOverlay() {
       setVictory(false)
       setDefeat(false)
       setShowMenu(false)
+      setShowFleeConfirm(false)
     }
 
     function onFled() {
@@ -109,6 +111,7 @@ function CombatOverlay() {
     const damage = calculatePlayerDamage(gs.player, gs.combatCreature)
     await gs.processPlayerAttack(damage)
 
+    if (!gs.combatCreature) return
     if (gs.combatCreature.hp.current > 0) {
       enemyTimerRef.current = setTimeout(() => {
         const gs2 = getGameState()
@@ -128,9 +131,35 @@ function CombatOverlay() {
   }, [])
 
   const handleFlee = useCallback(() => {
+    setShowFleeConfirm(true)
+  }, [])
+
+  const handleConfirmFlee = useCallback(() => {
+    setShowFleeConfirm(false)
     const gs = getGameState()
     gs.fleeCombat()
   }, [])
+
+  const handleCancelFlee = useCallback(() => {
+    setShowFleeConfirm(false)
+  }, [])
+
+  useEffect(() => {
+    if (!showFleeConfirm) return
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        e.stopImmediatePropagation()
+        handleCancelFlee()
+      } else if (e.key === 'Enter') {
+        e.preventDefault()
+        e.stopImmediatePropagation()
+        handleConfirmFlee()
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [showFleeConfirm, handleConfirmFlee, handleCancelFlee])
 
   if (!visible || !creature) return null
 
@@ -158,6 +187,19 @@ function CombatOverlay() {
           onUseItem={handleUseItem}
           onFlee={handleFlee}
         />
+      )}
+
+      {showFleeConfirm && (
+        <div className="combat-flee-confirm">
+          <div className="cfc-card">
+            <h3>Flee from combat?</h3>
+            <p className="cfc-sub">Cowardice has its rewards.</p>
+            <div className="cfc-actions">
+              <button className="cfc-yes" onClick={handleConfirmFlee}>Yes, Flee</button>
+              <button className="cfc-no" onClick={handleCancelFlee}>Stay & Fight</button>
+            </div>
+          </div>
+        </div>
       )}
 
       {turn === 'enemy' && !victory && !defeat && (

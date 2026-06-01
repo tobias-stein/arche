@@ -166,3 +166,69 @@
   margin-top: 8px;
   font-weight: 700;
 }
+
+.combat-flee-confirm {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 5, 5, 0.85);
+  font-family: monospace;
+}
+
+.cfc-card {
+  background: #3a2020;
+  border: 4px solid #6a3a3a;
+  padding: 24px 28px;
+  text-align: center;
+  max-width: 320px;
+  box-shadow: 0 8px 0 #1a3a2a;
+}
+
+.cfc-card h3 {
+  color: #ff9090;
+  font-size: 16px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  text-shadow: 2px 2px 0 #2a1010;
+  margin: 0 0 8px;
+}
+
+.cfc-sub {
+  color: #ff9090;
+  font-size: 12px;
+  margin: 0 0 16px;
+  opacity: 0.85;
+}
+
+.cfc-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.cfc-actions button {
+  padding: 8px 20px;
+  border: 3px solid #4a7a58;
+  background: #2a4a38;
+  color: #d8f0e0;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: monospace;
+  box-shadow: 0 3px 0 #1a3a2a;
+}
+
+.cfc-actions .cfc-yes {
+  background: #5a1a1a;
+  border-color: #7a2a2a;
+  color: #ff6060;
+}
+
+.cfc-actions .cfc-no {
+  background: #2a4a38;
+  border-color: #4a7a58;
+  color: #d8f0e0;
+}

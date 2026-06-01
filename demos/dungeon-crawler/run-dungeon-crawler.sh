@@ -52,6 +52,25 @@ export ARCHE_API_KEY
 docker compose up -d --build dungeon-crawler
 
 PORT="${DUNGEON_CRAWLER_PORT:-5173}"
+
+# Verify the port is reachable
+if command -v curl &>/dev/null; then
+  HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:${PORT}/" 2>/dev/null || echo "000")
+  if [ "$HTTP_CODE" = "000" ]; then
+    echo "   (port ${PORT} not yet responding, retrying...)"
+    for i in $(seq 1 10); do
+      sleep 1
+      HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:${PORT}/" 2>/dev/null || echo "000")
+      [ "$HTTP_CODE" != "000" ] && break
+    done
+  fi
+  if [ "$HTTP_CODE" != "200" ]; then
+    echo "   WARNING: Got HTTP ${HTTP_CODE} on port ${PORT}."
+    echo "   Another service (e.g. a stale Vite dev server) might be using this port."
+    echo "   Try: kill \$(lsof -ti :${PORT}) && docker compose restart dungeon-crawler"
+  fi
+fi
+
 echo ""
 echo "============================================="
 echo " Dungeon Crawler is running!"

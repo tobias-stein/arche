@@ -48,6 +48,106 @@ export function capitalize(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1)
 }
 
+// ── Stat reference curve ────────────────────────────────────────────
+
+export function referenceAttack(level: number): number {
+  return 5 + (level - 1) * 0.5
+}
+
+export function referenceDefense(level: number): number {
+  return 2 + (level - 1) * 0.3
+}
+
+export function referenceHealth(level: number): number {
+  return 20 + (level - 1) * 2.0
+}
+
+export const statCurve = {
+  attack: referenceAttack,
+  defense: referenceDefense,
+  health: referenceHealth,
+}
+
+export const STAT_MULTIPLIERS = {
+  creature: {
+    normal: { attack: 1.0, defense: 1.0, health: 1.0, xpReward: 1.0 },
+    champion: { attack: 1.2, defense: 1.2, health: 1.5, xpReward: 1.5 },
+    elite: { attack: 1.5, defense: 1.5, health: 2.0, xpReward: 2.5 },
+    boss: { attack: 2.0, defense: 2.0, health: 4.0, xpReward: 5.0 },
+  },
+  weapon: { damage: 0.8 },
+  armor: { defense_bonus: 0.7 },
+  shield: { defense_bonus: 0.5 },
+  accessory: { stat_bonus: 0.3 },
+  potion: { health: 2.0 },
+  spell: {
+    damage: { attack: 1.2 },
+    heal: { health: 1.5 },
+  },
+}
+
+export interface ArchetypeTemplate {
+  archetype: string
+  difficulty?: string
+  spellType?: string
+}
+
+export function computeStats(level: number, template: ArchetypeTemplate): Record<string, number> {
+  const refAtk = referenceAttack(level)
+  const refDef = referenceDefense(level)
+  const refHp = referenceHealth(level)
+
+  switch (template.archetype) {
+    case 'creature': {
+      const diff = (template.difficulty || 'normal') as keyof typeof STAT_MULTIPLIERS.creature
+      const mult = STAT_MULTIPLIERS.creature[diff]
+      return {
+        health: Math.round(refHp * mult.health),
+        attack: Math.round(refAtk * mult.attack),
+        defense: Math.round(refDef * mult.defense),
+        xpReward: Math.round(refHp * 0.5 * mult.xpReward),
+      }
+    }
+    case 'weapon': {
+      return {
+        damage: Math.round(refAtk * STAT_MULTIPLIERS.weapon.damage),
+      }
+    }
+    case 'armor': {
+      return {
+        defense_bonus: Math.round(refDef * STAT_MULTIPLIERS.armor.defense_bonus),
+      }
+    }
+    case 'shield': {
+      return {
+        defense_bonus: Math.round(refDef * STAT_MULTIPLIERS.shield.defense_bonus),
+      }
+    }
+    case 'accessory': {
+      return {
+        stat_bonus: Math.round(refAtk * STAT_MULTIPLIERS.accessory.stat_bonus),
+      }
+    }
+    case 'potion': {
+      return {
+        effect_value: Math.round(refHp * STAT_MULTIPLIERS.potion.health),
+      }
+    }
+    case 'spell': {
+      if (template.spellType === 'heal') {
+        return {
+          heal_amount: Math.round(refHp * STAT_MULTIPLIERS.spell.heal.health),
+        }
+      }
+      return {
+        damage: Math.round(refAtk * STAT_MULTIPLIERS.spell.damage.attack),
+      }
+    }
+    default:
+      return {}
+  }
+}
+
 export const AFFIX_COUNT_CONFIG: Record<string, { prefixes: number; suffixes: number }> = {
   normal: { prefixes: 0, suffixes: 0 },
   champion: { prefixes: 1, suffixes: 0 },

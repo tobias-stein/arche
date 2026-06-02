@@ -1,6 +1,6 @@
 ---
 title: Define and implement shared stat reference curve
-status: ready-for-agent
+status: completed
 ---
 
 ## Problem

@@ -1,6 +1,6 @@
 ---
 title: Support gte/lte constraints on Single value type attributes
-status: ready-for-agent
+status: completed
 ---
 
 ## Problem

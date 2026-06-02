@@ -2,7 +2,7 @@ import {
   API_BASE, SEED_CONFIG, LEVEL_BANDS, BAND_SUBTYPES, DIFFICULTIES, NON_BOSS_DIFFICULTIES, RARITIES,
   AFFIX_COUNT_CONFIG, AFFIX_TIERS, CREATURE_PREFIX_DEFS, CREATURE_SUFFIX_DEFS,
   ITEM_PREFIX_DEFS, ITEM_SUFFIX_DEFS, SUBTYPE_NAMES, ALL_CREATURE_SUBTYPES, capitalize,
-  computeStats,
+  computeStats, statRange,
 } from './shared'
 
 interface NamedId {
@@ -80,7 +80,7 @@ async function assignAffixes(blueprintIds: string[], affixIds: string[], weight:
   }, apiKey)
 }
 
-function buildCreatureBlueprint(name: string, subtype: string, difficulty: string, weight: number, band: typeof LEVEL_BANDS[0]): Record<string, unknown> {
+function buildCreatureBlueprint(name: string, subtype: string, difficulty: typeof DIFFICULTIES[number], weight: number, band: typeof LEVEL_BANDS[0]): Record<string, unknown> {
   const bandCenter = Math.round((band.min + band.max) / 2)
   const stats = computeStats(bandCenter, { archetype: 'creature', difficulty })
   const affixCfg = AFFIX_COUNT_CONFIG[difficulty]
@@ -93,10 +93,10 @@ function buildCreatureBlueprint(name: string, subtype: string, difficulty: strin
       level: { value_type: 'range', min: band.min, max: band.max, distribution: { type: 'uniform' } },
       difficulty: { value_type: 'enum', values: [difficulty] },
       subtype: { value_type: 'enum', values: [subtype] },
-      health: { value_type: 'range', min: Math.round(stats.health * 0.9), max: Math.round(stats.health * 1.1), distribution: { type: 'uniform' } },
-      attack: { value_type: 'range', min: Math.round(stats.attack * 0.9), max: Math.round(stats.attack * 1.1), distribution: { type: 'uniform' } },
-      defense: { value_type: 'range', min: Math.round(stats.defense * 0.9), max: Math.round(stats.defense * 1.1), distribution: { type: 'uniform' } },
-      xp_reward: { value_type: 'range', min: Math.round(stats.xpReward * 0.9), max: Math.round(stats.xpReward * 1.1), distribution: { type: 'uniform' } },
+      health: { value_type: 'range', ...statRange(stats.health), distribution: { type: 'uniform' } },
+      attack: { value_type: 'range', ...statRange(stats.attack), distribution: { type: 'uniform' } },
+      defense: { value_type: 'range', ...statRange(stats.defense), distribution: { type: 'uniform' } },
+      xp_reward: { value_type: 'range', ...statRange(stats.xpReward), distribution: { type: 'uniform' } },
     },
     attribute_order: ['level', 'difficulty', 'subtype', 'health', 'attack', 'defense', 'xp_reward'],
     affixes: {
@@ -124,20 +124,20 @@ function buildItemBlueprint(name: string, archetype: string, rarity: string, sub
     case 'weapon': {
       const stats = computeStats(bandCenter, { archetype: 'weapon' })
       baseAttrs.subtype = { value_type: 'enum', values: [subtype] }
-      baseAttrs.damage = { value_type: 'range', min: Math.round(stats.damage * 0.9), max: Math.round(stats.damage * 1.1), distribution: { type: 'uniform' } }
+      baseAttrs.damage = { value_type: 'range', ...statRange(stats.damage), distribution: { type: 'uniform' } }
       attrOrder.push('subtype', 'damage')
       break
     }
     case 'armor': {
       const stats = computeStats(bandCenter, { archetype: 'armor' })
       baseAttrs.subtype = { value_type: 'enum', values: [subtype] }
-      baseAttrs.defense_bonus = { value_type: 'range', min: Math.round(stats.defense_bonus * 0.9), max: Math.round(stats.defense_bonus * 1.1), distribution: { type: 'uniform' } }
+      baseAttrs.defense_bonus = { value_type: 'range', ...statRange(stats.defense_bonus), distribution: { type: 'uniform' } }
       attrOrder.push('subtype', 'defense_bonus')
       break
     }
     case 'shield': {
       const stats = computeStats(bandCenter, { archetype: 'shield' })
-      baseAttrs.defense_bonus = { value_type: 'range', min: Math.round(stats.defense_bonus * 0.9), max: Math.round(stats.defense_bonus * 1.1), distribution: { type: 'uniform' } }
+      baseAttrs.defense_bonus = { value_type: 'range', ...statRange(stats.defense_bonus), distribution: { type: 'uniform' } }
       baseAttrs.block_chance = { value_type: 'range', min: 5, max: 25, distribution: { type: 'uniform' } }
       attrOrder.push('defense_bonus', 'block_chance')
       break
@@ -145,7 +145,7 @@ function buildItemBlueprint(name: string, archetype: string, rarity: string, sub
     case 'accessory': {
       const stats = computeStats(bandCenter, { archetype: 'accessory' })
       baseAttrs.subtype = { value_type: 'enum', values: [subtype] }
-      baseAttrs.stat_bonus = { value_type: 'range', min: Math.round(stats.stat_bonus * 0.9), max: Math.round(stats.stat_bonus * 1.1), distribution: { type: 'uniform' } }
+      baseAttrs.stat_bonus = { value_type: 'range', ...statRange(stats.stat_bonus), distribution: { type: 'uniform' } }
       attrOrder.push('subtype', 'stat_bonus')
       break
     }
@@ -180,7 +180,7 @@ function buildPotionBlueprint(name: string, potionType: string, band: typeof LEV
     attributes: {
       level: { value_type: 'range', min: band.min, max: band.max, distribution: { type: 'uniform' } },
       potion_type: { value_type: 'enum', values: [potionType] },
-      effect_value: { value_type: 'range', min: Math.round(stats.effect_value * 0.9), max: Math.round(stats.effect_value * 1.1), distribution: { type: 'uniform' } },
+      effect_value: { value_type: 'range', ...statRange(stats.effect_value), distribution: { type: 'uniform' } },
     },
     attribute_order: ['level', 'potion_type', 'effect_value'],
     affixes: {
@@ -204,8 +204,8 @@ function buildSpellBlueprint(name: string, spellType: string): Record<string, un
       spell_type: { value_type: 'enum', values: [spellType] },
       mana_cost: { value_type: 'range', min: 5, max: 40, distribution: { type: 'uniform' } },
       ...(isHeal
-        ? { heal_amount: { value_type: 'range', min: Math.round(stats.heal_amount * 0.9), max: Math.round(stats.heal_amount * 1.1), distribution: { type: 'uniform' } } }
-        : { damage: { value_type: 'range', min: Math.round(stats.damage * 0.9), max: Math.round(stats.damage * 1.1), distribution: { type: 'uniform' } } }),
+        ? { heal_amount: { value_type: 'range', ...statRange(stats.heal_amount), distribution: { type: 'uniform' } } }
+        : { damage: { value_type: 'range', ...statRange(stats.damage), distribution: { type: 'uniform' } } }),
     },
     attribute_order: isHeal ? ['level', 'spell_type', 'mana_cost', 'heal_amount'] : ['level', 'spell_type', 'mana_cost', 'damage'],
     affixes: {

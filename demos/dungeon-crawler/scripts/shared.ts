@@ -62,10 +62,11 @@ export function referenceHealth(level: number): number {
   return 20 + (level - 1) * 2.0
 }
 
-export const statCurve = {
-  attack: referenceAttack,
-  defense: referenceDefense,
-  health: referenceHealth,
+export function statRange(value: number, variance = 0.1): { min: number; max: number } {
+  return {
+    min: Math.round(value * (1 - variance)),
+    max: Math.round(value * (1 + variance)),
+  }
 }
 
 export const STAT_MULTIPLIERS = {
@@ -86,10 +87,12 @@ export const STAT_MULTIPLIERS = {
   },
 }
 
+export type Archetype = 'creature' | 'weapon' | 'armor' | 'shield' | 'accessory' | 'potion' | 'spell'
+
 export interface ArchetypeTemplate {
-  archetype: string
-  difficulty?: string
-  spellType?: string
+  archetype: Archetype
+  difficulty?: typeof DIFFICULTIES[number]
+  spellType?: 'damage' | 'heal'
 }
 
 export function computeStats(level: number, template: ArchetypeTemplate): Record<string, number> {
@@ -99,7 +102,7 @@ export function computeStats(level: number, template: ArchetypeTemplate): Record
 
   switch (template.archetype) {
     case 'creature': {
-      const diff = (template.difficulty || 'normal') as keyof typeof STAT_MULTIPLIERS.creature
+      const diff = template.difficulty || 'normal'
       const mult = STAT_MULTIPLIERS.creature[diff]
       return {
         health: Math.round(refHp * mult.health),

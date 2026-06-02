@@ -14,6 +14,12 @@ interface NamedId {
   name: string
 }
 
+interface CreatureBlueprintInfo {
+  id: string
+  name: string
+  level: number
+}
+
 async function api<T = unknown>(method: string, path: string, body?: unknown, apiKey?: string): Promise<T> {
   const url = `${API_BASE}${path}`
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
@@ -272,18 +278,19 @@ function buildSpellPrefixAffixBody(name: string, element: string): Record<string
 async function createTieredAffixes(
   defs: { baseName: string; attr: string; tierRanges: number[][] }[],
   type: 'prefix' | 'suffix',
-  ids: string[],
   clientId: string,
   apiKey: string,
-): Promise<void> {
+): Promise<Record<number, string[]>> {
+  const grouped: Record<number, string[]> = { 0: [], 1: [], 2: [], 3: [] }
   for (const def of defs) {
     for (let t = 0; t < AFFIX_TIERS.length; t++) {
       const [minVal, maxVal] = scaleRange(def.tierRanges[t], t)
       const tierName = getTierName(def.baseName, t)
       const affix = await createAffix(buildAffixBody(tierName, type, def.attr, minVal, maxVal), clientId, apiKey)
-      ids.push(affix.id)
+      grouped[t].push(affix.id)
     }
   }
+  return grouped
 }
 
 async function assignBlueprintAffixes(
@@ -390,7 +397,7 @@ function generateSpellsForLevel(level: number): { name: string; spellType: strin
   const typeLabel = spellType === 'heal' ? 'Healing' : spellType === 'shield' ? 'Ward' : capitalize(spellType)
 
   return {
-    name: `${prefix} ${typeLabel} Lv${level}`,
+    name: `${prefix} ${typeLabel}`,
     spellType,
     rarity,
   }
@@ -441,63 +448,58 @@ async function main() {
   }
 
   console.log('Creating affixes...')
-  const creaturePrefixIds: string[] = []
-  const creatureSuffixIds: string[] = []
-  const itemPrefixIds: string[] = []
-  const itemSuffixIds: string[] = []
+  const creaturePrefixByTier = await createTieredAffixes(CREATURE_PREFIX_DEFS, 'prefix', clientId, apiKey)
+  const creatureSuffixByTier = await createTieredAffixes(CREATURE_SUFFIX_DEFS, 'suffix', clientId, apiKey)
+  const itemPrefixByTier = await createTieredAffixes(ITEM_PREFIX_DEFS, 'prefix', clientId, apiKey)
+  const itemSuffixByTier = await createTieredAffixes(ITEM_SUFFIX_DEFS, 'suffix', clientId, apiKey)
+  const spellSuffixByTier = await createTieredAffixes(SPELL_SUFFIX_DEFS, 'suffix', clientId, apiKey)
+
   const spellPrefixIds: string[] = []
-  const spellSuffixIds: string[] = []
-
-  await createTieredAffixes(CREATURE_PREFIX_DEFS, 'prefix', creaturePrefixIds, clientId, apiKey)
-  await createTieredAffixes(CREATURE_SUFFIX_DEFS, 'suffix', creatureSuffixIds, clientId, apiKey)
-  await createTieredAffixes(ITEM_PREFIX_DEFS, 'prefix', itemPrefixIds, clientId, apiKey)
-  await createTieredAffixes(ITEM_SUFFIX_DEFS, 'suffix', itemSuffixIds, clientId, apiKey)
-  await createTieredAffixes(SPELL_SUFFIX_DEFS, 'suffix', spellSuffixIds, clientId, apiKey)
-
   for (const def of SPELL_PREFIX_DEFS) {
     const affix = await createAffix(buildSpellPrefixAffixBody(def.baseName, def.element), clientId, apiKey)
     spellPrefixIds.push(affix.id)
   }
 
-  const totalAffixes = creaturePrefixIds.length + creatureSuffixIds.length +
-    itemPrefixIds.length + itemSuffixIds.length +
-    spellPrefixIds.length + spellSuffixIds.length
+  const countByTier = (map: Record<number, string[]>) => Object.values(map).reduce((s, ids) => s + ids.length, 0)
+  const totalAffixes = countByTier(creaturePrefixByTier) + countByTier(creatureSuffixByTier) +
+    countByTier(itemPrefixByTier) + countByTier(itemSuffixByTier) +
+    spellPrefixIds.length + countByTier(spellSuffixByTier)
   console.log(`  Created ${totalAffixes} affixes`)
-  console.log(`    Creature prefixes: ${creaturePrefixIds.length}, suffixes: ${creatureSuffixIds.length}`)
-  console.log(`    Item prefixes: ${itemPrefixIds.length}, suffixes: ${itemSuffixIds.length}`)
-  console.log(`    Spell prefixes: ${spellPrefixIds.length}, suffixes: ${spellSuffixIds.length}`)
+  console.log(`    Creature prefixes: ${countByTier(creaturePrefixByTier)}, suffixes: ${countByTier(creatureSuffixByTier)}`)
+  console.log(`    Item prefixes: ${countByTier(itemPrefixByTier)}, suffixes: ${countByTier(itemSuffixByTier)}`)
+  console.log(`    Spell prefixes: ${spellPrefixIds.length}, suffixes: ${countByTier(spellSuffixByTier)}`)
 
   // ── Creature blueprints (per-level, ~250 total) ────────────────
 
   console.log('Creating creature blueprints...')
-  const creatureBlueprintIds: NamedId[] = []
+  const creatureBlueprints: CreatureBlueprintInfo[] = []
 
   for (let level = 1; level <= 100; level++) {
     const creatures = generateCreaturesForLevel(level)
     for (const c of creatures) {
       const weight = SEED_CONFIG.creatureWeights[c.difficulty as keyof typeof SEED_CONFIG.creatureWeights].weight
-      const name = `${capitalize(c.subtype)} ${capitalize(c.difficulty)} Lv${level}`
+      const name = `${capitalize(c.subtype)}`
       const bp = buildCreatureBlueprint(name, c.subtype, c.difficulty, weight, level)
       const result = await createBlueprint(bp, clientId, apiKey)
-      creatureBlueprintIds.push(result)
+      creatureBlueprints.push({ id: result.id, name: result.name, level })
     }
   }
 
-  console.log(`  Created ${creatureBlueprintIds.length} creature blueprints`)
+  console.log(`  Created ${creatureBlueprints.length} creature blueprints`)
 
   // ── Item blueprints (per-level, ~175 total) ────────────────────
 
   console.log('Creating item blueprints...')
-  const itemBlueprintIds: NamedId[] = []
+  const itemBlueprintIds: CreatureBlueprintInfo[] = []
 
   for (let level = 1; level <= 100; level++) {
     const items = generateItemsForLevel(level)
     for (const item of items) {
       const rarityWeight = SEED_CONFIG.rarityWeights[item.rarity as keyof typeof SEED_CONFIG.rarityWeights].weight
-      const name = `${capitalize(item.subtype)} ${capitalize(item.rarity)} Lv${level}`
+      const name = `${capitalize(item.subtype)}`
       const bp = buildItemBlueprint(name, item.archetype, item.rarity, item.subtype, rarityWeight, level)
       const result = await createBlueprint(bp, clientId, apiKey)
-      itemBlueprintIds.push(result)
+      itemBlueprintIds.push({ id: result.id, name: result.name, level })
     }
   }
 
@@ -512,7 +514,7 @@ async function main() {
   for (let i = 0; i < potionLevels.length; i++) {
     const pLevel = potionLevels[i]
     const pType = i % 2 === 0 ? 'health' : 'mana'
-    const name = `${capitalize(pType)} Potion Lv${pLevel}`
+    const name = `${capitalize(pType)} Potion`
     const bp = buildPotionBlueprint(name, pType, pLevel)
     const result = await createBlueprint(bp, clientId, apiKey)
     potionBlueprintIds.push(result)
@@ -523,7 +525,7 @@ async function main() {
   // ── Spell blueprints (~75 total, sparse across levels) ─────────
 
   console.log('Creating spell blueprints...')
-  const spellBlueprintIds: NamedId[] = []
+  const spellBlueprintIds: CreatureBlueprintInfo[] = []
 
   for (let level = 1; level <= 100; level++) {
     const spell = generateSpellsForLevel(level)
@@ -531,29 +533,48 @@ async function main() {
 
     const bp = buildSpellBlueprint(spell.name, spell.spellType, spell.rarity, level)
     const result = await createBlueprint(bp, clientId, apiKey)
-    spellBlueprintIds.push(result)
+    spellBlueprintIds.push({ id: result.id, name: result.name, level })
   }
 
   console.log(`  Created ${spellBlueprintIds.length} spell blueprints`)
 
-  const totalBlueprints = creatureBlueprintIds.length + itemBlueprintIds.length +
+  const totalBlueprints = creatureBlueprints.length + itemBlueprintIds.length +
     potionBlueprintIds.length + spellBlueprintIds.length
   console.log(`  Total: ${totalBlueprints} blueprints`)
 
-  // ── Affix assignments ──────────────────────────────────────────
+  // ── Affix assignments (filtered by tier level ranges) ──────────
 
-  await assignBlueprintAffixes(
-    creatureBlueprintIds.map(b => b.id), creaturePrefixIds, creatureSuffixIds,
-    'creature blueprints', clientId, apiKey,
-  )
-  await assignBlueprintAffixes(
-    itemBlueprintIds.map(b => b.id), itemPrefixIds, itemSuffixIds,
-    'item blueprints', clientId, apiKey,
-  )
-  await assignBlueprintAffixes(
-    spellBlueprintIds.map(b => b.id), spellPrefixIds, spellSuffixIds,
-    'spell blueprints', clientId, apiKey,
-  )
+  async function assignTieredAffixes(
+    bpInfos: { id: string; level: number }[],
+    prefixByTier: Record<number, string[]>,
+    suffixByTier: Record<number, string[]>,
+    label: string,
+    clientId: string,
+    apiKey: string,
+  ): Promise<void> {
+    for (let t = 0; t < AFFIX_TIERS.length; t++) {
+      const tier = AFFIX_TIERS[t]
+      const prefixIds = prefixByTier[t] ?? []
+      const suffixIds = suffixByTier[t] ?? []
+      if (prefixIds.length === 0 && suffixIds.length === 0) continue
+      const matchingBps = bpInfos
+        .filter(bp => bp.level >= tier.levelMin && bp.level <= tier.levelMax)
+        .map(bp => bp.id)
+      if (matchingBps.length === 0) continue
+      await assignBlueprintAffixes(
+        matchingBps, prefixIds, suffixIds,
+        `${label} (${tier.name}, Lv${tier.levelMin}-${tier.levelMax})`, clientId, apiKey,
+      )
+    }
+  }
+
+  await assignTieredAffixes(creatureBlueprints, creaturePrefixByTier, creatureSuffixByTier, 'creature blueprints', clientId, apiKey)
+  await assignTieredAffixes(itemBlueprintIds, itemPrefixByTier, itemSuffixByTier, 'item blueprints', clientId, apiKey)
+  await assignTieredAffixes(spellBlueprintIds, {}, spellSuffixByTier, 'spell blueprints', clientId, apiKey)
+  // Non-tiered spell prefixes (elemental) — assign to all spell blueprints
+  if (spellPrefixIds.length > 0) {
+    await assignAffixes(spellBlueprintIds.map(b => b.id), spellPrefixIds, 1.0, clientId, apiKey)
+  }
 
   const boxW = 64
   const pad = (s: string) => s.padEnd(boxW)
@@ -569,7 +590,7 @@ async function main() {
   console.log(`  Client ID:       ${clientId}`)
   console.log(`  GMAs:            ${Object.keys(gmas).length}`)
   console.log(`  Affixes:         ${totalAffixes}`)
-  console.log(`  Creature BPs:    ${creatureBlueprintIds.length}`)
+  console.log(`  Creature BPs:    ${creatureBlueprints.length}`)
   console.log(`  Item BPs:        ${itemBlueprintIds.length}`)
   console.log(`  Potion BPs:      ${potionBlueprintIds.length}`)
   console.log(`  Spell BPs:       ${spellBlueprintIds.length}`)

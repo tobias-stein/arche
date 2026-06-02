@@ -28,6 +28,23 @@ arche/
 └── rust-toolchain.toml        # Rust toolchain pinning (1.88.0)
 ```
 
+## Screenshots
+
+| | |
+|---|---|
+| **Dungeon Crawler — Start Screen** | **Dungeon Crawler — Enemy Encounter** |
+| ![Start Screen](docs/images/Dungeon%20Crawler%20Press%20Enter%20To%20Start%20Screen.png) | ![Enemy Encounter](docs/images/Dungeon%20Crawler%20Enemy%20Encounter.png) |
+| **Dungeon Crawler — Cast Spell** | **Dungeon Crawler — Use Item** |
+| ![Cast Spell](docs/images/Dungeon%20Crawler%20Cast%20Spell.png) | ![Use Item](docs/images/Dungeon%20Crawler%20Use%20Item.png) |
+| **Dungeon Crawler — Inventory** | **Dungeon Crawler — Win Screen** |
+| ![Inventory](docs/images/Dungeon%20Crawler%20Inventory.png) | ![Win Screen](docs/images/Dungeon%20Crawler%20Win%20Screen.png) |
+| **Admin UI — Dashboard** | **Admin UI — Global Search** |
+| ![Dashboard](docs/images/Admin%20UI%20Dashboard.png) | ![Global Search](docs/images/Admin%20UI%20Global%20Search.png) |
+| **Admin UI — Item Blueprint Attributes** | **Admin UI — Affixes** |
+| ![Blueprint Attributes](docs/images/Item%20Blueprint%20Attributes.png) | ![Affixes](docs/images/Affixes.png) |
+| **Admin UI — Global Meta Attributes** | |
+| ![Global Meta Attributes](docs/images/Global%20Meta%20Attributes.png) | |
+
 ## Table of Contents
 
 - [Quick Start](#quick-start)

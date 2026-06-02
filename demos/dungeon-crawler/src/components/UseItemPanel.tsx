@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import type { ItemState } from '../types'
+import { ceil } from '../utils/format'
 
 interface UseItemPanelProps {
   inventory: (ItemState | null)[]
@@ -62,7 +63,7 @@ function UseItemPanel({ inventory, onSelect, onClose }: UseItemPanelProps) {
             consumables.map(({ item, idx }, i) => {
               const healVal = item.stats.heal ?? 0
               const manaVal = item.stats.mana ?? 0
-              const effectText = healVal > 0 ? `+${healVal} HP` : manaVal > 0 ? `+${manaVal} MP` : ''
+              const effectText = healVal > 0 ? `+${ceil(healVal)} HP` : manaVal > 0 ? `+${ceil(manaVal)} MP` : ''
               return (
                 <div
                   key={`${item.id}-${idx}`}

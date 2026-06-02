@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getGameState } from '../GameState'
+import { ceil } from '../utils/format'
 import './VictoryOverlay.css'
 
 interface VictoryOverlayProps {
@@ -81,19 +82,19 @@ function VictoryOverlay({ onPlayAgain, onQuit }: VictoryOverlayProps) {
         <div className="victory-stats">
           <div className="victory-stat">
             <span className="stat-label">Final Level</span>
-            <span className="stat-value">{level}</span>
+            <span className="stat-value">{ceil(level)}</span>
           </div>
           <div className="victory-stat">
             <span className="stat-label">Rooms Explored</span>
-            <span className="stat-value">{rooms}</span>
+            <span className="stat-value">{ceil(rooms)}</span>
           </div>
           <div className="victory-stat">
             <span className="stat-label">Enemies Slain</span>
-            <span className="stat-value">{enemies}</span>
+            <span className="stat-value">{ceil(enemies)}</span>
           </div>
           <div className="victory-stat">
             <span className="stat-label">Items Collected</span>
-            <span className="stat-value">{items}</span>
+            <span className="stat-value">{ceil(items)}</span>
           </div>
         </div>
 

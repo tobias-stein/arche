@@ -3,8 +3,8 @@ import * as sandcastle from "@ai-hero/sandcastle";
 import { docker } from "@ai-hero/sandcastle/sandboxes/docker";
 import { execSync } from "node:child_process";
 
-const MAX_ITERATIONS = 3;
-const MAX_PARALLEL = 2;
+const MAX_ITERATIONS = 2;
+const MAX_PARALLEL = 4;
 const IDLE_TIMEOUT = 15 * 60; // 15 minutes
 
 const FALLBACK_MODEL = "opencode/deepseek-v4-flash-free";

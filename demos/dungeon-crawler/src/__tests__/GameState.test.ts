@@ -268,4 +268,56 @@ describe('GameState', () => {
       expect(gs.lootOpen).toBe(false)
     })
   })
+
+  describe('equipment stats', () => {
+    it('starts with base attack and defense', () => {
+      expect(gs.player.attack).toBe(GAME_CONFIG.player.baseAttack)
+      expect(gs.player.defense).toBe(GAME_CONFIG.player.baseDefense)
+    })
+
+    it('equipping a weapon adds its attack to base', () => {
+      const sword: ItemState = { id: 'sword_1', name: 'Sword', archeType: 'weapon', rarity: 'common', level: 1, stats: { attack: 5 }, affixes: [], equipSlot: 'weapon' }
+      gs.equipment.weapon = sword
+      gs['recalculatePlayerStats']()
+      expect(gs.player.attack).toBe(GAME_CONFIG.player.baseAttack + 5)
+      expect(gs.player.defense).toBe(GAME_CONFIG.player.baseDefense)
+    })
+
+    it('equipping armor adds its defense and attack to base', () => {
+      const belt: ItemState = { id: 'belt_1', name: 'Belt', archeType: 'belt', rarity: 'common', level: 1, stats: { attack: 2, defense: 5 }, affixes: [], equipSlot: 'belt' }
+      gs.equipment.belt = belt
+      gs['recalculatePlayerStats']()
+      expect(gs.player.attack).toBe(GAME_CONFIG.player.baseAttack + 2)
+      expect(gs.player.defense).toBe(GAME_CONFIG.player.baseDefense + 5)
+    })
+
+    it('multiple equipped items stack stats', () => {
+      const sword: ItemState = { id: 'sword_1', name: 'Sword', archeType: 'weapon', rarity: 'common', level: 1, stats: { attack: 5 }, affixes: [], equipSlot: 'weapon' }
+      const belt: ItemState = { id: 'belt_1', name: 'Belt', archeType: 'belt', rarity: 'common', level: 1, stats: { defense: 3 }, affixes: [], equipSlot: 'belt' }
+      gs.equipment.weapon = sword
+      gs.equipment.belt = belt
+      gs['recalculatePlayerStats']()
+      expect(gs.player.attack).toBe(GAME_CONFIG.player.baseAttack + 5)
+      expect(gs.player.defense).toBe(GAME_CONFIG.player.baseDefense + 3)
+    })
+
+    it('equipItem triggers recalculation via event', () => {
+      const events: number[] = []
+      gs.on('player:stats-changed', () => events.push(gs.player.attack))
+      const sword: ItemState = { id: 'sword_1', name: 'Sword', archeType: 'weapon', rarity: 'common', level: 1, stats: { attack: 5 }, affixes: [], equipSlot: 'weapon' }
+      gs.inventory[0] = sword
+      gs.equipItem(0)
+      expect(gs.player.attack).toBe(GAME_CONFIG.player.baseAttack + 5)
+      expect(events).toContain(GAME_CONFIG.player.baseAttack + 5)
+    })
+
+    it('unequipItem restores base stats', () => {
+      const sword: ItemState = { id: 'sword_1', name: 'Sword', archeType: 'weapon', rarity: 'common', level: 1, stats: { attack: 5 }, affixes: [], equipSlot: 'weapon' }
+      gs.inventory[0] = sword
+      gs.equipItem(0)
+      expect(gs.player.attack).toBe(GAME_CONFIG.player.baseAttack + 5)
+      gs.unequipItem('weapon')
+      expect(gs.player.attack).toBe(GAME_CONFIG.player.baseAttack)
+    })
+  })
 })

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { getGameState } from '../GameState'
+import { ceil } from '../utils/format'
 import './GameOverOverlay.css'
 
 function formatTime(ms: number): string {
@@ -106,15 +107,15 @@ function GameOverOverlay({ onPlayAgain, onQuit }: GameOverOverlayProps) {
         <div className="gameover-stats">
           <div className="gameover-stat">
             <span className="stat-label">Level Reached</span>
-            <span className="stat-value">{level}</span>
+            <span className="stat-value">{ceil(level)}</span>
           </div>
           <div className="gameover-stat">
             <span className="stat-label">Rooms Explored</span>
-            <span className="stat-value">{rooms}</span>
+            <span className="stat-value">{ceil(rooms)}</span>
           </div>
           <div className="gameover-stat">
             <span className="stat-label">Enemies Slain</span>
-            <span className="stat-value">{enemies}</span>
+            <span className="stat-value">{ceil(enemies)}</span>
           </div>
           <div className="gameover-stat">
             <span className="stat-label">Time Survived</span>

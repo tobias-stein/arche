@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { getGameState } from '../GameState'
 import { getRarityColor, getItemIcon } from '../game/loot'
 import type { ItemState, CreatureState } from '../types'
+import { ceil } from '../utils/format'
 import ItemTooltip from './ItemTooltip'
 import type { TooltipData } from './ItemTooltip'
 import { initDragFromItem, cleanupDragState } from './dragDrop'
@@ -248,7 +249,7 @@ function LootPopup({ inventoryOpen }: Props) {
           <>
             <div className="ld-header">
               <h3><i className="fa-solid fa-crosshairs" /> Victory!</h3>
-              <span className="ld-xp">+{xpGained} XP</span>
+              <span className="ld-xp">+{ceil(xpGained)} XP</span>
             </div>
             <div className="ld-subtitle">
               Defeated <strong>{creatureName}</strong>

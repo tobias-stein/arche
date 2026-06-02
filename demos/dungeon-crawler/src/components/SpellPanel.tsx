@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import type { ItemState } from '../types'
+import { ceil } from '../utils/format'
 
 interface SpellPanelProps {
   spells: (ItemState | null)[]
@@ -69,7 +70,7 @@ function SpellPanel({ spells, playerMp, onSelect, onClose }: SpellPanelProps) {
                 >
                   <span className="cpi-icon"><i className="fa-solid fa-wand-sparkles" /></span>
                   <span className="cpi-name">{spell.name}</span>
-                  <span className="cpi-cost">{manaCost} MP</span>
+                  <span className="cpi-cost">{ceil(manaCost)} MP</span>
                 </div>
               )
             })

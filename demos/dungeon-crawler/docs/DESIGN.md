@@ -38,14 +38,14 @@ The API key is embedded for local dev (fine in a Docker Compose demo).
 The `archetype` field on each Arche blueprint:
 
 | archetype | What it generates | Blueprint count |
-|---|---|---|
-| `creature` | Enemy NPCs | ~12 base × difficulty bands = ~100 |
-| `weapon` | Equippable weapons | ~10 base × rarity bands = ~40 |
-| `armor` | Defense gear (helmet, chest, legs, boots, gloves, belt) | ~6 per slot × rarity bands = ~40 |
-| `shield` | Off-hand defense | ~3 × rarity bands = ~10 |
-| `accessory` | Ring, amulet with stat bonuses | ~2 × rarity bands = ~10 |
-| `potion` | Health, mana consumables | ~2 × tier bands = ~10 |
-| `spell` | Learnable abilities | ~8 base |
+|---|---|---|---|
+| `creature` | Enemy NPCs | ~250 (2-3 per level × 100 levels, difficulty-weighted) |
+| `weapon` | Equippable weapons | ~175 total (1-2 per level × 100 levels, rarity-weighted) |
+| `armor` | Defense gear (helmet, chest, legs, boots, gloves, belt) | Included in item count above |
+| `shield` | Off-hand defense | Included in item count above |
+| `accessory` | Ring, amulet with stat bonuses | Included in item count above |
+| `potion` | Health, mana consumables | ~8-16 spread across levels |
+| `spell` | Learnable abilities | ~75 (~30% of item+spell pool, sparse across levels) |
 
 ### Global Meta Attributes (enums)
 
@@ -66,11 +66,11 @@ The `archetype` field on each Arche blueprint:
 
 | Attribute | Type | Source | Notes |
 |---|---|---|---|
-| `level` | range (float) | inline | 1-100, determines creature band |
-| `health` | range | inline | Scaled to level band |
-| `attack` | range | inline | Scaled to level band |
-| `defense` | range | inline | Scaled to level band |
-| `xp_reward` | range | inline | Derived from level band |
+| `level` | single (int) | inline | Fixed level 1-100 |
+| `health` | single (int) | inline | From stat reference curve × difficulty multiplier |
+| `attack` | single (int) | inline | From stat reference curve × difficulty multiplier |
+| `defense` | single (int) | inline | From stat reference curve × difficulty multiplier |
+| `xp_reward` | single (int) | inline | From stat reference curve × difficulty multiplier |
 | `subtype` | enum | ref → `creature_subtype` | e.g. goblin, skeleton |
 | `difficulty` | enum | ref → `difficulty` | normal, champion, elite, boss |
 
@@ -78,8 +78,8 @@ The `archetype` field on each Arche blueprint:
 
 | Attribute | Type | Source |
 |---|---|---|
-| `level` | range | inline |
-| `damage` | range | inline |
+| `level` | single (int) | inline |
+| `damage` | single (int) | inline — from stat reference curve × 0.8 |
 | `rarity` | enum | ref → `rarity` |
 | `subtype` | enum | ref → `weapon_subtype` |
 
@@ -87,8 +87,8 @@ The `archetype` field on each Arche blueprint:
 
 | Attribute | Type | Source |
 |---|---|---|
-| `level` | range | inline |
-| `defense_bonus` | range | inline |
+| `level` | single (int) | inline |
+| `defense_bonus` | single (int) | inline — from stat reference curve × 0.7 |
 | `rarity` | enum | ref → `rarity` |
 | `subtype` | enum | ref → `armor_subtype` |
 
@@ -96,18 +96,18 @@ The `archetype` field on each Arche blueprint:
 
 | Attribute | Type | Source |
 |---|---|---|
-| `level` | range | inline |
-| `defense_bonus` | range | inline |
-| `block_chance` | range | inline |
+| `level` | single (int) | inline |
+| `defense_bonus` | single (int) | inline — from stat reference curve × 0.5 |
+| `block_chance` | single (int) | inline — fixed per block_chance formula |
 | `rarity` | enum | ref → `rarity` |
 
 ### Accessory Blueprint Attributes
 
 | Attribute | Type | Source | Notes |
 |---|---|---|---|
-| `level` | range | inline | |
+| `level` | single (int) | inline | |
 | `stat_bonus_type` | enum | inline | attack, defense, health, mana |
-| `stat_bonus` | range | inline | bonus amount |
+| `stat_bonus` | single (int) | inline — from stat reference curve × 0.3 |
 | `rarity` | enum | ref → `rarity` | |
 | `subtype` | enum | ref → `accessory_subtype` | ring, amulet |
 
@@ -115,28 +115,40 @@ The `archetype` field on each Arche blueprint:
 
 | Attribute | Type | Source |
 |---|---|---|
-| `level` | range | inline |
-| `effect_value` | range | inline |
+| `level` | single (int) | inline |
+| `effect_value` | single (int) | inline — from stat reference curve × 2.0 |
 | `subtype` | enum | ref → `potion_type` |
-
-Potion tiers (Diablo-style): Minor (1-20), Light (10-40), Medium (25-60), Large (45-85), Greater (70-100).
 
 ### Spell Blueprint Attributes
 
-| Attribute | Type | Source |
-|---|---|---|
-| `level` | range | inline |
-| `damage` | range | inline (for offensive spells) |
-| `heal_amount` | range | inline (for heal spells) |
-| `mana_cost` | range | inline |
-| `element` | enum | ref → `element` (via prefix affix) |
+| Attribute | Type | Source | Notes |
+|---|---|---|---|
+| `level` | single (int) | inline | Fixed level, sparse across 1-100 |
+| `damage` | single (int) | inline | From stat reference curve × 1.2 (offensive) |
+| `heal_amount` | single (int) | inline | From stat reference curve × 1.5 (heal spells) |
+| `mana_cost` | single (int) | inline | Derived from level curve |
+| `rarity` | enum | ref → `rarity` | uncommon 75%, rare 15%, legendary 10% — no common |
 | `subtype` | enum | ref → `spell_type` | projectile, beam, burst, heal, shield |
 
-### Affixes — Tiered by Level Band
+No common spells. Rarity determines affix count (see affix mapping below).
 
-Affixes exist in four power tiers. The game's generation window (player level ± 2) determines which affix tier is available. Higher rarity/difficulty → more affixes from the appropriate tier.
+### Shared Stat Reference Curve
 
-| Tier | Level band | Value multiplier | Named tier |
+All stats derive from a single linear reference curve, ensuring consistent power scaling:
+
+```
+referenceAttack(level)  = 5 + (level - 1) * 0.5
+referenceDefense(level) = 2 + (level - 1) * 0.3
+referenceHealth(level)  = 20 + (level - 1) * 2.0
+```
+
+Archetype-specific multipliers determine final stats (see blueprint attribute tables above). ±10% variance is added for natural feel.
+
+### Affixes — Tiered by Level
+
+Affixes exist in four power tiers. The generated entity's rolled level determines which affix tier is available. Higher rarity/difficulty → more affixes from the appropriate tier.
+
+| Tier | Level range | Value multiplier | Named tier |
 |---|---|---|---|
 | 1 | 1-30 | 1x | Weak |
 | 2 | 20-60 | 3x | Strong |
@@ -220,16 +232,29 @@ The seed script generates each affix four times with different names and scaled 
 **Prefixes:** Simple → Refined → Intricate → Exquisite
 **Suffixes (stat bonus):** of Power → of Might → of Strength → of Titans; of Fortitude → of Endurance → of Resilience → of Adamant; of Vitality → of Health → of Life → of Immortality; of the Mind → of Wisdom → of Brilliance → of Enlightenment
 
-#### Spell Prefix Affixes (same across all tiers)
+#### Spell Prefix Affixes (element type — same across all tiers)
 
 | Name | Element added |
 |---|---|
-| Fire | fire_element |
+| Smoldering | fire_element |
 | Frost | ice_element |
 | Arcane | arcane_element |
-| Poison | poison_element |
-| Lightning | lightning_element |
-| Holy | holy_element |
+| Toxic | poison_element |
+| Crackling | lightning_element |
+| Sacred | holy_element |
+
+#### Spell Suffix Affixes (power bonus — tier-scaled)
+
+Suffixes follow the same tier scaling as creature/item affixes. Values derived from the stat reference curve.
+
+| Suffix | Attribute | Description |
+|---|---|---|
+| of Power | bonus_damage | Extra spell damage |
+| of Destruction | bonus_damage | Higher spell damage |
+| of the Leech | life_steal | Spell heals for % of damage |
+| of Fortitude | bonus_heal | Extra heal amount (heal spells) |
+| of Brilliance | mana_return | Chance to refund mana cost |
+| of the Phoenix | revival | Trigger heal on kill |
 
 ### Rarity / Difficulty → Affix Mapping
 
@@ -255,15 +280,21 @@ Same mapping as creature difficulty.
 | elite | 1 | 1 | min_prefix=1, max_prefix=1, min_suffix=1, max_suffix=1 |
 | boss | 2 | 1 | min_prefix=2, max_prefix=2, min_suffix=1, max_suffix=1 |
 
-#### Spells
+#### Spells (rarity-based)
 
-Always exactly 1 prefix (the element).
+| Rarity | Prefixes | Suffixes | Blueprint affix config |
+|---|---|---|---|
+| uncommon | 1 | 0 | min_prefix=1, max_prefix=1, min_suffix=0, max_suffix=0 |
+| rare | 1 | 1 | min_prefix=1, max_prefix=1, min_suffix=1, max_suffix=1 |
+| legendary | 2 | 1 | min_prefix=2, max_prefix=2, min_suffix=1, max_suffix=1 |
+
+Prefix determines element/type. Suffix adds power bonuses. No common spells.
 
 ### Generation Flow
 
 **Creature spawn** (per spawn slot):
 ```
-1. Game computes level window: playerLevel ± creatureLevelVariance
+1. Game computes level window: playerLevel ± creatureLevelVariance (clamped to 1-100)
 2. Game constructs Arche request with level + difficulty constraints:
    // Non-boss rooms:
    { "constraints": { "level": { "gte": 3, "lte": 7 },
@@ -278,17 +309,18 @@ Always exactly 1 prefix (the element).
 
 **Loot drop** (per drop slot after victory or chest open):
 ```
-1. Game computes level window: creatureLevel ± itemLevelVariance
+1. Game computes level window: creatureLevel ± itemLevelVariance (clamped to 1-100)
 2. Game constructs Arche request with level constraint only:
    { "constraints": { "level": { "gte": 3, "lte": 7 } } }
    — No archetype filter, no rarity filter. Arche picks from all matching
-     item blueprints via weighted random selection.
+     blueprints (items, spells, potions) via weighted random selection.
 3. Game reads the `rarity` from the response for visual styling.
 ```
 
 **Key principle:** Rarity/difficulty emerges naturally from Arche's blueprint
-weights, not from game-side pre-rolls. The seed script tunes weights so that
-common/normal blueprints are ~5× more likely than boss/legendary ones.
+weights, not from game-side pre-rolls. The seed script calibrates weights so that
+common/normal blueprints are selected ~2× more often than uncommon/champion,
+~3× more than rare/elite, and ~5× more than boss/legendary ones.
 
 ## Game Mechanics
 
@@ -352,8 +384,8 @@ After defeating a creature, the player recovers 15% of max HP and 15% of max man
 ### Player Level
 
 Despite no stat growth, player **levels up** from kills. Level determines the generation window for items and creatures:
-- `item_level = player_level ± 2` (normal distribution)
-- `creature_level = player_level ± 2`
+- `generation_level_band = player_level ± variance` (variance default 2, clamped to 1-100)
+- Selection within the band is uniform — Arche's weighted random determines which blueprint is chosen
 - Player starts at level 1. Reaches level 100 in ~1 hour playtime.
 - Leveling pace: early levels fast (every 1-2 kills), later levels slower (5-10 kills).
 
@@ -390,24 +422,15 @@ Despite no stat growth, player **levels up** from kills. Level determines the ge
 - Spells can also be stored as items in the inventory. `[S]` on a spell item in inventory adds it to the spellbook.
 - In combat, choose "Cast Spell" → opens spellbook → select a spell.
 
-### Equipment Weight-Based Level Requirement
+### Equipment Level Requirement
 
-Each blueprint has a `level` attribute (range). The generated item's rolled level must be ≤ player level for the player to equip it. Items above player level are greyed out.
+Each blueprint has a fixed `level` attribute (single int). The generated item's level must be ≤ player level for the player to equip it. Items above player level are greyed out.
 
 ## Data Population (Seed Script)
 
-A TypeScript seed script (`scripts/seed.ts`) generates valid Arche import JSON:
+See `docs/adr/0006-fixed-level-blueprint-model.md` for the design rationale. See `scripts/seed.ts` for the implementation.
 
-```
-scripts/seed.ts  →  output/
-                    ├── blueprints.json
-                    ├── affixes.json
-                    ├── global-meta-attributes.json
-```
-
-Run before first game launch: `docker compose run --rm seed`
-
-The script uses templates with parameterized ranges per level band. Creature and item blueprints are generated combinatorially from base types × level bands × difficulty/rarity tiers to reach target counts (~100 creatures, ~100 items).
+The seed script populates Arche's database via HTTP API. It generates ~500 blueprints with fixed integer levels and stats from the shared reference curve.
 
 ### Creature Distribution (Target — achieved via blueprint weights)
 
@@ -432,20 +455,9 @@ Same weight approach as creature difficulty.
 | rare | ~15% | 0.3–0.4 | 1 | 1 | by item level |
 | legendary | ~10% | 0.1–0.2 | 2 | 1 | by item level |
 
-### Level Bands
+### Level Distribution
 
-Creature and item blueprints are grouped into bands:
-
-| Band | Level range | Example creatures |
-|---|---|---|
-| 1 | 1-10 | rat, bat, slime |
-| 2 | 5-20 | goblin, spider |
-| 3 | 15-35 | skeleton, wolf |
-| 4 | 30-50 | ghost, orc |
-| 5 | 45-70 | troll, demon |
-| 6 | 60-85 | dark knight, wyrm |
-| 7 | 80-100 | ancient lich, dragon |
-| Boss | 85-100 | boss variants |
+Each blueprint has a fixed integer level (1-100). At generation time, the game computes a flat band `playerLevel ± variance` (default ±2, clamped to 1-100) and Arche selects from matching blueprints via weighted random. No band mapping or range rolling needed.
 
 ## Testing
 

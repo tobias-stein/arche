@@ -152,7 +152,7 @@ All progression is **gear-based**. No XP-based stat growth. Level controls the g
 
 - Player starts at level 1. Reaches level 100 in ~1 hour playtime.
 - Leveling pace: early levels fast (every 1–2 kills), later levels slower (5–10 kills).
-- Generation window: `player_level ± 2`.
+- Generation window: `player_level ± variance` (variance default 2, clamped to 1-100). Uniform selection within the band — Arche's weighted random determines which blueprint is chosen.
 
 ### Post-Victory Recovery
 
@@ -254,13 +254,13 @@ Full-screen overlay. Toggle with `[H]` or `[?]` key, or clickable help button. D
 
 | archetype | What it generates | Blueprint count |
 |---|---|---|
-| `creature` | Enemy NPCs | ~12 base × difficulty bands = ~100 |
-| `weapon` | Equippable weapons | ~10 base × rarity bands = ~40 |
-| `armor` | Defense gear (helmet, chest, legs, boots, gloves, belt) | ~6 per slot × rarity bands = ~40 |
-| `shield` | Off-hand defense | ~3 × rarity bands = ~10 |
-| `accessory` | Ring, amulet with stat bonuses | ~2 × rarity bands = ~10 |
-| `potion` | Health, mana consumables | ~2 × tier bands = ~10 |
-| `spell` | Learnable abilities | ~8 base |
+| `creature` | Enemy NPCs | ~250 (2-3 per level × 100 levels, difficulty-weighted) |
+| `weapon` | Equippable weapons | ~175 total (1-2 per level × 100 levels, rarity-weighted) |
+| `armor` | Defense gear (helmet, chest, legs, boots, gloves, belt) | Included in item count above |
+| `shield` | Off-hand defense | Included in item count above |
+| `accessory` | Ring, amulet with stat bonuses | Included in item count above |
+| `potion` | Health, mana consumables | ~8-16 spread across levels |
+| `spell` | Learnable abilities | ~75 (~30% of item+spell pool, sparse across levels) |
 
 ### Global Meta Attributes (enums)
 
@@ -281,11 +281,11 @@ Full-screen overlay. Toggle with `[H]` or `[?]` key, or clickable help button. D
 
 | Attribute | Type | Source | Notes |
 |---|---|---|---|
-| `level` | range (float) | inline | 1–100, determines creature band |
-| `health` | range | inline | Scaled to level band |
-| `attack` | range | inline | Scaled to level band |
-| `defense` | range | inline | Scaled to level band |
-| `xp_reward` | range | inline | Derived from level band |
+| `level` | single (int) | inline | Fixed level 1-100 |
+| `health` | single (int) | inline | From stat reference curve × difficulty multiplier |
+| `attack` | single (int) | inline | From stat reference curve × difficulty multiplier |
+| `defense` | single (int) | inline | From stat reference curve × difficulty multiplier |
+| `xp_reward` | single (int) | inline | From stat reference curve × difficulty multiplier |
 | `subtype` | enum | ref → `creature_subtype` | e.g. goblin, skeleton |
 | `difficulty` | enum | ref → `difficulty` | normal, champion, elite, boss |
 
@@ -293,8 +293,8 @@ Full-screen overlay. Toggle with `[H]` or `[?]` key, or clickable help button. D
 
 | Attribute | Type | Source |
 |---|---|---|
-| `level` | range | inline |
-| `damage` | range | inline |
+| `level` | single (int) | inline |
+| `damage` | single (int) | inline — from stat reference curve × 0.8 |
 | `rarity` | enum | ref → `rarity` |
 | `subtype` | enum | ref → `weapon_subtype` |
 
@@ -302,8 +302,8 @@ Full-screen overlay. Toggle with `[H]` or `[?]` key, or clickable help button. D
 
 | Attribute | Type | Source |
 |---|---|---|
-| `level` | range | inline |
-| `defense_bonus` | range | inline |
+| `level` | single (int) | inline |
+| `defense_bonus` | single (int) | inline — from stat reference curve × 0.7 |
 | `rarity` | enum | ref → `rarity` |
 | `subtype` | enum | ref → `armor_subtype` |
 
@@ -311,18 +311,18 @@ Full-screen overlay. Toggle with `[H]` or `[?]` key, or clickable help button. D
 
 | Attribute | Type | Source |
 |---|---|---|
-| `level` | range | inline |
-| `defense_bonus` | range | inline |
-| `block_chance` | range | inline |
+| `level` | single (int) | inline |
+| `defense_bonus` | single (int) | inline — from stat reference curve × 0.5 |
+| `block_chance` | single (int) | inline — fixed per block_chance formula |
 | `rarity` | enum | ref → `rarity` |
 
 ### Accessory Blueprint Attributes
 
 | Attribute | Type | Source | Notes |
 |---|---|---|---|
-| `level` | range | inline | |
+| `level` | single (int) | inline | |
 | `stat_bonus_type` | enum | inline | attack, defense, health, mana |
-| `stat_bonus` | range | inline | bonus amount |
+| `stat_bonus` | single (int) | inline — from stat reference curve × 0.3 |
 | `rarity` | enum | ref → `rarity` | |
 | `subtype` | enum | ref → `accessory_subtype` | ring, amulet |
 
@@ -330,49 +330,95 @@ Full-screen overlay. Toggle with `[H]` or `[?]` key, or clickable help button. D
 
 | Attribute | Type | Source |
 |---|---|---|
-| `level` | range | inline |
-| `effect_value` | range | inline |
+| `level` | single (int) | inline |
+| `effect_value` | single (int) | inline — from stat reference curve × 2.0 |
 | `subtype` | enum | ref → `potion_type` |
 
 ### Spell Blueprint Attributes
 
-| Attribute | Type | Source |
-|---|---|---|
-| `level` | range | inline |
-| `damage` | range | inline (for offensive spells) |
-| `heal_amount` | range | inline (for heal spells) |
-| `mana_cost` | range | inline |
-| `element` | enum | ref → `element` (via prefix affix) |
-| `subtype` | enum | ref → `spell_type` |
+| Attribute | Type | Source | Notes |
+|---|---|---|---|
+| `level` | single (int) | inline | Fixed level, sparse across 1-100 |
+| `damage` | single (int) | inline | From stat reference curve × 1.2 (offensive) |
+| `heal_amount` | single (int) | inline | From stat reference curve × 1.5 (heal spells) |
+| `mana_cost` | single (int) | inline | Derived from level curve |
+| `rarity` | enum | ref → `rarity` | uncommon 75%, rare 15%, legendary 10% — no common |
+| `subtype` | enum | ref → `spell_type` | projectile, beam, burst, heal, shield |
+
+No common spells. Rarity determines affix count.
+
+### Shared Stat Reference Curve
+
+All creature, item, spell, and potion stats derive from a single linear reference curve, ensuring consistent power scaling across all content. A level-N creature and a level-N weapon are always in the same power band.
+
+**Reference formulas:**
+
+```
+referenceAttack(level)  = 5 + (level - 1) * 0.5   → range: 5 (L1) to 54.5 (L100)
+referenceDefense(level) = 2 + (level - 1) * 0.3   → range: 2 (L1) to 31.7 (L100)
+referenceHealth(level)  = 20 + (level - 1) * 2.0  → range: 20 (L1) to 218 (L100)
+```
+
+**Archetype multipliers:**
+
+| Archetype | Attack | Defense | Health | Notes |
+|-----------|--------|---------|--------|-------|
+| Creature (normal) | 1.0x | 1.0x | 1.0x | Baseline |
+| Creature (champion) | 1.2x | 1.2x | 1.5x | |
+| Creature (elite) | 1.5x | 1.5x | 2.0x | |
+| Creature (boss) | 2.0x | 2.0x | 4.0x | |
+| Weapon | 0.8x | — | — | Damage stat |
+| Armor | — | 0.7x | — | Defense bonus |
+| Shield | — | 0.5x | — | Defense bonus |
+| Accessory | 0.3x | 0.3x | — | Flex bonus |
+| Potion | — | — | 2.0x | Heal amount |
+| Spell (damage) | 1.2x | — | — | |
+| Spell (heal) | — | — | 1.5x | |
+
+**Example at level 10:**
+- Reference: ATK=9.5, DEF=4.7, HP=38
+- Normal creature: ATK=10, DEF=5, HP=38
+- Champion creature: ATK=11, DEF=6, HP=57
+- Level 10 weapon damage: ~8
+- Level 10 armor defense_bonus: ~3
+
+The seed script applies these multipliers when generating blueprints. ±10% variance is added for natural feel.
 
 ### Affixes
 
-Affixes are tiered by level band (4 tiers: Weak 1–30, Strong 20–60, Greater 50–85, Mythic 75–100). Each affix is generated 4 times with different names and scaled ranges. See DESIGN.md for full affix table. Affix tier is determined by the item/creature's rolled level. Rarity/difficulty determines how many affixes are rolled from that tier.
+Affixes are tiered by level (4 tiers: Weak 1–30, Strong 20–60, Greater 50–85, Mythic 75–100). Each affix is generated 4 times with different names and scaled ranges. See DESIGN.md for full affix table. Affix tier is determined by the generated entity's level. Rarity/difficulty determines how many affixes are rolled from that tier.
+
+Spells receive affixes based on rarity: uncommon = 1 prefix (element), rare = 1 prefix + 1 suffix (power bonus), legendary = 2 prefixes + 1 suffix. No common spells — affixes only start at uncommon.
 
 ### Generation Flow
 
 **Creature spawn** (per spawn slot in a room):
-1. Game computes level window: `playerLevel ± creatureLevelVariance`
+1. Game computes level window: `playerLevel ± creatureLevelVariance` (clamped to 1-100)
 2. Game constructs Arche request with level constraint:
-   - Non-boss rooms: `difficulty: { in: ["normal", "champion", "elite"] }`
-   - Boss rooms: `difficulty: { in: ["boss"] }`, `count: 1`
+   - Non-boss rooms: `{ level: { gte: X, lte: Y }, difficulty: { in: ["normal", "champion", "elite"] } }`
+   - Boss rooms: `{ level: { gte: X, lte: Y }, difficulty: { in: ["boss"] } }`
    - No rarity/difficulty weights are passed — Arche's blueprint weights determine which difficulty is drawn
-3. Arche responds with a generated Thing (with rolled `difficulty` attribute)
+3. Arche filters blueprints by the level band using gte/lte on Single values, then picks one via weighted random
 4. Game reads the `difficulty` from the response and applies it (aggro range, visual style, etc.)
 
 **Loot drop** (per drop slot after creature victory or chest open):
-1. Game computes level window: `creatureLevel ± itemLevelVariance`
-2. Game constructs Arche request with level constraint only — no archetype, no rarity filter
-3. Arche picks from all item blueprints matching the level window via its weighted random selection
+1. Game computes level window: `creatureLevel ± itemLevelVariance` (clamped to 1-100)
+2. Game constructs Arche request with level constraint only — no archetype, no rarity filter:
+   `{ constraints: { level: { gte: X, lte: Y } } }`
+3. Arche picks from all blueprints (items, spells, potions) matching the level window via weighted random
 4. Game reads the response's `rarity` attribute and applies visual styling (rarity triangle, name color, etc.)
 
-**Key design principle:** Rarity/difficulty and item type emerge naturally from Arche's blueprint weight system, not from game-side pre-rolls. The seed script calibrates blueprint weights so that common/normal blueprints are selected roughly ~5× more often than boss/legendary ones. This keeps all drop-rate tuning in the seed script (and ultimately in Arche's data), not scattered across game config and source code.
+**Key design principle:** Rarity/difficulty and item type emerge naturally from Arche's blueprint weight system, not from game-side pre-rolls. The seed script calibrates blueprint weights so that common/normal blueprints are selected roughly ~2× more often than uncommon/champion, ~3× more often than rare/elite, and ~5× more often than boss/legendary ones. This keeps all drop-rate tuning in the seed script (and ultimately in Arche's data), not scattered across game config and source code.
 
 ### Seed Script
 
-A TypeScript seed script (`scripts/seed.ts`) generates valid Arche import JSON: `blueprints.json`, `affixes.json`, `global-meta-attributes.json`. Run before first game launch: `docker compose run --rm seed`.
+A TypeScript seed script (`scripts/seed.ts`) populates Arche's database directly via HTTP API. Run before first game launch: `docker compose run --rm seed`.
+
+The script generates ~500 blueprints with fixed integer levels. All stats are computed from the shared reference curve with archetype-specific multipliers. See "Shared Stat Reference Curve" section above.
 
 ### Rarity / Difficulty → Affix Mapping
+
+**Items (rarity-based) and Creatures (difficulty-based):**
 
 | Rarity/Difficulty | Prefixes | Suffixes |
 |---|---|---|
@@ -381,29 +427,53 @@ A TypeScript seed script (`scripts/seed.ts`) generates valid Arche import JSON: 
 | rare / elite | 1 | 1 |
 | legendary / boss | 2 | 1 |
 
+**Spells (rarity-based, no common):**
+
+| Rarity | Prefixes | Suffixes |
+|---|---|---|
+| uncommon | 1 | 0 |
+| rare | 1 | 1 |
+| legendary | 2 | 1 |
+
 ### Creature Distribution (Target — achieved via blueprint weights in seed script)
 
-| Difficulty | Target frequency | Result |
+~250 blueprints across 100 levels (2-3 per level):
+
+| Difficulty | Target frequency | ~Count |
 |---|---|---|
-| normal | ~50% | Blueprint weight 1.0, many blueprints |
-| champion | ~25% | Blueprint weight 0.5–0.7 |
-| elite | ~15% | Blueprint weight 0.3–0.4 |
-| boss | ~10% | Blueprint weight 0.1–0.2, few blueprints |
+| normal | ~50% | ~125 |
+| champion | ~25% | ~63 |
+| elite | ~15% | ~37 |
+| boss | ~10% | ~25 |
 
 These are guidelines for the seed script, not game-side logic. The actual distribution emerges from Arche's weighted random selection across all creature blueprints.
 
-### Level Bands
+### Item Distribution (Target — achieved via blueprint weights)
 
-| Band | Level range | Example creatures |
+~175 blueprints across 100 levels (1-2 per level):
+
+| Rarity | Target frequency | ~Count |
 |---|---|---|
-| 1 | 1–10 | rat, bat, slime |
-| 2 | 5–20 | goblin, spider |
-| 3 | 15–35 | skeleton, wolf |
-| 4 | 30–50 | ghost, orc |
-| 5 | 45–70 | troll, demon |
-| 6 | 60–85 | dark knight, wyrm |
-| 7 | 80–100 | ancient lich, dragon |
-| Boss | 85–100 | boss variants |
+| common | ~50% | ~88 |
+| uncommon | ~25% | ~44 |
+| rare | ~15% | ~26 |
+| legendary | ~10% | ~17 |
+
+### Spell Distribution (Target — achieved via blueprint weights)
+
+~75 blueprints, sparse across levels (not one per level), ~30% of item+spell pool:
+
+| Rarity | Target frequency | ~Count |
+|---|---|---|
+| uncommon | ~75% | ~56 |
+| rare | ~15% | ~11 |
+| legendary | ~10% | ~8 |
+
+No common spells.
+
+### Level Distribution
+
+Each blueprint (creature, item, spell, potion) has a fixed integer level (1-100). At generation time, the game computes a flat band `playerLevel ± variance` (default ±2, clamped to 1-100). Arche filters blueprints whose level falls within the band and selects one via weighted random. No band mapping, no range rolling.
 
 ---
 
@@ -928,7 +998,7 @@ async function generate(request: GenerateRequest): Promise<GenerateResponse>;
 **Usage examples:**
 
 ```typescript
-// Creature spawn in a non-boss room
+// Creature spawn in a non-boss room (playerLevel=5, variance=2)
 generate({
   constraints: {
     level: { gte: 3, lte: 7 },  // playerLevel ± creatureLevelVariance
@@ -936,13 +1006,12 @@ generate({
   }
 });
 
-// Creature spawn in boss room
+// Creature spawn in boss room (playerLevel=5, variance=2)
 generate({
   constraints: {
-    level: { gte: 85, lte: 100 },
+    level: { gte: 3, lte: 7 },
     difficulty: { in: ["boss"] }
-  },
-  count: 1
+  }
 });
 
 // Loot drop (no archetype, no rarity — Arche picks via blueprint weights)
@@ -1022,11 +1091,11 @@ export const GAME_CONFIG = {
     curveExponent: 1.5,
   },
 
-  /** Level windows for Arche generation requests */
+  /** Level window for Arche generation requests (flat band, uniform selection) */
   generationWindow: {
-    /** Creature level = playerLevel ± creatureLevelVariance */
+    /** Creature/spawn level = playerLevel ± variance */
     creatureLevelVariance: 2,
-    /** Item level = creatureLevel ± itemLevelVariance (used for loot drops) */
+    /** Item/loot level = playerLevel ± variance */
     itemLevelVariance: 2,
   },
 
@@ -1135,7 +1204,10 @@ const damage = Math.max(GAME_CONFIG.combat.minDamage,
 
 // In CreatureSpawnSystem:
 const variance = GAME_CONFIG.generationWindow.creatureLevelVariance;
-const levelWindow = { gte: playerLevel - variance, lte: playerLevel + variance };
+const levelWindow = {
+  gte: Math.max(1, playerLevel - variance),
+  lte: Math.min(100, playerLevel + variance),
+};
 
 // In LootSystem (how many drops, not what drops):
 const { min, max } = GAME_CONFIG.lootDrops[creature.difficulty];
@@ -1160,6 +1232,7 @@ const count = rand(min, max);
 - Make potions drop more often: increase potion blueprint weights
 - Make bosses rarer: decrease boss blueprint weights to `0.1`
 - Shift item type balance: add more weapon blueprints to skew selection
+- Adjust variance: change `levelVariance` in `SEED_CONFIG` (default 2)
 
 This two-layer approach keeps Arche's weight system as the source of truth for content distribution, while the game config handles gameplay mechanics like movement speed, damage numbers, and drop counts.
 

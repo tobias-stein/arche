@@ -3,6 +3,7 @@ import type { PlayerState, CreatureState, ItemState, EquipSlot, LogEvent } from 
 import type { Dungeon } from './game/dungeon-generator'
 import { generateMockItems, generateChestLoot } from './game/loot'
 import { resetCreatureIdCounter, resetItemIdCounter } from './api'
+import { ceil } from './utils/format'
 
 const EQUIP_SLOTS: EquipSlot[] = ['weapon', 'helmet', 'chest', 'legs', 'boots', 'gloves', 'belt', 'ring', 'amulet', 'shield']
 
@@ -139,6 +140,23 @@ class GameState extends EventEmitter {
     this.emit('log:entry', entry)
   }
 
+  private recalculatePlayerStats(): void {
+    const baseAttack = GAME_CONFIG.player.baseAttack
+    const baseDefense = GAME_CONFIG.player.baseDefense
+
+    let bonusAttack = 0
+    let bonusDefense = 0
+
+    for (const item of Object.values(this.equipment)) {
+      if (item.stats.attack) bonusAttack += item.stats.attack
+      if (item.stats.defense) bonusDefense += item.stats.defense
+    }
+
+    this.player.attack = baseAttack + bonusAttack
+    this.player.defense = baseDefense + bonusDefense
+    this.emit('player:stats-changed', this.player)
+  }
+
   emitInventoryRequested(): void {
     this.emit('inventory:requested')
   }
@@ -181,7 +199,7 @@ class GameState extends EventEmitter {
     this.combatDefeat = false
     this.addLogEntry({
       type: 'encounter_started',
-      message: `Engaged ${creature.name} (Lv.${creature.level} ${creature.difficulty})`,
+      message: `Engaged ${creature.name} (Lv.${ceil(creature.level)} ${creature.difficulty})`,
       icon: 'fa-solid fa-crosshairs',
     })
     this.emit('combat:started', creature)
@@ -195,7 +213,7 @@ class GameState extends EventEmitter {
       this.emit('combat:creature-damaged', damage, this.combatCreature)
       this.addLogEntry({
         type: 'player_damage_dealt',
-        message: `Dealt ${damage} damage to ${this.combatCreature.name}`,
+        message: `Dealt ${ceil(damage)} damage to ${this.combatCreature.name}`,
         icon: 'fa-solid fa-bolt',
       })
 
@@ -218,7 +236,7 @@ class GameState extends EventEmitter {
       this.emit('combat:player-damaged', damage, this.player)
       this.addLogEntry({
         type: 'player_damage_taken',
-        message: `Took ${damage} damage from ${this.combatCreature?.name ?? 'enemy'}`,
+        message: `Took ${ceil(damage)} damage from ${this.combatCreature?.name ?? 'enemy'}`,
         icon: 'fa-solid fa-heart-pulse',
       })
 
@@ -246,7 +264,7 @@ class GameState extends EventEmitter {
 
     this.addLogEntry({
       type: 'enemy_slain',
-      message: `${this.combatCreature?.name ?? 'Enemy'} slain! +${xpReward} XP`,
+      message: `${this.combatCreature?.name ?? 'Enemy'} slain! +${ceil(xpReward)} XP`,
       icon: 'fa-solid fa-crosshairs',
     })
 
@@ -524,6 +542,7 @@ class GameState extends EventEmitter {
       if (emptyIdx === -1) return false
       this.inventory[emptyIdx] = item
     }
+    this.recalculatePlayerStats()
     this.emit('inventory:changed', { inventory: this.inventory, equipment: this.equipment, spellbook: this.spellbook })
     return true
   }
@@ -535,6 +554,7 @@ class GameState extends EventEmitter {
     const current = this.equipment[slot]
     this.equipment[slot] = item
     this.inventory[invIdx] = current ?? null
+    this.recalculatePlayerStats()
     this.emit('inventory:changed', { inventory: this.inventory, equipment: this.equipment, spellbook: this.spellbook })
   }
 
@@ -545,6 +565,7 @@ class GameState extends EventEmitter {
     if (emptyIdx === -1) return
     this.inventory[emptyIdx] = item
     delete this.equipment[slot]
+    this.recalculatePlayerStats()
     this.emit('inventory:changed', { inventory: this.inventory, equipment: this.equipment, spellbook: this.spellbook })
   }
 
@@ -561,6 +582,7 @@ class GameState extends EventEmitter {
     const current = this.equipment[equipSlot]
     this.equipment[equipSlot] = item
     this.inventory[invIdx] = current ?? null
+    this.recalculatePlayerStats()
     this.emit('inventory:changed', { inventory: this.inventory, equipment: this.equipment, spellbook: this.spellbook })
   }
 
@@ -573,6 +595,7 @@ class GameState extends EventEmitter {
     if (current && current.equipSlot) {
       this.equipment[current.equipSlot] = current
     }
+    this.recalculatePlayerStats()
     this.emit('inventory:changed', { inventory: this.inventory, equipment: this.equipment, spellbook: this.spellbook })
   }
 
@@ -583,6 +606,7 @@ class GameState extends EventEmitter {
 
   dropItemFromEquipment(equipSlot: EquipSlot): void {
     delete this.equipment[equipSlot]
+    this.recalculatePlayerStats()
     this.emit('inventory:changed', { inventory: this.inventory, equipment: this.equipment, spellbook: this.spellbook })
   }
 

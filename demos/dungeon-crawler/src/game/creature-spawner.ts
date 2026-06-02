@@ -2,7 +2,7 @@ import { GAME_CONFIG } from '../config/game-config';
 import { TILE, type TileType } from './room-tiles';
 import type { Difficulty, CreatureState } from '../types';
 import { generate, buildCreatureRequest, buildBossRequest, parseCreature } from '../api';
-import { randInt, pickRandom } from './dungeon-utils';
+import { randInt, pickRandom, getAvailableFloorTiles } from './dungeon-utils';
 
 let nextId = 1;
 
@@ -57,19 +57,7 @@ export function pickSpawnPositions(
   count: number,
   excludedPositions: { x: number; y: number }[],
 ): { x: number; y: number }[] {
-  const rw = tiles[0]?.length ?? 0;
-  const rh = tiles.length;
-
-  const excludeSet = new Set(excludedPositions.map(p => `${p.x},${p.y}`));
-
-  const floorTiles: { x: number; y: number }[] = [];
-  for (let y = 0; y < rh; y++) {
-    for (let x = 0; x < rw; x++) {
-      if (tiles[y][x] === TILE.FLOOR && !excludeSet.has(`${x},${y}`)) {
-        floorTiles.push({ x, y });
-      }
-    }
-  }
+  const floorTiles = getAvailableFloorTiles(tiles, excludedPositions, GAME_CONFIG.creatureSpawn.entryExclusionRadius);
 
   const positions: { x: number; y: number }[] = [];
   const available = [...floorTiles];

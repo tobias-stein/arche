@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { getGameState } from '../GameState'
 import { calculatePlayerDamage, calculateCreatureDamage } from '../game/combat'
 import type { CreatureState, ItemState } from '../types'
+import { ceil } from '../utils/format'
 import EnemyCard from './EnemyCard'
 import ActionMenu from './ActionMenu'
 import SpellPanel from './SpellPanel'
@@ -197,7 +198,7 @@ function CombatOverlay() {
     if (damage > 0) {
       gs.addLogEntry({
         type: 'spell_cast',
-        message: `Cast ${spell.name} for ${damage} damage!`,
+        message: `Cast ${spell.name} for ${ceil(damage)} damage!`,
         icon: 'fa-solid fa-wand-sparkles',
       })
       await gs.processPlayerAttack(damage)
@@ -208,7 +209,7 @@ function CombatOverlay() {
       gs.setPlayerHp(gs.player.hp.current + heal)
       gs.addLogEntry({
         type: 'spell_cast',
-        message: `Cast ${spell.name}, healed for ${heal}!`,
+        message: `Cast ${spell.name}, healed for ${ceil(heal)}!`,
         icon: 'fa-solid fa-wand-sparkles',
       })
       gs.combatTurn = 'enemy'
@@ -234,7 +235,7 @@ function CombatOverlay() {
     gs.dropItemFromInventory(idx)
     gs.addLogEntry({
       type: 'potion_consumed',
-      message: `Used ${item.name}${healVal > 0 ? `, restored ${healVal} HP` : ''}${manaVal > 0 ? `, restored ${manaVal} MP` : ''}`,
+      message: `Used ${item.name}${healVal > 0 ? `, restored ${ceil(healVal)} HP` : ''}${manaVal > 0 ? `, restored ${ceil(manaVal)} MP` : ''}`,
       icon: 'fa-solid fa-flask',
     })
 
@@ -310,7 +311,7 @@ function CombatOverlay() {
         <div className="combat-victory">
           <div className="cv-content">
             <h3><i className="fa-solid fa-crosshairs" /> Victory!</h3>
-            <p className="cv-xp">+{xpGained} XP</p>
+            <p className="cv-xp">+{ceil(xpGained)} XP</p>
           </div>
         </div>
       )}

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getGameState } from '../GameState'
 import type { CreatureState } from '../types'
+import { ceil } from '../utils/format'
 import './EncounterPrompt.css'
 
 const DIFFICULTY_COLORS: Record<string, string> = {
@@ -79,7 +80,7 @@ function EncounterPrompt() {
       <div className="encounter-card">
         <h3 className="encounter-name">{creature.name}</h3>
         <div className="encounter-difficulty" style={{ color: badgeColor }}>
-          LV {creature.level} · {creature.difficulty.toUpperCase()}
+          LV {ceil(creature.level)} · {creature.difficulty.toUpperCase()}
         </div>
 
         <div className="encounter-card-mini">
@@ -87,19 +88,19 @@ function EncounterPrompt() {
             <div className="pa"><i className="fa-solid fa-dragon" /></div>
             <div>
               <div className="pn">{creature.name}</div>
-              <div className="pl" style={{ color: badgeColor }}>LV {creature.level} · {creature.difficulty.toUpperCase()}</div>
+              <div className="pl" style={{ color: badgeColor }}>LV {ceil(creature.level)} · {creature.difficulty.toUpperCase()}</div>
             </div>
           </div>
           <div className="pb">
             <div className="br">
               <span className="lbl"><i className="fa-solid fa-heart" /></span>
               <div className="bb"><div className="bf hp" style={{ width: `${hpPercent}%` }} /></div>
-              <span className="bt">{creature.hp.current}/{creature.hp.max}</span>
+              <span className="bt">{ceil(creature.hp.current)}/{ceil(creature.hp.max)}</span>
             </div>
           </div>
           <div className="ps">
-            <span><i className="fa-solid fa-crosshairs" /> ATK {creature.attack}</span>
-            <span><i className="fa-solid fa-shield-halved" /> DEF {creature.defense}</span>
+            <span><i className="fa-solid fa-crosshairs" /> ATK {ceil(creature.attack)}</span>
+            <span><i className="fa-solid fa-shield-halved" /> DEF {ceil(creature.defense)}</span>
           </div>
         </div>
 

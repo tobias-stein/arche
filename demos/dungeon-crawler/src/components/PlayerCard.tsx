@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getGameState } from '../GameState'
 import type { PlayerState } from '../types'
+import { ceil } from '../utils/format'
 import { useBreakpoint } from '../hooks/useBreakpoint'
 import './PlayerCard.css'
 
@@ -60,7 +61,7 @@ function PlayerCard() {
         <div className="pa"><i className="fa-solid fa-user" /></div>
         <div>
           <div className="pn">{player.name}</div>
-          <div className="pl">LV {player.level}</div>
+          <div className="pl">LV {ceil(player.level)}</div>
         </div>
       </div>
       {(!isMobile || mobileExpanded) && (
@@ -69,23 +70,23 @@ function PlayerCard() {
             <div className="br">
               <span className="lbl"><i className="fa-solid fa-heart" /></span>
               <div className="bb"><div className="bf hp" style={{ width: `${hpPercent}%` }} /></div>
-              <span className="bt">{player.hp.current}/{player.hp.max}</span>
+              <span className="bt">{ceil(player.hp.current)}/{ceil(player.hp.max)}</span>
             </div>
             <div className="br">
               <span className="lbl"><i className="fa-solid fa-star" /></span>
               <div className="bb"><div className="bf mp" style={{ width: `${mpPercent}%` }} /></div>
-              <span className="bt">{player.mp.current}/{player.mp.max}</span>
+              <span className="bt">{ceil(player.mp.current)}/{ceil(player.mp.max)}</span>
             </div>
           </div>
           <div className="ps">
-            <span><i className="fa-solid fa-crosshairs" /> ATK {player.attack}</span>
-            <span><i className="fa-solid fa-shield-halved" /> DEF {player.defense}</span>
+            <span><i className="fa-solid fa-crosshairs" /> ATK {ceil(player.attack)}</span>
+            <span><i className="fa-solid fa-shield-halved" /> DEF {ceil(player.defense)}</span>
           </div>
           <div className="xp-row">
             <div className="xp-bar">
               <div className="xp-fill" style={{ width: `${xpPercent}%` }} />
             </div>
-            <span className="xp-text">XP {player.xp.current}/{player.xp.next}</span>
+            <span className="xp-text">XP {ceil(player.xp.current)}/{ceil(player.xp.next)}</span>
           </div>
         </>
       )}

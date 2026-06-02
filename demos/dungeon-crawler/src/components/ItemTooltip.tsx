@@ -2,6 +2,7 @@ import { getRarityColor } from '../game/loot'
 import { getGameState } from '../GameState'
 import type { ItemState } from '../types'
 import { EQUIP_SLOT_LABELS } from '../types'
+import { ceil } from '../utils/format'
 
 export interface TooltipData {
   item: ItemState
@@ -53,9 +54,9 @@ export default function ItemTooltip({ tooltip, onClose }: Props) {
       )}
       <div className="tt-stats">
         {Object.entries(item.stats).map(([key, val]) => (
-          <span key={key}>{key}: {val}</span>
+          <span key={key}>{key}: {ceil(val)}</span>
         ))}
-        {item.level > 0 && <span>Level: {item.level}</span>}
+        {item.level > 0 && <span>Level: {ceil(item.level)}</span>}
       </div>
       {compareItem && (
         <div className="tt-compare">
@@ -65,7 +66,7 @@ export default function ItemTooltip({ tooltip, onClose }: Props) {
           </div>
           {Object.entries(compareItem.stats).map(([key, val]) => (
             <span key={key} className="tt-cstat">
-              {key}: {val} {item.stats[key] !== undefined && statDiff(item.stats[key], val)}
+              {key}: {ceil(val)} {item.stats[key] !== undefined && statDiff(item.stats[key], val)}
             </span>
           ))}
         </div>

@@ -282,7 +282,8 @@ describe('GameState combat', () => {
       expect(gs.lootItems.length).toBe(0)
       const inventoryCount = gs.inventory.filter(s => s !== null).length
       const equipCount = Object.keys(gs.equipment).length
-      expect(inventoryCount + equipCount).toBeGreaterThanOrEqual(prevCount)
+      const spellCount = gs.spellbook.filter(s => s !== null).length
+      expect(inventoryCount + equipCount + spellCount).toBeGreaterThanOrEqual(prevCount)
     })
 
     it('emits loot:items-changed with empty array', async () => {

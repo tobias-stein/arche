@@ -260,6 +260,40 @@ function buildSpellPrefixAffixBody(name: string, element: string): Record<string
   }
 }
 
+async function createTieredAffixes(
+  defs: { baseName: string; attr: string; tierRanges: number[][] }[],
+  type: 'prefix' | 'suffix',
+  ids: string[],
+  clientId: string,
+  apiKey: string,
+): Promise<void> {
+  for (const def of defs) {
+    for (let t = 0; t < AFFIX_TIERS.length; t++) {
+      const [minVal, maxVal] = scaleRange(def.tierRanges[t], t)
+      const tierName = getTierName(def.baseName, t)
+      const affix = await createAffix(buildAffixBody(tierName, type, def.attr, minVal, maxVal), clientId, apiKey)
+      ids.push(affix.id)
+    }
+  }
+}
+
+async function assignBlueprintAffixes(
+  bpIds: string[],
+  prefixIds: string[],
+  suffixIds: string[],
+  label: string,
+  clientId: string,
+  apiKey: string,
+): Promise<void> {
+  console.log(`Assigning affixes to ${label}...`)
+  if (prefixIds.length > 0) {
+    await assignAffixes(bpIds, prefixIds, 1.0, clientId, apiKey)
+  }
+  if (suffixIds.length > 0) {
+    await assignAffixes(bpIds, suffixIds, 1.0, clientId, apiKey)
+  }
+}
+
 // ── Generation helpers ──────────────────────────────────────────────
 
 function generateCreaturesForLevel(level: number): { subtype: string; difficulty: string }[] {
@@ -405,58 +439,15 @@ async function main() {
   const spellPrefixIds: string[] = []
   const spellSuffixIds: string[] = []
 
-  // Creature affixes
-  for (const def of CREATURE_PREFIX_DEFS) {
-    for (let t = 0; t < AFFIX_TIERS.length; t++) {
-      const [minVal, maxVal] = scaleRange(def.tierRanges[t], t)
-      const tierName = getTierName(def.baseName, t)
-      const affix = await createAffix(buildAffixBody(tierName, 'prefix', def.attr, minVal, maxVal), clientId, apiKey)
-      creaturePrefixIds.push(affix.id)
-    }
-  }
+  await createTieredAffixes(CREATURE_PREFIX_DEFS, 'prefix', creaturePrefixIds, clientId, apiKey)
+  await createTieredAffixes(CREATURE_SUFFIX_DEFS, 'suffix', creatureSuffixIds, clientId, apiKey)
+  await createTieredAffixes(ITEM_PREFIX_DEFS, 'prefix', itemPrefixIds, clientId, apiKey)
+  await createTieredAffixes(ITEM_SUFFIX_DEFS, 'suffix', itemSuffixIds, clientId, apiKey)
+  await createTieredAffixes(SPELL_SUFFIX_DEFS, 'suffix', spellSuffixIds, clientId, apiKey)
 
-  for (const def of CREATURE_SUFFIX_DEFS) {
-    for (let t = 0; t < AFFIX_TIERS.length; t++) {
-      const [minVal, maxVal] = scaleRange(def.tierRanges[t], t)
-      const tierName = getTierName(def.baseName, t)
-      const affix = await createAffix(buildAffixBody(tierName, 'suffix', def.attr, minVal, maxVal), clientId, apiKey)
-      creatureSuffixIds.push(affix.id)
-    }
-  }
-
-  // Item affixes
-  for (const def of ITEM_PREFIX_DEFS) {
-    for (let t = 0; t < AFFIX_TIERS.length; t++) {
-      const [minVal, maxVal] = scaleRange(def.tierRanges[t], t)
-      const tierName = getTierName(def.baseName, t)
-      const affix = await createAffix(buildAffixBody(tierName, 'prefix', def.attr, minVal, maxVal), clientId, apiKey)
-      itemPrefixIds.push(affix.id)
-    }
-  }
-
-  for (const def of ITEM_SUFFIX_DEFS) {
-    for (let t = 0; t < AFFIX_TIERS.length; t++) {
-      const [minVal, maxVal] = scaleRange(def.tierRanges[t], t)
-      const tierName = getTierName(def.baseName, t)
-      const affix = await createAffix(buildAffixBody(tierName, 'suffix', def.attr, minVal, maxVal), clientId, apiKey)
-      itemSuffixIds.push(affix.id)
-    }
-  }
-
-  // Spell prefix affixes (element type — no tier range, single enum value each)
   for (const def of SPELL_PREFIX_DEFS) {
     const affix = await createAffix(buildSpellPrefixAffixBody(def.baseName, def.element), clientId, apiKey)
     spellPrefixIds.push(affix.id)
-  }
-
-  // Spell suffix affixes (tier-scaled)
-  for (const def of SPELL_SUFFIX_DEFS) {
-    for (let t = 0; t < AFFIX_TIERS.length; t++) {
-      const [minVal, maxVal] = scaleRange(def.tierRanges[t], t)
-      const tierName = getTierName(def.baseName, t)
-      const affix = await createAffix(buildAffixBody(tierName, 'suffix', def.attr, minVal, maxVal), clientId, apiKey)
-      spellSuffixIds.push(affix.id)
-    }
   }
 
   const totalAffixes = creaturePrefixIds.length + creatureSuffixIds.length +
@@ -542,32 +533,18 @@ async function main() {
 
   // ── Affix assignments ──────────────────────────────────────────
 
-  console.log('Assigning affixes to creature blueprints...')
-  const creatureBpIds = creatureBlueprintIds.map(b => b.id)
-  if (creaturePrefixIds.length > 0) {
-    await assignAffixes(creatureBpIds, creaturePrefixIds, 1.0, clientId, apiKey)
-  }
-  if (creatureSuffixIds.length > 0) {
-    await assignAffixes(creatureBpIds, creatureSuffixIds, 1.0, clientId, apiKey)
-  }
-
-  console.log('Assigning affixes to item blueprints...')
-  const itemBpIds = itemBlueprintIds.map(b => b.id)
-  if (itemPrefixIds.length > 0) {
-    await assignAffixes(itemBpIds, itemPrefixIds, 1.0, clientId, apiKey)
-  }
-  if (itemSuffixIds.length > 0) {
-    await assignAffixes(itemBpIds, itemSuffixIds, 1.0, clientId, apiKey)
-  }
-
-  console.log('Assigning affixes to spell blueprints...')
-  const spellBpIds = spellBlueprintIds.map(b => b.id)
-  if (spellPrefixIds.length > 0) {
-    await assignAffixes(spellBpIds, spellPrefixIds, 1.0, clientId, apiKey)
-  }
-  if (spellSuffixIds.length > 0) {
-    await assignAffixes(spellBpIds, spellSuffixIds, 1.0, clientId, apiKey)
-  }
+  await assignBlueprintAffixes(
+    creatureBlueprintIds.map(b => b.id), creaturePrefixIds, creatureSuffixIds,
+    'creature blueprints', clientId, apiKey,
+  )
+  await assignBlueprintAffixes(
+    itemBlueprintIds.map(b => b.id), itemPrefixIds, itemSuffixIds,
+    'item blueprints', clientId, apiKey,
+  )
+  await assignBlueprintAffixes(
+    spellBlueprintIds.map(b => b.id), spellPrefixIds, spellSuffixIds,
+    'spell blueprints', clientId, apiKey,
+  )
 
   console.log('\n=== Seed complete ===')
   console.log(`Client ID: ${clientId}`)

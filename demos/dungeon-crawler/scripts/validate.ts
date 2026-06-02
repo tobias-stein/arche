@@ -96,8 +96,6 @@ async function collectItems(
       })
       const attrs = result.blueprint_attributes || {}
       const level = getLevel(attrs)
-      // Only count item-type results (not spells or potions)
-      const archetype = result.blueprint_attributes?.['archetype'] || result.name
       const isSpell = getAttr(attrs, 'spell_type') !== null
       const isPotion = getAttr(attrs, 'potion_type') !== null
       if (isSpell || isPotion) continue

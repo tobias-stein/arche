@@ -18,8 +18,6 @@ export const SEED_CONFIG = {
 
 export const DIFFICULTIES = ['normal', 'champion', 'elite', 'boss'] as const
 export const RARITIES = ['common', 'uncommon', 'rare', 'legendary'] as const
-export const SPELL_RARITIES = ['uncommon', 'rare', 'legendary'] as const
-export const NON_BOSS_DIFFICULTIES = ['normal', 'champion', 'elite'] as const
 
 export const SUBTYPE_POOLS = [
   { min: 1, max: 10, pool: ['rat', 'bat', 'slime', 'spider', 'goblin'] },
@@ -60,13 +58,6 @@ export function referenceDefense(level: number): number {
 
 export function referenceHealth(level: number): number {
   return 20 + (level - 1) * 2.0
-}
-
-export function statRange(value: number, variance = 0.1): { min: number; max: number } {
-  return {
-    min: Math.round(value * (1 - variance)),
-    max: Math.round(value * (1 + variance)),
-  }
 }
 
 export const STAT_MULTIPLIERS = {
@@ -218,10 +209,4 @@ export const SUBTYPE_NAMES: Record<string, string[]> = {
   accessory: ['ring', 'amulet'],
 }
 
-export const SPELL_TYPE_NAMES = ['projectile', 'beam', 'burst', 'heal', 'shield'] as const
 
-export interface ApiResponse<T = unknown> {
-  id?: string
-  data?: T
-  [key: string]: unknown
-}

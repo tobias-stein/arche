@@ -20,6 +20,8 @@ arche/
 │   ├── arche-types/           # Shared domain types, validation, and API contracts
 │   ├── arche-service/         # HTTP REST API server
 │   └── arche-cli/             # Command-line interface
+├── demos/
+│   └── dungeon-crawler/       # Game client demo (React + TypeScript)
 ├── Cargo.toml                 # Workspace manifest
 ├── docker-compose.yml         # Full-stack Docker Compose (Postgres + service + admin-ui)
 ├── init.sh                    # Local development launcher
@@ -29,11 +31,13 @@ arche/
 ## Table of Contents
 
 - [Quick Start](#quick-start)
+  - [Dungeon Crawler Demo](#dungeon-crawler-demo)
 - [Modules](#modules)
   - [arche-service (Rust API server)](#arche-service-rust-api-server)
   - [arche-types (Shared types)](#arche-types-shared-types)
   - [arche-cli (CLI tool)](#arche-cli-cli-tool)
   - [admin-ui (React frontend)](#admin-ui-react-frontend)
+  - [dungeon-crawler (Game Demo)](#dungeon-crawler-game-demo)
   - [bench (Benchmark suite)](#bench-benchmark-suite)
 - [API Overview](#api-overview)
 - [Authentication & Permissions](#authentication--permissions)
@@ -74,6 +78,25 @@ cd admin-ui && npm install && npm run dev
 ```
 
 The super admin key is printed to service logs on first start. Use it to authenticate from the CLI or admin UI.
+
+### Dungeon Crawler Demo
+
+A turn-based dungeon crawler game built against the Arche generation API. Run it with:
+
+```bash
+cd demos/dungeon-crawler
+./run-dungeon-crawler.sh
+```
+
+This builds all Docker images, starts PostgreSQL + Arche + a seed container + the game client, and prints the URLs.
+
+| Service | Port |
+|---------|------|
+| Game client | `http://localhost:5173` |
+| Admin UI | `http://localhost:8081` |
+| Arche API | `http://localhost:8080` |
+
+The client API key is printed to the terminal and injected into the game container automatically.
 
 ## Modules
 
@@ -254,6 +277,75 @@ npm run lint       # Run ESLint
 - `VITE_ARCHE_API_URL` — API base URL (default: `http://localhost:8080`)
 
 **Docker build:** The `Dockerfile` produces an nginx-alpine image serving the built app.
+
+### dungeon-crawler (Game Demo)
+
+**Location:** `demos/dungeon-crawler/` | **Stack:** React 19, TypeScript, Vite, Arche API
+
+A turn-based dungeon crawler that uses the Arche generation API to create creatures, items, potions, and spells. The player explores procedurally generated dungeons, fights enemies, collects loot, and levels up.
+
+**Key mechanics:**
+- **Dungeon generation:** Recursive room-carving algorithm with connected corridors
+- **Creature spawning:** Arche API generates creatures scaled to the player's level, with fallback to local mock data
+- **Loot system:** Items roll primary stats (damage, defense) and secondary stats (strength, intelligence, agility) via Arche's attribute rolling engine
+- **Affix system:** Prefixes/suffixes apply bonus effects to generated items and creatures (e.g., "Smoldering Sword of Power")
+- **Combat:** Turn-based with attack, spellcasting, and item consumption
+- **Inventory:** Equipment slots (weapon, armor, shield, accessories), consumables, and spellbook with drag-and-drop
+
+**Key files:**
+
+| Path | Description |
+|---|---|
+| `scripts/seed.ts` | Seeds Arche with ~600 blueprints + ~40 affixes across 100 levels |
+| `scripts/shared.ts` | Stat multipliers, affix/prefix definitions, subtype pools |
+| `Dockerfile` | nginx-alpine production image for the Vite build |
+| `docker-compose.yml` | Full demo stack (Postgres + Arche + seed + game + Admin UI) |
+| `run-dungeon-crawler.sh` | One-shot launcher — builds, seeds, and runs everything |
+
+**Run with Docker Compose (one command):**
+
+```bash
+cd demos/dungeon-crawler
+./run-dungeon-crawler.sh
+```
+
+The script:
+1. Builds all Docker images
+2. Starts PostgreSQL, Arche service, Admin UI
+3. Waits for Arche API health
+4. Extracts the super admin key from service logs
+5. Runs the seed container (creates client, API key, GMAs, affixes, and ~600 blueprints)
+6. Starts the dungeon-crawler game container with the client API key injected
+7. Verifies the game is reachable and prints all URLs
+
+**Environment variables:**
+
+| Variable | Default | Description |
+|---|---|---|
+| `DUNGEON_CRAWLER_PORT` | `5173` | Game client HTTP port |
+| `ADMIN_UI_PORT` | `8081` | Admin UI HTTP port |
+| `ARCHE_API_URL` | `http://localhost:8080` | Arche API base URL (used at runtime) |
+
+**Manual development:**
+
+```bash
+# Start the Arche stack first
+cd demos/dungeon-crawler
+docker compose up -d postgres arche-service
+# Wait for Arche, then seed
+ARCHE_API_KEY=$(docker compose logs arche-service | grep -o 'arche_k_[a-zA-Z0-9]\{48\}')
+docker compose run --rm -e ARCHE_API_KEY="$ARCHE_API_KEY" seed
+# Start the game
+npm install
+npm run dev
+```
+
+**Testing:**
+```bash
+cd demos/dungeon-crawler
+npm test            # 346+ tests (vitest)
+npm run typecheck   # TypeScript strict check
+```
 
 ### bench (Benchmark suite)
 

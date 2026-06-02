@@ -546,15 +546,26 @@ async function main() {
     'spell blueprints', clientId, apiKey,
   )
 
-  console.log('\n=== Seed complete ===')
-  console.log(`Client ID: ${clientId}`)
-  console.log(`API Key: ${clientKey}`)
-  console.log(`GMAs: ${Object.keys(gmas).length}`)
-  console.log(`Affixes: ${totalAffixes}`)
-  console.log(`Creature blueprints: ${creatureBlueprintIds.length}`)
-  console.log(`Item blueprints: ${itemBlueprintIds.length}`)
-  console.log(`Potion blueprints: ${potionBlueprintIds.length}`)
-  console.log(`Spell blueprints: ${spellBlueprintIds.length}`)
+  const boxW = 64
+  const pad = (s: string) => s.padEnd(boxW)
+  console.log(`\n${'═'.repeat(72)}`)
+  console.log(`  Seed complete`)
+  console.log(`  API Key: ${clientKey}`)
+  console.log(`  Client ID:       ${clientId}`)
+  console.log(`  GMAs:            ${Object.keys(gmas).length}`)
+  console.log(`  Affixes:         ${totalAffixes}`)
+  console.log(`  Creature BPs:    ${creatureBlueprintIds.length}`)
+  console.log(`  Item BPs:        ${itemBlueprintIds.length}`)
+  console.log(`  Potion BPs:      ${potionBlueprintIds.length}`)
+  console.log(`  Spell BPs:       ${spellBlueprintIds.length}`)
+  console.log(`\n╔${'═'.repeat(boxW)}╗`)
+  console.log(`║${pad('=== DUNGEON CRAWLER CLIENT API KEY ===')}║`)
+  console.log(`║${pad('')}║`)
+  console.log(`║  ${clientKey.padEnd(boxW - 2)}║`)
+  console.log(`║${pad('')}║`)
+  console.log(`║${pad('Use this key to lock in a web frontend.')}║`)
+  console.log(`║${pad("Set ARCHE_API_KEY=<key> in your .env")}║`)
+  console.log(`╚${'═'.repeat(boxW)}╝`)
 }
 
 main().catch(err => {

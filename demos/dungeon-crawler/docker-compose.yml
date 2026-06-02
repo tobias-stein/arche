@@ -35,8 +35,16 @@ services:
     environment:
       ARCHE_API_URL: http://arche-service:8080
     depends_on:
-      arche-service:
-        condition: service_started
+      - arche-service
+
+  admin-ui:
+    build:
+      context: ../../admin-ui
+      dockerfile: Dockerfile
+    ports:
+      - "${ADMIN_UI_PORT:-8081}:80"
+    depends_on:
+      - arche-service
 
   dungeon-crawler:
     build:

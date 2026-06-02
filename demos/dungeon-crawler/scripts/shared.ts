@@ -3,44 +3,44 @@ export const API_BASE = process.env.ARCHE_API_URL || 'http://localhost:8080'
 export const SEED_CONFIG = {
   creatureWeights: {
     normal: { weight: 1.0 },
-    champion: { weight: 0.6 },
-    elite: { weight: 0.35 },
-    boss: { weight: 0.15 },
+    champion: { weight: 0.5 },
+    elite: { weight: 0.3 },
+    boss: { weight: 0.2 },
   },
   rarityWeights: {
     common: { weight: 1.0 },
-    uncommon: { weight: 0.6 },
-    rare: { weight: 0.35 },
-    legendary: { weight: 0.15 },
+    uncommon: { weight: 0.5 },
+    rare: { weight: 0.3 },
+    legendary: { weight: 0.2 },
   },
   levelVariance: 2,
 }
 
 export const DIFFICULTIES = ['normal', 'champion', 'elite', 'boss'] as const
 export const RARITIES = ['common', 'uncommon', 'rare', 'legendary'] as const
+export const SPELL_RARITIES = ['uncommon', 'rare', 'legendary'] as const
 export const NON_BOSS_DIFFICULTIES = ['normal', 'champion', 'elite'] as const
 
-export const LEVEL_BANDS = [
-  { min: 1, max: 10, label: '1-10' },
-  { min: 5, max: 20, label: '5-20' },
-  { min: 15, max: 35, label: '15-35' },
-  { min: 30, max: 50, label: '30-50' },
-  { min: 45, max: 70, label: '45-70' },
-  { min: 60, max: 85, label: '60-85' },
-  { min: 80, max: 100, label: '80-100' },
+export const SUBTYPE_POOLS = [
+  { min: 1, max: 10, pool: ['rat', 'bat', 'slime', 'spider', 'goblin'] },
+  { min: 11, max: 20, pool: ['goblin', 'spider', 'skeleton', 'wolf', 'rat'] },
+  { min: 21, max: 35, pool: ['skeleton', 'wolf', 'goblin', 'ghost'] },
+  { min: 36, max: 50, pool: ['ghost', 'orc', 'skeleton', 'wolf'] },
+  { min: 51, max: 65, pool: ['troll', 'demon', 'orc', 'ghost'] },
+  { min: 66, max: 80, pool: ['demon', 'troll', 'orc', 'ghost'] },
+  { min: 81, max: 100, pool: ['dragon', 'demon', 'troll'] },
 ]
 
-export const BAND_SUBTYPES: Record<number, string[]> = {
-  0: ['rat', 'bat', 'slime', 'spider'],
-  1: ['goblin', 'spider', 'rat', 'bat'],
-  2: ['skeleton', 'wolf', 'goblin', 'spider'],
-  3: ['ghost', 'orc', 'skeleton', 'wolf'],
-  4: ['troll', 'demon', 'orc', 'ghost'],
-  5: ['demon', 'troll', 'ghost', 'orc'],
-  6: ['dragon', 'demon', 'troll', 'ghost'],
+export const ALL_CREATURE_SUBTYPES = ['goblin', 'skeleton', 'slime', 'bat', 'rat', 'spider', 'wolf', 'ghost', 'orc', 'troll', 'demon', 'dragon']
+
+export function getSubtypesForLevel(level: number): string[] {
+  const found = SUBTYPE_POOLS.find(p => level >= p.min && level <= p.max)
+  return found ? found.pool : ['rat']
 }
 
-export const ALL_CREATURE_SUBTYPES = ['goblin', 'skeleton', 'slime', 'bat', 'rat', 'spider', 'wolf', 'ghost', 'orc', 'troll', 'demon', 'dragon']
+export function pickFromPool<T>(pool: T[], index: number): T {
+  return pool[((index * 7 + 13) % pool.length + pool.length) % pool.length]
+}
 
 export const TARGET_LEVELS = [5, 25, 50, 75]
 
@@ -193,12 +193,32 @@ export const ITEM_SUFFIX_DEFS = [
   { baseName: 'of the Leech', attr: 'life_steal', tierRanges: [[1, 2], [2, 5], [5, 12], [12, 25]] },
 ]
 
+export const SPELL_PREFIX_DEFS = [
+  { baseName: 'Smoldering', element: 'fire' },
+  { baseName: 'Frost', element: 'ice' },
+  { baseName: 'Crackling', element: 'lightning' },
+  { baseName: 'Arcane', element: 'arcane' },
+  { baseName: 'Toxic', element: 'poison' },
+  { baseName: 'Sacred', element: 'holy' },
+]
+
+export const SPELL_SUFFIX_DEFS = [
+  { baseName: 'of Power', attr: 'bonus_damage', tierRanges: [[2, 5], [5, 15], [15, 40], [40, 100]] },
+  { baseName: 'of Destruction', attr: 'bonus_damage', tierRanges: [[3, 8], [8, 25], [25, 60], [60, 150]] },
+  { baseName: 'of the Leech', attr: 'life_steal', tierRanges: [[1, 2], [2, 5], [5, 12], [12, 30]] },
+  { baseName: 'of Fortitude', attr: 'bonus_heal', tierRanges: [[3, 8], [8, 20], [20, 50], [50, 120]] },
+  { baseName: 'of Brilliance', attr: 'mana_return', tierRanges: [[1, 3], [3, 8], [8, 20], [20, 50]] },
+  { baseName: 'of the Phoenix', attr: 'revival', tierRanges: [[1, 1], [1, 2], [2, 3], [3, 5]] },
+]
+
 export const SUBTYPE_NAMES: Record<string, string[]> = {
   weapon: ['sword', 'axe', 'dagger', 'bow', 'staff', 'mace', 'spear', 'crossbow', 'wand', 'halberd'],
   armor: ['helmet', 'chest', 'legs', 'boots', 'gloves', 'belt'],
   shield: ['shield'],
   accessory: ['ring', 'amulet'],
 }
+
+export const SPELL_TYPE_NAMES = ['projectile', 'beam', 'burst', 'heal', 'shield'] as const
 
 export interface ApiResponse<T = unknown> {
   id?: string

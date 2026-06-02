@@ -8,7 +8,7 @@ interface GenerateResponse {
   affix_attributes: unknown[]
 }
 
-const SAMPLE_SIZE = 200 // increase to 500 for tighter tolerance
+const SAMPLE_SIZE = 200
 const MAX_ATTEMPTS = 2000
 
 function getLevel(attrs: Record<string, unknown>): number | null {
@@ -96,8 +96,13 @@ async function collectItems(
       })
       const attrs = result.blueprint_attributes || {}
       const level = getLevel(attrs)
-      const isItem = getAttr(attrs, 'rarity') !== null
-      if (!isItem) continue
+      // Only count item-type results (not spells or potions)
+      const archetype = result.blueprint_attributes?.['archetype'] || result.name
+      const isSpell = getAttr(attrs, 'spell_type') !== null
+      const isPotion = getAttr(attrs, 'potion_type') !== null
+      if (isSpell || isPotion) continue
+      const hasRarity = getAttr(attrs, 'rarity') !== null
+      if (!hasRarity) continue
       if (level !== null && level >= window.gte && level <= window.lte) {
         samples.push(result)
       } else {
@@ -146,7 +151,7 @@ function checkDistribution(
     } else {
       const rarity = getAttr(attrs, 'rarity') || 'unknown'
       distribution[rarity] = (distribution[rarity] || 0) + 1
-      const subtype = getAttr(attrs, 'subtype') || getAttr(attrs, 'potion_type') || getAttr(attrs, 'spell_type') || 'unknown'
+      const subtype = getAttr(attrs, 'subtype') || 'unknown'
       subtypes.add(subtype)
     }
   }

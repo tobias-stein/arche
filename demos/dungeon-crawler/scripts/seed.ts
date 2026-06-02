@@ -1,8 +1,10 @@
 import {
-  API_BASE, SEED_CONFIG, LEVEL_BANDS, BAND_SUBTYPES, DIFFICULTIES, NON_BOSS_DIFFICULTIES, RARITIES,
+  API_BASE, SEED_CONFIG, DIFFICULTIES,
   AFFIX_COUNT_CONFIG, AFFIX_TIERS, CREATURE_PREFIX_DEFS, CREATURE_SUFFIX_DEFS,
-  ITEM_PREFIX_DEFS, ITEM_SUFFIX_DEFS, SUBTYPE_NAMES, ALL_CREATURE_SUBTYPES, capitalize,
-  computeStats, statRange,
+  ITEM_PREFIX_DEFS, ITEM_SUFFIX_DEFS, SPELL_PREFIX_DEFS, SPELL_SUFFIX_DEFS,
+  SUBTYPE_NAMES, ALL_CREATURE_SUBTYPES,
+  getSubtypesForLevel, pickFromPool, capitalize,
+  computeStats,
 } from './shared'
 
 interface NamedId {
@@ -80,23 +82,24 @@ async function assignAffixes(blueprintIds: string[], affixIds: string[], weight:
   }, apiKey)
 }
 
-function buildCreatureBlueprint(name: string, subtype: string, difficulty: typeof DIFFICULTIES[number], weight: number, band: typeof LEVEL_BANDS[0]): Record<string, unknown> {
-  const bandCenter = Math.round((band.min + band.max) / 2)
-  const stats = computeStats(bandCenter, { archetype: 'creature', difficulty })
+// ── Builders ────────────────────────────────────────────────────────
+
+function buildCreatureBlueprint(name: string, subtype: string, difficulty: string, weight: number, level: number): Record<string, unknown> {
+  const stats = computeStats(level, { archetype: 'creature', difficulty: difficulty as typeof DIFFICULTIES[number] })
   const affixCfg = AFFIX_COUNT_CONFIG[difficulty]
   return {
     name,
     archetype: 'creature',
     weight,
-    description: `A ${difficulty} ${subtype} (level ${band.label})`,
+    description: `A ${difficulty} ${subtype} (level ${level})`,
     attributes: {
-      level: { value_type: 'range', min: band.min, max: band.max, distribution: { type: 'uniform' } },
+      level: { value_type: 'single', value: level },
       difficulty: { value_type: 'enum', values: [difficulty] },
       subtype: { value_type: 'enum', values: [subtype] },
-      health: { value_type: 'range', ...statRange(stats.health), distribution: { type: 'uniform' } },
-      attack: { value_type: 'range', ...statRange(stats.attack), distribution: { type: 'uniform' } },
-      defense: { value_type: 'range', ...statRange(stats.defense), distribution: { type: 'uniform' } },
-      xp_reward: { value_type: 'range', ...statRange(stats.xpReward), distribution: { type: 'uniform' } },
+      health: { value_type: 'single', value: Math.round(stats.health) },
+      attack: { value_type: 'single', value: Math.round(stats.attack) },
+      defense: { value_type: 'single', value: Math.round(stats.defense) },
+      xp_reward: { value_type: 'single', value: Math.round(stats.xpReward) },
     },
     attribute_order: ['level', 'difficulty', 'subtype', 'health', 'attack', 'defense', 'xp_reward'],
     affixes: {
@@ -110,42 +113,40 @@ function buildCreatureBlueprint(name: string, subtype: string, difficulty: typeo
   }
 }
 
-function buildItemBlueprint(name: string, archetype: string, rarity: string, subtype: string, weight: number, band: typeof LEVEL_BANDS[0]): Record<string, unknown> {
+function buildItemBlueprint(name: string, archetype: string, rarity: string, subtype: string, weight: number, level: number): Record<string, unknown> {
   const baseAttrs: Record<string, unknown> = {
-    level: { value_type: 'range', min: band.min, max: band.max, distribution: { type: 'uniform' } },
+    level: { value_type: 'single', value: level },
     rarity: { value_type: 'enum', values: [rarity] },
   }
   const attrOrder = ['level', 'rarity']
   const affixCfg = AFFIX_COUNT_CONFIG[rarity]
 
-  const bandCenter = Math.round((band.min + band.max) / 2)
-
   switch (archetype) {
     case 'weapon': {
-      const stats = computeStats(bandCenter, { archetype: 'weapon' })
+      const stats = computeStats(level, { archetype: 'weapon' })
       baseAttrs.subtype = { value_type: 'enum', values: [subtype] }
-      baseAttrs.damage = { value_type: 'range', ...statRange(stats.damage), distribution: { type: 'uniform' } }
+      baseAttrs.damage = { value_type: 'single', value: Math.round(stats.damage) }
       attrOrder.push('subtype', 'damage')
       break
     }
     case 'armor': {
-      const stats = computeStats(bandCenter, { archetype: 'armor' })
+      const stats = computeStats(level, { archetype: 'armor' })
       baseAttrs.subtype = { value_type: 'enum', values: [subtype] }
-      baseAttrs.defense_bonus = { value_type: 'range', ...statRange(stats.defense_bonus), distribution: { type: 'uniform' } }
+      baseAttrs.defense_bonus = { value_type: 'single', value: Math.round(stats.defense_bonus) }
       attrOrder.push('subtype', 'defense_bonus')
       break
     }
     case 'shield': {
-      const stats = computeStats(bandCenter, { archetype: 'shield' })
-      baseAttrs.defense_bonus = { value_type: 'range', ...statRange(stats.defense_bonus), distribution: { type: 'uniform' } }
-      baseAttrs.block_chance = { value_type: 'range', min: 5, max: 25, distribution: { type: 'uniform' } }
+      const stats = computeStats(level, { archetype: 'shield' })
+      baseAttrs.defense_bonus = { value_type: 'single', value: Math.round(stats.defense_bonus) }
+      baseAttrs.block_chance = { value_type: 'single', value: Math.round(5 + level * 0.2) }
       attrOrder.push('defense_bonus', 'block_chance')
       break
     }
     case 'accessory': {
-      const stats = computeStats(bandCenter, { archetype: 'accessory' })
+      const stats = computeStats(level, { archetype: 'accessory' })
       baseAttrs.subtype = { value_type: 'enum', values: [subtype] }
-      baseAttrs.stat_bonus = { value_type: 'range', ...statRange(stats.stat_bonus), distribution: { type: 'uniform' } }
+      baseAttrs.stat_bonus = { value_type: 'single', value: Math.round(stats.stat_bonus) }
       attrOrder.push('subtype', 'stat_bonus')
       break
     }
@@ -155,7 +156,7 @@ function buildItemBlueprint(name: string, archetype: string, rarity: string, sub
     name,
     archetype,
     weight,
-    description: `A ${rarity} ${subtype} (level ${band.label})`,
+    description: `A ${rarity} ${subtype} (level ${level})`,
     attributes: baseAttrs,
     attribute_order: attrOrder,
     affixes: {
@@ -169,18 +170,17 @@ function buildItemBlueprint(name: string, archetype: string, rarity: string, sub
   }
 }
 
-function buildPotionBlueprint(name: string, potionType: string, band: typeof LEVEL_BANDS[0]): Record<string, unknown> {
-  const bandCenter = Math.round((band.min + band.max) / 2)
-  const stats = computeStats(bandCenter, { archetype: 'potion' })
+function buildPotionBlueprint(name: string, potionType: string, level: number): Record<string, unknown> {
+  const stats = computeStats(level, { archetype: 'potion' })
   return {
     name,
     archetype: 'potion',
     weight: 1.0,
-    description: `A ${potionType} potion (level ${band.label})`,
+    description: `A ${potionType} potion (level ${level})`,
     attributes: {
-      level: { value_type: 'range', min: band.min, max: band.max, distribution: { type: 'uniform' } },
+      level: { value_type: 'single', value: level },
       potion_type: { value_type: 'enum', values: [potionType] },
-      effect_value: { value_type: 'range', ...statRange(stats.effect_value), distribution: { type: 'uniform' } },
+      effect_value: { value_type: 'single', value: Math.round(stats.effect_value) },
     },
     attribute_order: ['level', 'potion_type', 'effect_value'],
     affixes: {
@@ -190,30 +190,39 @@ function buildPotionBlueprint(name: string, potionType: string, band: typeof LEV
   }
 }
 
-function buildSpellBlueprint(name: string, spellType: string): Record<string, unknown> {
+function buildSpellBlueprint(name: string, spellType: string, rarity: string, level: number): Record<string, unknown> {
   const isHeal = spellType === 'heal' || name.toLowerCase().includes('heal')
-  const spellLevel = 50
-  const stats = computeStats(spellLevel, { archetype: 'spell', spellType: isHeal ? 'heal' : 'damage' })
+  const stats = computeStats(level, { archetype: 'spell', spellType: isHeal ? 'heal' : 'damage' })
+  const affixCfg = AFFIX_COUNT_CONFIG[rarity]
   return {
     name,
     archetype: 'spell',
     weight: 1.0,
-    description: `A ${spellType} spell`,
+    description: `A ${rarity} ${spellType} spell (level ${level})`,
     attributes: {
-      level: { value_type: 'range', min: 1, max: 100, distribution: { type: 'uniform' } },
+      level: { value_type: 'single', value: level },
+      rarity: { value_type: 'enum', values: [rarity] },
       spell_type: { value_type: 'enum', values: [spellType] },
-      mana_cost: { value_type: 'range', min: 5, max: 40, distribution: { type: 'uniform' } },
+      mana_cost: { value_type: 'single', value: Math.round(5 + level * 0.35) },
       ...(isHeal
-        ? { heal_amount: { value_type: 'range', ...statRange(stats.heal_amount), distribution: { type: 'uniform' } } }
-        : { damage: { value_type: 'range', ...statRange(stats.damage), distribution: { type: 'uniform' } } }),
+        ? { heal_amount: { value_type: 'single', value: Math.round(stats.heal_amount) } }
+        : { damage: { value_type: 'single', value: Math.round(stats.damage) } }),
     },
-    attribute_order: isHeal ? ['level', 'spell_type', 'mana_cost', 'heal_amount'] : ['level', 'spell_type', 'mana_cost', 'damage'],
+    attribute_order: isHeal
+      ? ['level', 'rarity', 'spell_type', 'mana_cost', 'heal_amount']
+      : ['level', 'rarity', 'spell_type', 'mana_cost', 'damage'],
     affixes: {
-      min_prefixes: 0, max_prefixes: 0, min_suffixes: 0, max_suffixes: 0,
-      prefixes: [], suffixes: [],
+      min_prefixes: affixCfg.prefixes,
+      max_prefixes: affixCfg.prefixes,
+      min_suffixes: affixCfg.suffixes,
+      max_suffixes: affixCfg.suffixes,
+      prefixes: [],
+      suffixes: [],
     },
   }
 }
+
+// ── Affix helpers ───────────────────────────────────────────────────
 
 function getTierName(baseName: string, tierIndex: number): string {
   return `${AFFIX_TIERS[tierIndex].name} ${baseName}`
@@ -238,6 +247,118 @@ function buildAffixBody(name: string, type: 'prefix' | 'suffix', attrName: strin
     },
   }
 }
+
+function buildSpellPrefixAffixBody(name: string, element: string): Record<string, unknown> {
+  return {
+    name,
+    type: 'prefix',
+    attribute: {
+      name: 'element',
+      value_type: 'enum',
+      values: [element],
+    },
+  }
+}
+
+// ── Generation helpers ──────────────────────────────────────────────
+
+function generateCreaturesForLevel(level: number): { subtype: string; difficulty: string }[] {
+  const pool = getSubtypesForLevel(level)
+  const result: { subtype: string; difficulty: string }[] = []
+
+  // 1st: always normal
+  result.push({ subtype: pickFromPool(pool, level), difficulty: 'normal' })
+
+  // 2nd: normal on 25% of levels (every 4th starting at 1), otherwise champion/elite
+  if (level % 4 === 1) {
+    result.push({ subtype: pickFromPool(pool, level + 7), difficulty: 'normal' })
+  } else {
+    result.push({
+      subtype: pickFromPool(pool, level + 3),
+      difficulty: level % 6 === 0 ? 'elite' : 'champion',
+    })
+  }
+
+  // 3rd: even levels get an extra creature (50 levels)
+  if (level % 2 === 0) {
+    if (level % 4 === 0) {
+      // 25 boss levels
+      result.push({ subtype: pickFromPool(pool, level + 11), difficulty: 'boss' })
+    } else {
+      // 25 elite 3rd slots
+      result.push({ subtype: pickFromPool(pool, level + 5), difficulty: 'elite' })
+    }
+  }
+
+  return result
+}
+
+function generateItemsForLevel(level: number): { archetype: string; subtype: string; rarity: string }[] {
+  // 75 levels get 2 items, 25 levels get 1 (total 175)
+  const count = level % 4 === 0 ? 1 : 2
+
+  const rarities = ['common', 'common', 'uncommon', 'common', 'rare', 'common', 'uncommon', 'common', 'legendary', 'uncommon']
+  const archetypes = ['weapon', 'armor', 'weapon', 'accessory', 'weapon', 'shield', 'weapon', 'armor', 'weapon', 'accessory']
+
+  const items: { archetype: string; subtype: string; rarity: string }[] = []
+  for (let i = 0; i < count; i++) {
+    const idx = ((level - 1) * 2 + i * 7) % 10
+    const archetype = archetypes[idx]
+    const rarity = rarities[idx]
+    let subtype: string
+    switch (archetype) {
+      case 'weapon':
+        subtype = pickFromPool(SUBTYPE_NAMES.weapon, level + i * 5)
+        break
+      case 'armor':
+        subtype = pickFromPool(SUBTYPE_NAMES.armor, level + i * 7)
+        break
+      case 'shield':
+        subtype = 'shield'
+        break
+      case 'accessory':
+        subtype = pickFromPool(SUBTYPE_NAMES.accessory, level + i * 11)
+        break
+      default:
+        subtype = 'ring'
+    }
+    items.push({ archetype, subtype, rarity })
+  }
+  return items
+}
+
+function generateSpellsForLevel(level: number): { name: string; spellType: string; rarity: string } | null {
+  // 75 levels out of 100 get spells (all levels where %4 !== 0)
+  if (level % 4 === 0) return null
+
+  // Continuous index among spell-having levels: count of non-multiples-of-4 up to L
+  const spellIdx = level - Math.floor(level / 4) - 1
+
+  const rarityCycle = ['uncommon', 'uncommon', 'uncommon', 'rare', 'uncommon', 'uncommon', 'uncommon', 'legendary']
+  const typeCycle = ['projectile', 'burst', 'beam', 'heal', 'shield', 'projectile', 'burst', 'projectile']
+
+  const idx = spellIdx % 8
+  const rarity = rarityCycle[idx]
+  const spellType = typeCycle[idx]
+
+  const elementNames = ['Fire', 'Ice', 'Arcane', 'Poison', 'Lightning', 'Holy']
+  const elementIdx = (level - 1) % elementNames.length
+  const prefix = `${elementNames[elementIdx]}`
+  const typeLabel = spellType === 'heal' ? 'Healing' : spellType === 'shield' ? 'Ward' : capitalize(spellType)
+
+  return {
+    name: `${prefix} ${typeLabel}`,
+    spellType,
+    rarity,
+  }
+}
+
+function generatePotionLevels(): number[] {
+  // 12 potions (6 health, 6 mana) spread across levels
+  return [1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 95, 100]
+}
+
+// ── Main ────────────────────────────────────────────────────────────
 
 async function main() {
   const apiKey = process.env.ARCHE_API_KEY || await getSuperAdminKey()
@@ -281,7 +402,10 @@ async function main() {
   const creatureSuffixIds: string[] = []
   const itemPrefixIds: string[] = []
   const itemSuffixIds: string[] = []
+  const spellPrefixIds: string[] = []
+  const spellSuffixIds: string[] = []
 
+  // Creature affixes
   for (const def of CREATURE_PREFIX_DEFS) {
     for (let t = 0; t < AFFIX_TIERS.length; t++) {
       const [minVal, maxVal] = scaleRange(def.tierRanges[t], t)
@@ -300,6 +424,7 @@ async function main() {
     }
   }
 
+  // Item affixes
   for (const def of ITEM_PREFIX_DEFS) {
     for (let t = 0; t < AFFIX_TIERS.length; t++) {
       const [minVal, maxVal] = scaleRange(def.tierRanges[t], t)
@@ -318,187 +443,104 @@ async function main() {
     }
   }
 
-  const totalAffixes = creaturePrefixIds.length + creatureSuffixIds.length + itemPrefixIds.length + itemSuffixIds.length
-  console.log(`  Created ${totalAffixes} affixes`)
-  console.log(`    Creature prefixes: ${creaturePrefixIds.length}, suffixes: ${creatureSuffixIds.length}`)
-  console.log(`    Item prefixes: ${itemPrefixIds.length}, suffixes: ${itemSuffixIds.length}`)
+  // Spell prefix affixes (element type — no tier range, single enum value each)
+  for (const def of SPELL_PREFIX_DEFS) {
+    const affix = await createAffix(buildSpellPrefixAffixBody(def.baseName, def.element), clientId, apiKey)
+    spellPrefixIds.push(affix.id)
+  }
 
-  const VALIDATION_LEVELS = [
-    { level: 5, min: 3, max: 7, suffix: 'V3-7' },
-    { level: 25, min: 23, max: 27, suffix: 'V23-27' },
-    { level: 50, min: 48, max: 52, suffix: 'V48-52' },
-    { level: 75, min: 73, max: 77, suffix: 'V73-77' },
-  ]
-
-  console.log('Creating creature blueprints...')
-  const creatureBlueprintIds: NamedId[] = []
-  const creatureNames = new Set<string>()
-
-  for (let b = 0; b < LEVEL_BANDS.length; b++) {
-    const band = LEVEL_BANDS[b]
-    const subtypes = BAND_SUBTYPES[b] || []
-
-    for (const subtype of subtypes) {
-      for (const difficulty of NON_BOSS_DIFFICULTIES) {
-        const baseName = `${capitalize(subtype)} ${capitalize(difficulty)} Lv${band.label}`
-        creatureNames.add(baseName)
-        const weight = SEED_CONFIG.creatureWeights[difficulty as keyof typeof SEED_CONFIG.creatureWeights].weight
-        const bp = buildCreatureBlueprint(baseName, subtype, difficulty, weight, band)
-        const result = await createBlueprint(bp, clientId, apiKey)
-        creatureBlueprintIds.push(result)
-      }
+  // Spell suffix affixes (tier-scaled)
+  for (const def of SPELL_SUFFIX_DEFS) {
+    for (let t = 0; t < AFFIX_TIERS.length; t++) {
+      const [minVal, maxVal] = scaleRange(def.tierRanges[t], t)
+      const tierName = getTierName(def.baseName, t)
+      const affix = await createAffix(buildAffixBody(tierName, 'suffix', def.attr, minVal, maxVal), clientId, apiKey)
+      spellSuffixIds.push(affix.id)
     }
   }
 
-  for (let b = 0; b < LEVEL_BANDS.length; b++) {
-    const band = LEVEL_BANDS[b]
-    const subtypes = BAND_SUBTYPES[b] || []
-    const firstSubtype = subtypes[0] || 'dragon'
-    const bossName = `${capitalize(firstSubtype)} Boss Lv${band.label}`
-    creatureNames.add(bossName)
-    const bp = buildCreatureBlueprint(bossName, firstSubtype, 'boss', SEED_CONFIG.creatureWeights.boss.weight, band)
-    const result = await createBlueprint(bp, clientId, apiKey)
-    creatureBlueprintIds.push(result)
+  const totalAffixes = creaturePrefixIds.length + creatureSuffixIds.length +
+    itemPrefixIds.length + itemSuffixIds.length +
+    spellPrefixIds.length + spellSuffixIds.length
+  console.log(`  Created ${totalAffixes} affixes`)
+  console.log(`    Creature prefixes: ${creaturePrefixIds.length}, suffixes: ${creatureSuffixIds.length}`)
+  console.log(`    Item prefixes: ${itemPrefixIds.length}, suffixes: ${itemSuffixIds.length}`)
+  console.log(`    Spell prefixes: ${spellPrefixIds.length}, suffixes: ${spellSuffixIds.length}`)
+
+  // ── Creature blueprints (per-level, ~250 total) ────────────────
+
+  console.log('Creating creature blueprints...')
+  const creatureBlueprintIds: NamedId[] = []
+
+  for (let level = 1; level <= 100; level++) {
+    const creatures = generateCreaturesForLevel(level)
+    for (const c of creatures) {
+      const weight = SEED_CONFIG.creatureWeights[c.difficulty as keyof typeof SEED_CONFIG.creatureWeights].weight
+      const name = `${capitalize(c.subtype)} ${capitalize(c.difficulty)} Lv${level}`
+      const bp = buildCreatureBlueprint(name, c.subtype, c.difficulty, weight, level)
+      const result = await createBlueprint(bp, clientId, apiKey)
+      creatureBlueprintIds.push(result)
+    }
   }
 
   console.log(`  Created ${creatureBlueprintIds.length} creature blueprints`)
 
-  // Add validation-level creature blueprints with narrow bands
-  for (const vl of VALIDATION_LEVELS) {
-    const narrowBand = { min: vl.min, max: vl.max, label: vl.suffix }
-    const overlappingBands = LEVEL_BANDS
-      .map((b, idx) => ({ ...b, idx }))
-      .filter(b => b.min <= vl.max && b.max >= vl.min)
-    const subtypes = [...new Set(overlappingBands.flatMap(b => BAND_SUBTYPES[b.idx] || []))].slice(0, 2)
-
-    for (const subtype of subtypes) {
-      for (const difficulty of NON_BOSS_DIFFICULTIES) {
-        const baseName = `${capitalize(subtype)} ${capitalize(difficulty)} ${vl.suffix}`
-        creatureNames.add(baseName)
-        const weight = SEED_CONFIG.creatureWeights[difficulty as keyof typeof SEED_CONFIG.creatureWeights].weight
-        const bp = buildCreatureBlueprint(baseName, subtype, difficulty, weight, narrowBand)
-        const result = await createBlueprint(bp, clientId, apiKey)
-        creatureBlueprintIds.push(result)
-      }
-    }
-
-    const firstSubtype = subtypes[0] || 'dragon'
-    const bossName = `${capitalize(firstSubtype)} Boss ${vl.suffix}`
-    creatureNames.add(bossName)
-    const bossBp = buildCreatureBlueprint(bossName, firstSubtype, 'boss', SEED_CONFIG.creatureWeights.boss.weight, narrowBand)
-    const bossResult = await createBlueprint(bossBp, clientId, apiKey)
-    creatureBlueprintIds.push(bossResult)
-  }
-
-  console.log(`  Created ${creatureBlueprintIds.length} creature blueprints (incl. validation bands)`)
+  // ── Item blueprints (per-level, ~175 total) ────────────────────
 
   console.log('Creating item blueprints...')
   const itemBlueprintIds: NamedId[] = []
 
-  for (const rarity of RARITIES) {
-    const rarityWeight = SEED_CONFIG.rarityWeights[rarity].weight
-    const itemBands = rarity === 'legendary' ? [LEVEL_BANDS[3], LEVEL_BANDS[5]] : [LEVEL_BANDS[1], LEVEL_BANDS[3], LEVEL_BANDS[5]]
-
-    for (const subtype of SUBTYPE_NAMES.weapon) {
-      for (const band of itemBands) {
-        const name = `${capitalize(subtype)} ${rarity} Lv${band.label}`
-        const bp = buildItemBlueprint(name, 'weapon', rarity, subtype, rarityWeight, band)
-        const result = await createBlueprint(bp, clientId, apiKey)
-        itemBlueprintIds.push(result)
-      }
-    }
-  }
-
-  for (const rarity of RARITIES) {
-    const rarityWeight = SEED_CONFIG.rarityWeights[rarity].weight
-    const itemBands = rarity === 'legendary' ? [LEVEL_BANDS[2], LEVEL_BANDS[4]] : [LEVEL_BANDS[1], LEVEL_BANDS[3], LEVEL_BANDS[5]]
-
-    for (const subtype of SUBTYPE_NAMES.armor) {
-      for (const band of itemBands) {
-        const name = `${capitalize(subtype)} ${rarity} Lv${band.label}`
-        const bp = buildItemBlueprint(name, 'armor', rarity, subtype, rarityWeight, band)
-        const result = await createBlueprint(bp, clientId, apiKey)
-        itemBlueprintIds.push(result)
-      }
-    }
-  }
-
-  for (const rarity of RARITIES) {
-    const rarityWeight = SEED_CONFIG.rarityWeights[rarity].weight
-    const itemBands = rarity === 'legendary' ? [LEVEL_BANDS[2]] : [LEVEL_BANDS[1], LEVEL_BANDS[3]]
-
-    for (const subtype of SUBTYPE_NAMES.shield) {
-      for (const band of itemBands) {
-        const name = `Shield ${rarity} Lv${band.label}`
-        const bp = buildItemBlueprint(name, 'shield', rarity, subtype, rarityWeight, band)
-        const result = await createBlueprint(bp, clientId, apiKey)
-        itemBlueprintIds.push(result)
-      }
-    }
-  }
-
-  for (const rarity of RARITIES) {
-    const rarityWeight = SEED_CONFIG.rarityWeights[rarity].weight
-    const itemBands = rarity === 'legendary' ? [LEVEL_BANDS[2]] : [LEVEL_BANDS[1], LEVEL_BANDS[3]]
-
-    for (const subtype of SUBTYPE_NAMES.accessory) {
-      for (const band of itemBands) {
-        const name = `${capitalize(subtype)} ${rarity} Lv${band.label}`
-        const bp = buildItemBlueprint(name, 'accessory', rarity, subtype, rarityWeight, band)
-        const result = await createBlueprint(bp, clientId, apiKey)
-        itemBlueprintIds.push(result)
-      }
-    }
-  }
-
-  const potionBands = [LEVEL_BANDS[0], LEVEL_BANDS[2], LEVEL_BANDS[4], LEVEL_BANDS[6]]
-  for (const potionType of ['health', 'mana']) {
-    for (const band of potionBands) {
-      const name = `${capitalize(potionType)} Potion Lv${band.label}`
-      const bp = buildPotionBlueprint(name, potionType, band)
+  for (let level = 1; level <= 100; level++) {
+    const items = generateItemsForLevel(level)
+    for (const item of items) {
+      const rarityWeight = SEED_CONFIG.rarityWeights[item.rarity as keyof typeof SEED_CONFIG.rarityWeights].weight
+      const name = `${capitalize(item.subtype)} ${capitalize(item.rarity)} Lv${level}`
+      const bp = buildItemBlueprint(name, item.archetype, item.rarity, item.subtype, rarityWeight, level)
       const result = await createBlueprint(bp, clientId, apiKey)
       itemBlueprintIds.push(result)
     }
   }
 
-  const spellDefs: { name: string; type: string }[] = [
-    { name: 'Fire Bolt', type: 'projectile' },
-    { name: 'Ice Shard', type: 'projectile' },
-    { name: 'Arcane Blast', type: 'burst' },
-    { name: 'Heal', type: 'heal' },
-    { name: 'Poison Cloud', type: 'burst' },
-    { name: 'Lightning Strike', type: 'beam' },
-    { name: 'Mana Shield', type: 'shield' },
-    { name: 'Holy Light', type: 'heal' },
-  ]
-  for (const spell of spellDefs) {
-    const bp = buildSpellBlueprint(spell.name, spell.type)
+  console.log(`  Created ${itemBlueprintIds.length} item blueprints`)
+
+  // ── Potion blueprints (~12 total) ──────────────────────────────
+
+  console.log('Creating potion blueprints...')
+  const potionBlueprintIds: NamedId[] = []
+
+  const potionLevels = generatePotionLevels()
+  for (let i = 0; i < potionLevels.length; i++) {
+    const pLevel = potionLevels[i]
+    const pType = i % 2 === 0 ? 'health' : 'mana'
+    const name = `${capitalize(pType)} Potion Lv${pLevel}`
+    const bp = buildPotionBlueprint(name, pType, pLevel)
     const result = await createBlueprint(bp, clientId, apiKey)
-    itemBlueprintIds.push(result)
+    potionBlueprintIds.push(result)
   }
 
-  // Add validation-level item blueprints with narrow bands
-  for (const vl of VALIDATION_LEVELS) {
-    const narrowBand = { min: vl.min, max: vl.max, label: vl.suffix }
-    for (const rarity of RARITIES) {
-      const rarityWeight = SEED_CONFIG.rarityWeights[rarity].weight
-      for (const subtype of SUBTYPE_NAMES.weapon.slice(0, 4)) {
-        const name = `${capitalize(subtype)} ${rarity} ${vl.suffix}`
-        const bp = buildItemBlueprint(name, 'weapon', rarity, subtype, rarityWeight, narrowBand)
-        const result = await createBlueprint(bp, clientId, apiKey)
-        itemBlueprintIds.push(result)
-      }
-      for (const subtype of SUBTYPE_NAMES.armor.slice(0, 2)) {
-        const name = `${capitalize(subtype)} ${rarity} ${vl.suffix}`
-        const bp = buildItemBlueprint(name, 'armor', rarity, subtype, rarityWeight, narrowBand)
-        const result2 = await createBlueprint(bp, clientId, apiKey)
-        itemBlueprintIds.push(result2)
-      }
-    }
+  console.log(`  Created ${potionBlueprintIds.length} potion blueprints`)
+
+  // ── Spell blueprints (~75 total, sparse across levels) ─────────
+
+  console.log('Creating spell blueprints...')
+  const spellBlueprintIds: NamedId[] = []
+
+  for (let level = 1; level <= 100; level++) {
+    const spell = generateSpellsForLevel(level)
+    if (!spell) continue
+
+    const bp = buildSpellBlueprint(spell.name, spell.spellType, spell.rarity, level)
+    const result = await createBlueprint(bp, clientId, apiKey)
+    spellBlueprintIds.push(result)
   }
 
-  console.log(`  Created ${itemBlueprintIds.length} item blueprints (incl. validation bands)`)
-  console.log(`  Total: ${creatureBlueprintIds.length + itemBlueprintIds.length} blueprints`)
+  console.log(`  Created ${spellBlueprintIds.length} spell blueprints`)
+
+  const totalBlueprints = creatureBlueprintIds.length + itemBlueprintIds.length +
+    potionBlueprintIds.length + spellBlueprintIds.length
+  console.log(`  Total: ${totalBlueprints} blueprints`)
+
+  // ── Affix assignments ──────────────────────────────────────────
 
   console.log('Assigning affixes to creature blueprints...')
   const creatureBpIds = creatureBlueprintIds.map(b => b.id)
@@ -518,6 +560,15 @@ async function main() {
     await assignAffixes(itemBpIds, itemSuffixIds, 1.0, clientId, apiKey)
   }
 
+  console.log('Assigning affixes to spell blueprints...')
+  const spellBpIds = spellBlueprintIds.map(b => b.id)
+  if (spellPrefixIds.length > 0) {
+    await assignAffixes(spellBpIds, spellPrefixIds, 1.0, clientId, apiKey)
+  }
+  if (spellSuffixIds.length > 0) {
+    await assignAffixes(spellBpIds, spellSuffixIds, 1.0, clientId, apiKey)
+  }
+
   console.log('\n=== Seed complete ===')
   console.log(`Client ID: ${clientId}`)
   console.log(`API Key: ${clientKey}`)
@@ -525,6 +576,8 @@ async function main() {
   console.log(`Affixes: ${totalAffixes}`)
   console.log(`Creature blueprints: ${creatureBlueprintIds.length}`)
   console.log(`Item blueprints: ${itemBlueprintIds.length}`)
+  console.log(`Potion blueprints: ${potionBlueprintIds.length}`)
+  console.log(`Spell blueprints: ${spellBlueprintIds.length}`)
 }
 
 main().catch(err => {

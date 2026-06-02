@@ -51,16 +51,12 @@ function App() {
 
     function onLootShow() {
       setLootVisible(true)
-      setShowInventory(true)
       gs.setLootOpen(true)
-      gs.setInventoryOpen(true)
     }
 
     function onLootOrChestClosed() {
       setLootVisible(false)
-      setShowInventory(false)
       gs.setLootOpen(false)
-      gs.setInventoryOpen(false)
     }
 
     gs.on('encounter:started', onEncounterStarted)

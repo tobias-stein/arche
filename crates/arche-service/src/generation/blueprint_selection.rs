@@ -88,9 +88,12 @@ fn payload_matches_constraint(payload: &AttributePayload, constraint: &Constrain
                 config.eq.as_ref().is_some_and(|v| v.as_bool() == Some(*bp_value))
             }
             AttributePayload::Single { value, .. } => {
-                config.eq.as_ref().is_some_and(|v| {
+                let eq_ok = config.eq.as_ref().is_none_or(|v| {
                     v.as_f64().is_some_and(|v2| (v2 - value).abs() < f64::EPSILON)
-                })
+                });
+                let gte_ok = config.gte.map_or(true, |gte| *value >= gte);
+                let lte_ok = config.lte.map_or(true, |lte| *value <= lte);
+                eq_ok && gte_ok && lte_ok
             }
         },
         ConstraintValue::Bare(value) => match payload {
@@ -213,6 +216,17 @@ mod tests {
         serde_json::to_value(BlueprintAttribute::Inline(InlineAttributeDef {
             description: None,
             payload: AttributePayload::Boolean { value },
+        }))
+        .unwrap()
+    }
+
+    fn single_attr(value: f64) -> serde_json::Value {
+        serde_json::to_value(BlueprintAttribute::Inline(InlineAttributeDef {
+            description: None,
+            payload: AttributePayload::Single {
+                value,
+                distribution: None,
+            },
         }))
         .unwrap()
     }
@@ -684,6 +698,201 @@ mod tests {
                 r#in: None,
                 contains: None,
                 eq: Some(serde_json::json!(true)),
+            }),
+        );
+
+        let mut rng = StdRng::seed_from_u64(99);
+        let req = GenerateRequest {
+            archetype: None,
+            seed: None,
+            constraints: Some(constraints),
+            affixes: None,
+            client_id: None,
+        };
+
+        let result = select_blueprint(&cc, &req, &mut rng).unwrap();
+        assert_eq!(result.id, bp_id);
+    }
+
+    // --- Single value constraint ---
+
+    #[test]
+    fn test_single_gte_lte_in_range() {
+        let client_id = Uuid::new_v4();
+        let bp_id = Uuid::new_v4();
+        let bp = make_blueprint(
+            bp_id,
+            client_id,
+            "Fixed Level Sword",
+            "sword",
+            1.0,
+            serde_json::json!({"level": single_attr(5.0)}),
+        );
+        let (cc, _) = make_client_cache(vec![bp], vec![]);
+
+        let mut constraints = HashMap::new();
+        constraints.insert(
+            "level".into(),
+            ConstraintValue::Config(ConstraintConfig {
+                gte: Some(3.0),
+                lte: Some(7.0),
+                r#in: None,
+                contains: None,
+                eq: None,
+            }),
+        );
+
+        let mut rng = StdRng::seed_from_u64(99);
+        let req = GenerateRequest {
+            archetype: None,
+            seed: None,
+            constraints: Some(constraints),
+            affixes: None,
+            client_id: None,
+        };
+
+        let result = select_blueprint(&cc, &req, &mut rng).unwrap();
+        assert_eq!(result.id, bp_id);
+    }
+
+    #[test]
+    fn test_single_gte_out_of_range() {
+        let client_id = Uuid::new_v4();
+        let bp = make_blueprint(
+            Uuid::new_v4(),
+            client_id,
+            "Low Level Sword",
+            "sword",
+            1.0,
+            serde_json::json!({"level": single_attr(5.0)}),
+        );
+        let (cc, _) = make_client_cache(vec![bp], vec![]);
+
+        let mut constraints = HashMap::new();
+        constraints.insert(
+            "level".into(),
+            ConstraintValue::Config(ConstraintConfig {
+                gte: Some(10.0),
+                lte: None,
+                r#in: None,
+                contains: None,
+                eq: None,
+            }),
+        );
+
+        let mut rng = StdRng::seed_from_u64(99);
+        let req = GenerateRequest {
+            archetype: None,
+            seed: None,
+            constraints: Some(constraints),
+            affixes: None,
+            client_id: None,
+        };
+
+        let err = select_blueprint(&cc, &req, &mut rng).unwrap_err();
+        assert!(matches!(err, BlueprintSelectionError::NoMatchingBlueprints));
+    }
+
+    #[test]
+    fn test_single_lte_out_of_range() {
+        let client_id = Uuid::new_v4();
+        let bp = make_blueprint(
+            Uuid::new_v4(),
+            client_id,
+            "High Level Sword",
+            "sword",
+            1.0,
+            serde_json::json!({"level": single_attr(7.0)}),
+        );
+        let (cc, _) = make_client_cache(vec![bp], vec![]);
+
+        let mut constraints = HashMap::new();
+        constraints.insert(
+            "level".into(),
+            ConstraintValue::Config(ConstraintConfig {
+                gte: None,
+                lte: Some(3.0),
+                r#in: None,
+                contains: None,
+                eq: None,
+            }),
+        );
+
+        let mut rng = StdRng::seed_from_u64(99);
+        let req = GenerateRequest {
+            archetype: None,
+            seed: None,
+            constraints: Some(constraints),
+            affixes: None,
+            client_id: None,
+        };
+
+        let err = select_blueprint(&cc, &req, &mut rng).unwrap_err();
+        assert!(matches!(err, BlueprintSelectionError::NoMatchingBlueprints));
+    }
+
+    #[test]
+    fn test_single_eq_only_backward_compat() {
+        let client_id = Uuid::new_v4();
+        let bp_id = Uuid::new_v4();
+        let bp = make_blueprint(
+            bp_id,
+            client_id,
+            "Exact Level Sword",
+            "sword",
+            1.0,
+            serde_json::json!({"level": single_attr(42.0)}),
+        );
+        let (cc, _) = make_client_cache(vec![bp], vec![]);
+
+        let mut constraints = HashMap::new();
+        constraints.insert(
+            "level".into(),
+            ConstraintValue::Config(ConstraintConfig {
+                gte: None,
+                lte: None,
+                r#in: None,
+                contains: None,
+                eq: Some(serde_json::json!(42.0)),
+            }),
+        );
+
+        let mut rng = StdRng::seed_from_u64(99);
+        let req = GenerateRequest {
+            archetype: None,
+            seed: None,
+            constraints: Some(constraints),
+            affixes: None,
+            client_id: None,
+        };
+
+        let result = select_blueprint(&cc, &req, &mut rng).unwrap();
+        assert_eq!(result.id, bp_id);
+    }
+
+    #[test]
+    fn test_single_gte_lte_with_eq_combined() {
+        let client_id = Uuid::new_v4();
+        let bp_id = Uuid::new_v4();
+        let bp = make_blueprint(
+            bp_id,
+            client_id,
+            "Combined Constraint Sword",
+            "sword",
+            1.0,
+            serde_json::json!({"level": single_attr(5.0)}),
+        );
+        let (cc, _) = make_client_cache(vec![bp], vec![]);
+
+        let mut constraints = HashMap::new();
+        constraints.insert(
+            "level".into(),
+            ConstraintValue::Config(ConstraintConfig {
+                gte: Some(1.0),
+                lte: Some(10.0),
+                r#in: None,
+                contains: None,
+                eq: Some(serde_json::json!(5.0)),
             }),
         );
 

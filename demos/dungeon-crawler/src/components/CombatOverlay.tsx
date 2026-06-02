@@ -249,6 +249,32 @@ function CombatOverlay() {
     gs.fleeCombat()
   }, [])
 
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (panel || !showMenu || turn !== 'player' || victory || defeat) return
+      switch (e.key) {
+        case '1':
+          e.preventDefault()
+          handleAttack()
+          break
+        case '2':
+          e.preventDefault()
+          handleCastSpell()
+          break
+        case '3':
+          e.preventDefault()
+          handleUseItem()
+          break
+        case '4':
+          e.preventDefault()
+          handleFlee()
+          break
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [showMenu, turn, victory, defeat, panel, handleAttack, handleCastSpell, handleUseItem, handleFlee])
+
   if (!visible || !creature) return null
 
   return (

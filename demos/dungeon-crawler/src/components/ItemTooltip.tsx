@@ -21,10 +21,11 @@ function getCompareItem(item: ItemState): ItemState | null {
   return getGameState().equipment[item.equipSlot] ?? null
 }
 
-function statDiff(current: number, compare: number): string {
-  if (compare > current) return '(+)'
-  if (compare < current) return '(-)'
-  return ''
+function getStatDiff(hovered: number, compare: number | undefined): number | null {
+  if (compare === undefined) return null
+  const diff = hovered - compare
+  if (diff === 0) return null
+  return diff
 }
 
 export default function ItemTooltip({ tooltip, onClose }: Props) {
@@ -53,9 +54,23 @@ export default function ItemTooltip({ tooltip, onClose }: Props) {
         <div className="tt-slot">{EQUIP_SLOT_LABELS[item.equipSlot]}</div>
       )}
       <div className="tt-stats">
-        {Object.entries(item.stats).map(([key, val]) => (
-          <span key={key}>{key}: {ceil(val)}</span>
-        ))}
+        {Object.entries(item.stats).map(([key, val]) => {
+          const diff = item.equipSlot
+            ? compareItem
+              ? getStatDiff(val, compareItem.stats[key])
+              : val > 0 ? val : null
+            : null
+          return (
+            <span key={key}>
+              {key}: {ceil(val)}
+              {diff !== null && (
+                <span className={`tt-diff ${diff > 0 ? 'tt-diff-up' : 'tt-diff-down'}`}>
+                  {diff > 0 ? '+' : ''}{Math.ceil(diff)}
+                </span>
+              )}
+            </span>
+          )
+        })}
         {item.level > 0 && <span>Level: {ceil(item.level)}</span>}
       </div>
       {compareItem && (
@@ -66,7 +81,7 @@ export default function ItemTooltip({ tooltip, onClose }: Props) {
           </div>
           {Object.entries(compareItem.stats).map(([key, val]) => (
             <span key={key} className="tt-cstat">
-              {key}: {ceil(val)} {item.stats[key] !== undefined && statDiff(item.stats[key], val)}
+              {key}: {ceil(val)}
             </span>
           ))}
         </div>

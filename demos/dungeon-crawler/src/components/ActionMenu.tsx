@@ -10,10 +10,10 @@ interface ActionMenuProps {
 }
 
 const ACTIONS = [
-  { id: 'attack', icon: 'fa-crosshairs', label: 'Attack' },
-  { id: 'cast', icon: 'fa-wand-sparkles', label: 'Cast Spell' },
-  { id: 'item', icon: 'fa-flask', label: 'Use Item' },
-  { id: 'flee', icon: 'fa-person-running', label: 'Flee' },
+  { id: 'attack', icon: 'fa-crosshairs', label: 'Attack', key: '1' },
+  { id: 'cast', icon: 'fa-wand-sparkles', label: 'Cast Spell', key: '2' },
+  { id: 'item', icon: 'fa-flask', label: 'Use Item', key: '3' },
+  { id: 'flee', icon: 'fa-person-running', label: 'Flee', key: '4' },
 ] as const
 
 function ActionMenu({ onAttack, onCastSpell, onUseItem, onFlee, disabled = false }: ActionMenuProps) {
@@ -55,6 +55,7 @@ function ActionMenu({ onAttack, onCastSpell, onUseItem, onFlee, disabled = false
         >
           <span className="ai"><i className={`fa-solid ${action.icon}`} /></span>
           <span className="al">{action.label}</span>
+          <span className="ak">{action.key}</span>
         </button>
       ))}
     </div>

@@ -45,7 +45,7 @@ export async function generate(request: GenerateRequest): Promise<GenerateRespon
   return {
     things: [{
       name: raw.name,
-      archetype: request.archetype || '',
+      archetype: raw.archetype || request.archetype || '',
       name_parts: raw.name_parts,
       blueprint_attributes,
       affix_attributes,

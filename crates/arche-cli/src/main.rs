@@ -1242,6 +1242,7 @@ mod generate_tests {
                 suffixes: vec!["of the Bear".into()],
             },
             blueprint_id: uuid::Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap(),
+            archetype: "sword".into(),
             blueprint_attributes: {
                 let mut m = BTreeMap::new();
                 m.insert("damage".into(), serde_json::json!(27.3));

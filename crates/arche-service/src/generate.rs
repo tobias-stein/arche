@@ -201,6 +201,7 @@ fn run_single_generation(
         name,
         name_parts,
         blueprint_id: blueprint.id,
+        archetype: blueprint.archetype.clone(),
         blueprint_attributes,
         affix_attributes,
     })
@@ -509,6 +510,7 @@ mod tests {
                     suffixes: vec![],
                 },
                 blueprint_id: bp_id,
+                archetype: "sword".into(),
                 blueprint_attributes: BTreeMap::new(),
                 affix_attributes: vec![],
             }),

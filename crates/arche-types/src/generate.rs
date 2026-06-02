@@ -83,6 +83,7 @@ pub struct GenerateResponse {
     pub name: String,
     pub name_parts: NameParts,
     pub blueprint_id: Uuid,
+    pub archetype: String,
     pub blueprint_attributes: BTreeMap<String, serde_json::Value>,
     pub affix_attributes: Vec<AffixAttributeEntry>,
 }

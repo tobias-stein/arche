@@ -158,7 +158,7 @@ function LootPopup({ inventoryOpen }: Props) {
       item.name,
       item.rarity,
       item.id,
-      item.equipSlot ? 'equipment' : 'consumable',
+      item.equipSlot ? 'equipment' : item.archeType === 'spell' ? 'spell' : 'consumable',
       item.equipSlot,
       getItemIcon(item),
       idx,

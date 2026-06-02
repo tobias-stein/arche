@@ -40,6 +40,7 @@ function InventoryDialog({ onClose, lootActive }: Props) {
   const [pendingSpell, setPendingSpell] = useState<ItemState | null>(null)
   const [replaceConfirmIdx, setReplaceConfirmIdx] = useState<number | null>(null)
   const [pendingSpellInvIdx, setPendingSpellInvIdx] = useState<number | null>(null)
+  const [consumeTarget, setConsumeTarget] = useState<{ item: ItemState; invIdx: number } | null>(null)
 
   const dialogRef = useRef<HTMLDivElement>(null)
 
@@ -108,6 +109,7 @@ function InventoryDialog({ onClose, lootActive }: Props) {
     setPendingSpell(null)
     setReplaceConfirmIdx(null)
     setPendingSpellInvIdx(null)
+    setConsumeTarget(null)
     onClose?.()
   }, [onClose])
 
@@ -516,6 +518,24 @@ function InventoryDialog({ onClose, lootActive }: Props) {
     setPendingSpellInvIdx(null)
   }
 
+  function openConsumeDialog(item: ItemState, invIdx: number) {
+    setConsumeTarget({ item, invIdx })
+    setTooltip(null)
+  }
+
+  function confirmConsume() {
+    if (!consumeTarget) return
+    const gs = getGameState()
+    consumeItem(consumeTarget.item)
+    gs.dropItemFromInventory(consumeTarget.invIdx)
+    syncState()
+    setConsumeTarget(null)
+  }
+
+  function cancelConsume() {
+    setConsumeTarget(null)
+  }
+
   function renderAbandonDialog() {
     if (!abandonItem) return null
     return (
@@ -629,6 +649,41 @@ function InventoryDialog({ onClose, lootActive }: Props) {
     )
   }
 
+  function renderConsumeDialog() {
+    if (!consumeTarget) return null
+    const { item } = consumeTarget
+    const heal = item.stats.heal ?? 0
+    const mana = item.stats.mana ?? 0
+
+    return (
+      <div id="consume-dialog" className="visible">
+        <div className="cd">
+          <h3>Consume Item</h3>
+          <div className="cd-item">
+            <span className="ci"><i className={getItemIcon(item)} style={{ color: getRarityColor(item.rarity) }} /></span>
+            <span className="cn" style={{ color: getRarityColor(item.rarity) }}>{item.name}</span>
+          </div>
+          <div className="cd-stats">
+            {heal > 0 && (
+              <span className="cd-stat">
+                <i className="fa-solid fa-heart" style={{ color: 'var(--clr-danger-strong)' }} /> Heal: {heal}
+              </span>
+            )}
+            {mana > 0 && (
+              <span className="cd-stat">
+                <i className="fa-solid fa-droplet" style={{ color: 'var(--clr-mp-bar-fill)' }} /> Mana: {mana}
+              </span>
+            )}
+          </div>
+          <div className="cb">
+            <button className="cd-yes" onClick={confirmConsume}>Consume</button>
+            <button onClick={cancelConsume}>Cancel</button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   function renderInventorySlots() {
     const slots: React.ReactNode[] = []
     for (let i = 0; i < GAME_CONFIG.capacity.inventorySlots; i++) {
@@ -645,7 +700,13 @@ function InventoryDialog({ onClose, lootActive }: Props) {
           onMouseDown={(e) => item && handleDragStart(e, 'inventory', undefined, i)}
           onMouseOver={(e) => item && handleMouseEnter(e, item)}
           onMouseOut={handleMouseLeave}
-          onClick={(e) => item && handleTooltipClick(e, item)}
+          onClick={(e) => {
+            if (item && item.archeType === 'consumable') {
+              openConsumeDialog(item, i)
+            } else if (item) {
+              handleTooltipClick(e, item)
+            }
+          }}
           onMouseMove={(e) => item && handleDragOver(e, undefined, i, 'inventory')}
           onMouseUp={(e) => handleDrop(e, undefined, i, 'inventory')}
           onKeyDown={(e) => {
@@ -742,6 +803,7 @@ function InventoryDialog({ onClose, lootActive }: Props) {
       <ItemTooltip tooltip={tooltip} onClose={() => setTooltip(null)} />
       {renderAbandonDialog()}
       {renderSpellReplaceDialog()}
+      {renderConsumeDialog()}
     </>
   )
 }

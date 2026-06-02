@@ -34,6 +34,7 @@ export interface RawGenerateResponse {
   name: string
   name_parts: NameParts
   blueprint_id: string
+  archetype: string
   blueprint_attributes: Record<string, unknown>
   affix_attributes: RawAffixAttributeEntry[]
 }

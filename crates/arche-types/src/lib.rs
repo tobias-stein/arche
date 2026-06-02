@@ -426,6 +426,7 @@ mod tests {
                 suffixes: vec!["of the Bear".into()],
             },
             blueprint_id: Uuid::new_v4(),
+            archetype: "sword".into(),
             blueprint_attributes: {
                 let mut m = BTreeMap::new();
                 m.insert("damage".into(), json!(27.3));
@@ -474,6 +475,7 @@ mod tests {
                             suffixes: vec![],
                         },
                         blueprint_id: Uuid::new_v4(),
+                        archetype: "sword".into(),
                         blueprint_attributes: BTreeMap::new(),
                         affix_attributes: vec![],
                     }),
@@ -514,6 +516,7 @@ mod tests {
                 suffixes: vec![],
             },
             blueprint_id: Uuid::nil(),
+            archetype: "".into(),
             blueprint_attributes: BTreeMap::new(),
             affix_attributes: vec![],
         };

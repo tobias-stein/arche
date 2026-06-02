@@ -519,6 +519,111 @@
   background: var(--clr-danger-hover);
 }
 
+#consume-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 260;
+  background: var(--clr-overlay-abandon);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  font-family: monospace;
+}
+
+#consume-dialog.visible {
+  display: flex;
+}
+
+#consume-dialog .cd {
+  background: var(--clr-card-bg);
+  border: 4px solid var(--clr-card-border);
+  padding: 24px 28px;
+  text-align: center;
+  max-width: 320px;
+  box-shadow: 0 8px 0 var(--clr-card-shadow);
+}
+
+#consume-dialog .cd h3 {
+  color: var(--clr-heading);
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 14px;
+  text-shadow: 2px 2px 0 var(--clr-card-shadow);
+}
+
+#consume-dialog .cd-item {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  margin: 0 auto 12px;
+  padding: 8px;
+  background: var(--clr-slot-empty-bg);
+  border: 2px solid var(--clr-card-border);
+  width: 64px;
+  aspect-ratio: 1;
+}
+
+#consume-dialog .cd-item .ci {
+  font-size: 32px;
+  line-height: 1;
+}
+
+#consume-dialog .cd-item .cn {
+  font-size: 12px;
+  text-shadow: 1px 1px 0 var(--clr-card-shadow);
+}
+
+#consume-dialog .cd-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+#consume-dialog .cd-stats .cd-stat {
+  color: var(--clr-body);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+#consume-dialog .cb {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+#consume-dialog .cb button {
+  padding: 8px 20px;
+  border: 3px solid var(--clr-btn-border);
+  background: var(--clr-btn-bg);
+  color: var(--clr-btn-text);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: monospace;
+  box-shadow: 0 3px 0 var(--clr-btn-shadow);
+}
+
+#consume-dialog .cb button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 0 var(--clr-btn-shadow);
+}
+
+#consume-dialog .cb .cd-yes {
+  background: var(--clr-header-bg);
+  border-color: var(--clr-card-border);
+}
+
+#consume-dialog .cb .cd-yes:hover {
+  background: var(--clr-slot-filled-hover-bg);
+}
+
 /* Tooltip */
 .inv-tooltip {
   position: fixed;

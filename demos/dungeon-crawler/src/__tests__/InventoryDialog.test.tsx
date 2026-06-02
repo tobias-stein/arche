@@ -410,4 +410,152 @@ describe('InventoryDialog', () => {
 
     expect(gs.spellbook[0]).toBeNull()
   })
+
+  describe('consume confirmation dialog', () => {
+    it('opens consume dialog when clicking a consumable item in inventory', () => {
+      const gs = getGameState()
+      const potion = makeItem({
+        name: 'Health Potion',
+        archeType: 'consumable',
+        stats: { heal: 50 },
+      })
+      gs.inventory[0] = potion
+
+      render(<InventoryDialog />)
+      const slot = document.querySelector('.inv-grid .el:first-child')!
+      fireEvent.click(slot)
+
+      expect(screen.getByText('Consume Item')).toBeInTheDocument()
+      expect(screen.getByText('Consume')).toBeInTheDocument()
+      expect(screen.getByText('Cancel')).toBeInTheDocument()
+      const itemNames = screen.getAllByText('Health Potion')
+      expect(itemNames.length).toBe(2)
+    })
+
+    it('shows heal stat in consume dialog', () => {
+      const gs = getGameState()
+      const potion = makeItem({
+        name: 'Health Potion',
+        archeType: 'consumable',
+        stats: { heal: 50 },
+      })
+      gs.inventory[0] = potion
+
+      render(<InventoryDialog />)
+      const slot = document.querySelector('.inv-grid .el:first-child')!
+      fireEvent.click(slot)
+
+      expect(screen.getByText(/Heal: 50/)).toBeInTheDocument()
+    })
+
+    it('shows mana stat in consume dialog', () => {
+      const gs = getGameState()
+      const potion = makeItem({
+        name: 'Mana Potion',
+        archeType: 'consumable',
+        stats: { mana: 30 },
+      })
+      gs.inventory[0] = potion
+
+      render(<InventoryDialog />)
+      const slot = document.querySelector('.inv-grid .el:first-child')!
+      fireEvent.click(slot)
+
+      expect(screen.getByText(/Mana: 30/)).toBeInTheDocument()
+    })
+
+    it('shows both heal and mana stats when item has both', () => {
+      const gs = getGameState()
+      const potion = makeItem({
+        name: 'Full Potion',
+        archeType: 'consumable',
+        stats: { heal: 50, mana: 30 },
+      })
+      gs.inventory[0] = potion
+
+      render(<InventoryDialog />)
+      const slot = document.querySelector('.inv-grid .el:first-child')!
+      fireEvent.click(slot)
+
+      expect(screen.getByText(/Heal: 50/)).toBeInTheDocument()
+      expect(screen.getByText(/Mana: 30/)).toBeInTheDocument()
+    })
+
+    it('confirms consume applies heal and removes item from inventory', () => {
+      const gs = getGameState()
+      gs.player.hp.current = 50
+      const potion = makeItem({
+        name: 'Health Potion',
+        archeType: 'consumable',
+        stats: { heal: 50 },
+      })
+      gs.inventory[0] = potion
+
+      render(<InventoryDialog />)
+      const slot = document.querySelector('.inv-grid .el:first-child')!
+      fireEvent.click(slot)
+
+      const consumeBtn = screen.getByText('Consume')
+      fireEvent.click(consumeBtn)
+
+      expect(gs.player.hp.current).toBe(100)
+      expect(gs.inventory[0]).toBeNull()
+      expect(screen.queryByText('Consume Item')).not.toBeInTheDocument()
+    })
+
+    it('confirms consume applies mana and removes item from inventory', () => {
+      const gs = getGameState()
+      gs.player.mp.current = 10
+      const potion = makeItem({
+        name: 'Mana Potion',
+        archeType: 'consumable',
+        stats: { mana: 15 },
+      })
+      gs.inventory[0] = potion
+
+      render(<InventoryDialog />)
+      const slot = document.querySelector('.inv-grid .el:first-child')!
+      fireEvent.click(slot)
+
+      const consumeBtn = screen.getByText('Consume')
+      fireEvent.click(consumeBtn)
+
+      expect(gs.player.mp.current).toBe(25)
+      expect(gs.inventory[0]).toBeNull()
+    })
+
+    it('cancel closes dialog and leaves item in inventory', () => {
+      const gs = getGameState()
+      const potion = makeItem({
+        name: 'Health Potion',
+        archeType: 'consumable',
+        stats: { heal: 50 },
+      })
+      gs.inventory[0] = potion
+
+      render(<InventoryDialog />)
+      const slot = document.querySelector('.inv-grid .el:first-child')!
+      fireEvent.click(slot)
+
+      expect(screen.getByText('Consume Item')).toBeInTheDocument()
+
+      const cancelBtn = screen.getByText('Cancel')
+      fireEvent.click(cancelBtn)
+
+      expect(gs.inventory[0]?.name).toBe('Health Potion')
+      expect(screen.queryByText('Consume Item')).not.toBeInTheDocument()
+    })
+
+    it('does not open consume dialog when clicking non-consumable item', () => {
+      const gs = getGameState()
+      const sword = makeItem({ name: 'Iron Sword', equipSlot: 'weapon' })
+      gs.inventory[0] = sword
+
+      render(<InventoryDialog />)
+      const slot = document.querySelector('.inv-grid .el:first-child')!
+      fireEvent.click(slot)
+
+      expect(screen.queryByText('Consume Item')).not.toBeInTheDocument()
+    })
+  })
 })

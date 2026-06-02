@@ -93,20 +93,29 @@ async fn health_check() -> Json<Value> {
 async fn bootstrap_handler(State(state): State<AppState>) -> Json<BootstrapResponse> {
     let key = bootstrap_super_admin(&state.pool).await;
     if let Some(raw_key) = key {
-        Json(BootstrapResponse {
+        return Json(BootstrapResponse {
             bootstrapped: true,
             key: Some(raw_key),
             message: None,
-        })
-    } else {
-        Json(BootstrapResponse {
-            bootstrapped: false,
-            key: None,
-            message: Some(
-                "Already bootstrapped. Super admin key available in server logs.".into(),
-            ),
-        })
+        });
     }
+    // Already bootstrapped — fetch the existing super admin key from the database
+    let existing: Option<String> = sqlx::query_scalar(
+        "SELECT key_hash FROM api_keys WHERE is_super = true LIMIT 1",
+    )
+    .fetch_optional(&*state.pool)
+    .await
+    .ok()
+    .flatten();
+    // We cannot return the key_hash (bcrypt hash), only the original key.
+    // The key was printed on first startup and won't be re-displayed.
+    Json(BootstrapResponse {
+        bootstrapped: false,
+        key: None,
+        message: Some(
+            "Already bootstrapped. Super admin key available in server logs.".into(),
+        ),
+    })
 }
 
 fn build_router(state: AppState) -> Router {
@@ -140,12 +149,12 @@ fn build_router(state: AppState) -> Router {
         .route("/api/export", post(export::export_handler))
         .route("/api/import", post(import::import_parse_handler))
         .route("/api/import/resolve", post(import::import_resolve_handler))
-        .layer(CorsLayer::permissive())
-        .layer(TraceLayer::new_for_http())
         .layer(middleware::from_fn_with_state(
             state.clone(),
             auth::permission::permission_middleware,
         ))
+        .layer(TraceLayer::new_for_http())
+        .layer(CorsLayer::permissive())
         .with_state(state)
 }
 
@@ -185,16 +194,36 @@ async fn main() {
 
     let super_admin_key = bootstrap_super_admin(&pool).await;
 
-    if let Some(ref key) = super_admin_key {
-        println!();
-        println!("╔══════════════════════════════════════════════════════════════╗");
-        println!("║               === SUPER ADMIN API KEY ===                  ║");
-        println!("║                                                            ║");
-        println!("║  {:<58}║", key);
-        println!("║                                                            ║");
-        println!("║  Store this key securely. It will not be shown again.      ║");
-        println!("╚══════════════════════════════════════════════════════════════╝");
-        println!();
+    match &super_admin_key {
+        Some(key) => {
+            // First bootstrap: print the key and persist it to a shared volume
+            let _ = std::fs::write("/shared-seed/super-admin-key", key);
+            println!();
+            println!("╔══════════════════════════════════════════════════════════════╗");
+            println!("║               === SUPER ADMIN API KEY ===                  ║");
+            println!("║                                                            ║");
+            println!("║  {:<58}║", key);
+            println!("║                                                            ║");
+            println!("║  Store this key securely. It will not be shown again.      ║");
+            println!("╚══════════════════════════════════════════════════════════════╝");
+            println!();
+        }
+        None => {
+            // Already bootstrapped — try to re-display from the shared volume
+            if let Ok(key) = std::fs::read_to_string("/shared-seed/super-admin-key") {
+                let key = key.trim().to_string();
+                if !key.is_empty() {
+                    println!();
+                    println!("╔══════════════════════════════════════════════════════════════╗");
+                    println!("║               === SUPER ADMIN API KEY ===                  ║");
+                    println!("║                                                            ║");
+                    println!("║  {:<58}║", key);
+                    println!("║                                                            ║");
+                    println!("╚══════════════════════════════════════════════════════════════╝");
+                    println!();
+                }
+            }
+        }
     }
 
     info!("loading cache from database");

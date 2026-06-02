@@ -194,10 +194,10 @@ export const SPELL_PREFIX_DEFS = [
 ]
 
 export const SPELL_SUFFIX_DEFS = [
-  { baseName: 'of Power', attr: 'bonus_damage', tierRanges: [[2, 5], [5, 15], [15, 40], [40, 100]] },
+  { baseName: 'of Potency', attr: 'bonus_damage', tierRanges: [[2, 5], [5, 15], [15, 40], [40, 100]] },
   { baseName: 'of Destruction', attr: 'bonus_damage', tierRanges: [[3, 8], [8, 25], [25, 60], [60, 150]] },
-  { baseName: 'of the Leech', attr: 'life_steal', tierRanges: [[1, 2], [2, 5], [5, 12], [12, 30]] },
-  { baseName: 'of Fortitude', attr: 'bonus_heal', tierRanges: [[3, 8], [8, 20], [20, 50], [50, 120]] },
+  { baseName: 'of Siphoning', attr: 'life_steal', tierRanges: [[1, 2], [2, 5], [5, 12], [12, 30]] },
+  { baseName: 'of Vitality', attr: 'bonus_heal', tierRanges: [[3, 8], [8, 20], [20, 50], [50, 120]] },
   { baseName: 'of Brilliance', attr: 'mana_return', tierRanges: [[1, 3], [3, 8], [8, 20], [20, 50]] },
   { baseName: 'of the Phoenix', attr: 'revival', tierRanges: [[1, 1], [1, 2], [2, 3], [3, 5]] },
 ]

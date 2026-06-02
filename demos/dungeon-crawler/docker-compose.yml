@@ -23,6 +23,8 @@ services:
       ARCHE_PORT: "8080"
     ports:
       - "8080:8080"
+    volumes:
+      - shared-seed:/shared-seed
     depends_on:
       postgres:
         condition: service_healthy
@@ -34,6 +36,10 @@ services:
     entrypoint: ["npx", "tsx", "seed.ts"]
     environment:
       ARCHE_API_URL: http://arche-service:8080
+      SUPER_ADMIN_KEY_FILE: /shared-seed/super-admin-key
+      SEED_OUTPUT_FILE: /shared-seed/api-key
+    volumes:
+      - shared-seed:/shared-seed
     depends_on:
       - arche-service
 
@@ -55,8 +61,11 @@ services:
     environment:
       ARCHE_API_URL: ${ARCHE_API_URL:-http://localhost:8080}
       ARCHE_API_KEY: ${ARCHE_API_KEY:-}
+    volumes:
+      - shared-seed:/shared-seed:ro
     depends_on:
       - arche-service
 
 volumes:
   pgdata:
+  shared-seed:

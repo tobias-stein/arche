@@ -1,3 +1,5 @@
+import { readFileSync, writeFileSync } from 'node:fs'
+
 import {
   API_BASE, SEED_CONFIG, DIFFICULTIES,
   AFFIX_COUNT_CONFIG, AFFIX_TIERS, CREATURE_PREFIX_DEFS, CREATURE_SUFFIX_DEFS,
@@ -41,6 +43,13 @@ async function waitForService(maxRetries = 30): Promise<void> {
 
 async function getSuperAdminKey(): Promise<string> {
   if (process.env.ARCHE_API_KEY) return process.env.ARCHE_API_KEY
+  const superKeyFile = process.env.SUPER_ADMIN_KEY_FILE
+  if (superKeyFile) {
+    try {
+      const key = readFileSync(superKeyFile, 'utf-8').trim()
+      if (key) return key
+    } catch { /* file not available */ }
+  }
   const resp = await api<{ bootstrapped: boolean; key?: string; message?: string }>('GET', '/api/bootstrap')
   if (resp.bootstrapped && resp.key) return resp.key
   throw new Error('Arche is already bootstrapped. Set ARCHE_API_KEY env var to the super admin key from server logs.')
@@ -381,7 +390,7 @@ function generateSpellsForLevel(level: number): { name: string; spellType: strin
   const typeLabel = spellType === 'heal' ? 'Healing' : spellType === 'shield' ? 'Ward' : capitalize(spellType)
 
   return {
-    name: `${prefix} ${typeLabel}`,
+    name: `${prefix} ${typeLabel} Lv${level}`,
     spellType,
     rarity,
   }
@@ -548,6 +557,12 @@ async function main() {
 
   const boxW = 64
   const pad = (s: string) => s.padEnd(boxW)
+  const seedOutputFile = process.env.SEED_OUTPUT_FILE
+  if (seedOutputFile) {
+    writeFileSync(seedOutputFile, clientKey + '\n', 'utf-8')
+    console.log(`\n  API key written to ${seedOutputFile}`)
+  }
+
   console.log(`\n${'═'.repeat(72)}`)
   console.log(`  Seed complete`)
   console.log(`  API Key: ${clientKey}`)

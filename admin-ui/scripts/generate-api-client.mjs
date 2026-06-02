@@ -10,7 +10,7 @@
 //   npm run generate-api-client
 //
 // Environment variables:
-//   ARCHE_API_URL  - Base URL of the Arche service (default: http://localhost:3000)
+//   ARCHE_API_URL  - Base URL of the Arche service (default: http://localhost:8080)
 // ============================================================
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
@@ -22,7 +22,7 @@ const ROOT = join(__dirname, '..');
 const SCHEMAS_DIR = join(ROOT, 'src', 'api', 'schemas');
 const GENERATED_DIR = join(ROOT, 'src', 'api', 'generated');
 
-const API_URL = process.env.ARCHE_API_URL ?? 'http://localhost:3000';
+const API_URL = process.env.ARCHE_API_URL ?? 'http://localhost:8080';
 
 const SCHEMA_ENDPOINTS = [
   { name: 'blueprints', path: '/api/schema/blueprints' },

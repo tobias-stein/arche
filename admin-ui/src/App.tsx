@@ -44,7 +44,7 @@ const queryClient = new QueryClient({
 })
 
 const archeClient = new ArcheClient({
-  baseUrl: import.meta.env.VITE_ARCHE_API_URL || 'http://localhost:3000',
+  baseUrl: import.meta.env.VITE_ARCHE_API_URL || 'http://localhost:8080',
 })
 setClient(archeClient)
 

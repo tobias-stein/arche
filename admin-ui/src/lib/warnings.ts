@@ -46,7 +46,8 @@ function checkPool(
   min: number,
   warnings: Warning[],
 ) {
-  const poolLength = pool?.length ?? 0
+  if (pool === undefined) return false
+  const poolLength = pool.length
   if (min > 0 && poolLength === 0) {
     warnings.push({
       id: `empty-${poolType}-pool-${bp.id}`,

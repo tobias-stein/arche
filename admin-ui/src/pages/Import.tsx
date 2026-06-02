@@ -40,7 +40,7 @@ import {
 import { useToast } from '@/hooks/use-toast'
 
 const BASE_URL =
-  import.meta.env.VITE_ARCHE_API_URL || 'http://localhost:3000'
+  import.meta.env.VITE_ARCHE_API_URL || 'http://localhost:8080'
 
 type WizardStep = 'select' | 'uploading' | 'success' | 'conflicts'
 

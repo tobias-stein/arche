@@ -89,7 +89,7 @@ export function parseCreature(
 
   return {
     id: `creature_${nextCreatureId++}`,
-    name: thing.name,
+    name: getString(blueprint_attributes, 'display_name', thing.name),
     archeType: 'creature',
     subtype,
     difficulty,
@@ -123,6 +123,10 @@ export function parseItem(thing: GeneratedThing): ItemState {
   const manaCost = getNumber(blueprint_attributes, 'mana_cost', 0)
   const healAmount = getNumber(blueprint_attributes, 'heal_amount', 0)
 
+  const strength = getNumber(blueprint_attributes, 'strength', 0)
+  const intelligence = getNumber(blueprint_attributes, 'intelligence', 0)
+  const agility = getNumber(blueprint_attributes, 'agility', 0)
+
   if (damage) {
     stats.attack = damage
     stats.damage = damage
@@ -133,6 +137,9 @@ export function parseItem(thing: GeneratedThing): ItemState {
   if (effectValue) stats.heal = effectValue
   if (manaCost) stats.mana_cost = manaCost
   if (healAmount) stats.heal = healAmount
+  if (strength) stats.strength = strength
+  if (intelligence) stats.intelligence = intelligence
+  if (agility) stats.agility = agility
 
   const affixNames: string[] = []
   for (const affixAttrs of affix_attributes) {
@@ -143,13 +150,19 @@ export function parseItem(thing: GeneratedThing): ItemState {
         stats.attack = (stats.attack || 0) + val
       } else if (attr.name === 'bonus_defense') {
         stats.defense = (stats.defense || 0) + val
+      } else if (attr.name === 'bonus_strength') {
+        stats.strength = (stats.strength || 0) + val
+      } else if (attr.name === 'bonus_intelligence') {
+        stats.intelligence = (stats.intelligence || 0) + val
+      } else if (attr.name === 'bonus_agility') {
+        stats.agility = (stats.agility || 0) + val
       }
     }
   }
 
   return {
     id: `item_${nextItemId++}`,
-    name: thing.name,
+    name: getString(blueprint_attributes, 'display_name', thing.name),
     archeType: archetype,
     ...(subtype ? { subtype } : {}),
     rarity,

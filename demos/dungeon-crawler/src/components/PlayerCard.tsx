@@ -82,6 +82,11 @@ function PlayerCard() {
             <span><i className="fa-solid fa-crosshairs" /> ATK {ceil(player.attack)}</span>
             <span><i className="fa-solid fa-shield-halved" /> DEF {ceil(player.defense)}</span>
           </div>
+          <div className="ps ps-secondary">
+            <span><i className="fa-solid fa-fist" /> STR {ceil(player.strength)}</span>
+            <span><i className="fa-solid fa-brain" /> INT {ceil(player.intelligence)}</span>
+            <span><i className="fa-solid fa-feather" /> AGI {ceil(player.agility)}</span>
+          </div>
           <div className="xp-row">
             <div className="xp-bar">
               <div className="xp-fill" style={{ width: `${xpPercent}%` }} />

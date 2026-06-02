@@ -50,18 +50,24 @@ echo "   Super admin key extracted."
 
 # ── Seed ──────────────────────────────────────────────────────────────
 echo "==> Seeding data..."
-SEED_OUTPUT=$(docker compose run --rm -e ARCHE_API_KEY="$ARCHE_API_KEY" seed 2>/dev/null || true)
+SEED_OUTPUT=$(docker compose run --rm -e ARCHE_API_KEY="$ARCHE_API_KEY" seed 2>&1 || true)
 echo "$SEED_OUTPUT"
 
 # Extract client API key from seed output
 CLIENT_API_KEY=$(echo "$SEED_OUTPUT" | grep -o 'arche_k_[a-zA-Z0-9]\{48\}' | tail -1 || true)
 
+if [ -z "$CLIENT_API_KEY" ]; then
+  echo "ERROR: Could not extract client API key from seed output."
+  echo "Check the seed log above for errors."
+  exit 1
+fi
+
 echo ""
 echo "   Seed complete."
 
-# ── Start dungeon crawler ─────────────────────────────────────────────
+# ── Start dungeon crawler with the client API key ─────────────────────
 echo "==> Starting dungeon crawler..."
-docker compose up -d dungeon-crawler
+ARCHE_API_KEY="$CLIENT_API_KEY" docker compose up -d dungeon-crawler
 
 # ── Verify ports ──────────────────────────────────────────────────────
 echo ""

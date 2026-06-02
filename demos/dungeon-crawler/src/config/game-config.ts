@@ -9,7 +9,7 @@ export const GAME_CONFIG = {
   },
 
   dungeon: {
-    gridSize: 64,
+    gridSize: 16,
     targetRoomRatio: 0.55,
     extraEdgeRatio: 0.20,
     transitionMs: 350,

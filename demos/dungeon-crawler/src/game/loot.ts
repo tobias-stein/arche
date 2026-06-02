@@ -136,6 +136,13 @@ export function generateMockItem(creatureLevel: number, levelVariance: number): 
     stats.attack = Math.round(baseStat * 0.2 * mult)
   }
 
+  const secondaryPool = ['strength', 'intelligence', 'agility']
+  const secondaryCount = rarity === 'legendary' ? 3 : rarity === 'rare' ? 2 : Math.random() < 0.4 ? 1 : 0
+  const shuffled = [...secondaryPool].sort(() => Math.random() - 0.5)
+  for (let i = 0; i < secondaryCount && i < shuffled.length; i++) {
+    stats[shuffled[i]] = Math.round(baseStat * 0.5 * mult)
+  }
+
   return {
     id: generateItemId(),
     name,

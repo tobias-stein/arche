@@ -269,6 +269,61 @@ describe('GameState', () => {
     })
   })
 
+  describe('secondary stats', () => {
+    it('initializes strength, intelligence, agility to base values', () => {
+      expect(gs.player.strength).toBe(GAME_CONFIG.player.baseStrength)
+      expect(gs.player.intelligence).toBe(GAME_CONFIG.player.baseIntelligence)
+      expect(gs.player.agility).toBe(GAME_CONFIG.player.baseAgility)
+    })
+
+    it('equipping an item with strength increases max HP', () => {
+      const item: ItemState = { id: 'ring_1', name: 'Ring', archeType: 'ring', rarity: 'common', level: 1, stats: { strength: 10 }, affixes: [], equipSlot: 'ring' }
+      gs.equipment.ring = item
+      gs['recalculatePlayerStats']()
+      expect(gs.player.strength).toBe(10)
+      expect(gs.player.hp.max).toBe(GAME_CONFIG.player.baseHp + 10 * GAME_CONFIG.player.hpPerStrength)
+    })
+
+    it('equipping an item with intelligence increases max MP', () => {
+      const item: ItemState = { id: 'amulet_1', name: 'Amulet', archeType: 'amulet', rarity: 'common', level: 1, stats: { intelligence: 8 }, affixes: [], equipSlot: 'amulet' }
+      gs.equipment.amulet = item
+      gs['recalculatePlayerStats']()
+      expect(gs.player.intelligence).toBe(8)
+      expect(gs.player.mp.max).toBe(GAME_CONFIG.player.baseMp + 8 * GAME_CONFIG.player.mpPerIntelligence)
+    })
+
+    it('equipping an item with agility sets the stat', () => {
+      const item: ItemState = { id: 'boots_1', name: 'Boots', archeType: 'boots', rarity: 'common', level: 1, stats: { agility: 5 }, affixes: [], equipSlot: 'boots' }
+      gs.equipment.boots = item
+      gs['recalculatePlayerStats']()
+      expect(gs.player.agility).toBe(5)
+    })
+
+    it('multiple items stack strength/intelligence/agility', () => {
+      const ring: ItemState = { id: 'ring_1', name: 'Ring', archeType: 'ring', rarity: 'common', level: 1, stats: { strength: 5, intelligence: 3 }, affixes: [], equipSlot: 'ring' }
+      const belt: ItemState = { id: 'belt_1', name: 'Belt', archeType: 'belt', rarity: 'common', level: 1, stats: { strength: 3, agility: 4 }, affixes: [], equipSlot: 'belt' }
+      gs.equipment.ring = ring
+      gs.equipment.belt = belt
+      gs['recalculatePlayerStats']()
+      expect(gs.player.strength).toBe(8)
+      expect(gs.player.intelligence).toBe(3)
+      expect(gs.player.agility).toBe(4)
+      expect(gs.player.hp.max).toBe(GAME_CONFIG.player.baseHp + 8 * GAME_CONFIG.player.hpPerStrength)
+      expect(gs.player.mp.max).toBe(GAME_CONFIG.player.baseMp + 3 * GAME_CONFIG.player.mpPerIntelligence)
+    })
+
+    it('unequipping restores base strength/intelligence/agility', () => {
+      const item: ItemState = { id: 'ring_1', name: 'Ring', archeType: 'ring', rarity: 'common', level: 1, stats: { strength: 10, intelligence: 5 }, affixes: [], equipSlot: 'ring' }
+      gs.inventory[0] = item
+      gs.equipItem(0)
+      expect(gs.player.strength).toBe(10)
+      expect(gs.player.intelligence).toBe(5)
+      gs.unequipItem('ring')
+      expect(gs.player.strength).toBe(0)
+      expect(gs.player.intelligence).toBe(0)
+    })
+  })
+
   describe('equipment stats', () => {
     it('starts with base attack and defense', () => {
       expect(gs.player.attack).toBe(GAME_CONFIG.player.baseAttack)

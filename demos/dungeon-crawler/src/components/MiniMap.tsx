@@ -373,10 +373,10 @@ function MiniMap() {
               onChange={handleSliderInput}
               aria-label="Zoom"
             />
-            <span className="level">{zoomLabel}\u00d7</span>
+            <span className="level">{zoomLabel}{'\u00d7'}</span>
             <button className="recenter" onClick={scrollToPlayer} aria-label="Center on player">{'\u2316'}</button>
           </div>
-          <div className="label">Drag to pan \u00b7 <kbd>M</kbd> close</div>
+          <div className="label">Drag to pan{'\u00b7'}<kbd>M</kbd> close</div>
           <button id="minimap-close" aria-label="Close minimap" onClick={closeOverlay}>
             &times;
           </button>

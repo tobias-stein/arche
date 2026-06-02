@@ -119,6 +119,27 @@
   font-family: monospace;
 }
 
+#player-card .ps-secondary {
+  gap: 8px;
+  font-size: 10px;
+  padding: 2px 12px 5px;
+  border-top: 1px solid var(--clr-slot-empty-border);
+  background: var(--clr-card-bg);
+  color: var(--clr-label);
+}
+
+#player-card .ps-secondary .fa-fist {
+  color: var(--clr-danger-accent);
+}
+
+#player-card .ps-secondary .fa-brain {
+  color: #6080ff;
+}
+
+#player-card .ps-secondary .fa-feather {
+  color: #50c878;
+}
+
 #player-card .xp-row {
   display: flex;
   align-items: center;
@@ -214,6 +235,10 @@
     display: none;
   }
 
+  #player-card .ps-secondary {
+    display: none;
+  }
+
   #player-card .xp-row {
     display: none;
   }
@@ -278,6 +303,10 @@
   }
 
   #player-card:not(.expanded) .ps {
+    display: none;
+  }
+
+  #player-card:not(.expanded) .ps-secondary {
     display: none;
   }
 

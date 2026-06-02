@@ -10,6 +10,9 @@ interface PlayerState {
   mp: { current: number; max: number }
   attack: number
   defense: number
+  strength: number
+  intelligence: number
+  agility: number
   position: { x: number; y: number }
 }
 

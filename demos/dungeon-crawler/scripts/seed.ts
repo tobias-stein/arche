@@ -77,10 +77,17 @@ async function createGMA(name: string, description: string | null, valueType: st
   return { id: resp.id, name }
 }
 
-async function createBlueprint(body: Record<string, unknown>, clientId: string, apiKey: string): Promise<NamedId> {
-  const resp = await api<{ id: string }>('POST', `/api/blueprints?client_id=${clientId}`, body, apiKey)
-  const name = body.name as string
-  return { id: resp.id, name }
+async function createBlueprint(body: Record<string, unknown>, clientId: string, apiKey: string): Promise<NamedId | null> {
+  try {
+    const resp = await api<{ id: string }>('POST', `/api/blueprints?client_id=${clientId}`, body, apiKey)
+    const name = body.name as string
+    return { id: resp.id, name }
+  } catch (err) {
+    if (err instanceof Error && err.message.startsWith('HTTP 409')) {
+      return null
+    }
+    throw err
+  }
 }
 
 async function createAffix(body: Record<string, unknown>, clientId: string, apiKey: string): Promise<NamedId> {
@@ -99,7 +106,7 @@ async function assignAffixes(blueprintIds: string[], affixIds: string[], weight:
 
 // ── Builders ────────────────────────────────────────────────────────
 
-function buildCreatureBlueprint(name: string, subtype: string, difficulty: string, weight: number, level: number): Record<string, unknown> {
+function buildCreatureBlueprint(name: string, subtype: string, difficulty: string, weight: number, level: number, displayName: string): Record<string, unknown> {
   const stats = computeStats(level, { archetype: 'creature', difficulty: difficulty as typeof DIFFICULTIES[number] })
   const affixCfg = AFFIX_COUNT_CONFIG[difficulty]
   return {
@@ -115,8 +122,9 @@ function buildCreatureBlueprint(name: string, subtype: string, difficulty: strin
       attack: { value_type: 'single', value: Math.round(stats.attack) },
       defense: { value_type: 'single', value: Math.round(stats.defense) },
       xp_reward: { value_type: 'single', value: Math.round(stats.xpReward) },
+      display_name: { value_type: 'enum', values: [displayName] },
     },
-    attribute_order: ['level', 'difficulty', 'subtype', 'health', 'attack', 'defense', 'xp_reward'],
+    attribute_order: ['level', 'difficulty', 'subtype', 'health', 'attack', 'defense', 'xp_reward', 'display_name'],
     affixes: {
       min_prefixes: affixCfg.prefixes,
       max_prefixes: affixCfg.prefixes,
@@ -128,12 +136,13 @@ function buildCreatureBlueprint(name: string, subtype: string, difficulty: strin
   }
 }
 
-function buildItemBlueprint(name: string, archetype: string, rarity: string, subtype: string, weight: number, level: number): Record<string, unknown> {
+function buildItemBlueprint(name: string, archetype: string, rarity: string, subtype: string, weight: number, level: number, displayName: string): Record<string, unknown> {
   const baseAttrs: Record<string, unknown> = {
     level: { value_type: 'single', value: level },
     rarity: { value_type: 'enum', values: [rarity] },
+    display_name: { value_type: 'enum', values: [displayName] },
   }
-  const attrOrder = ['level', 'rarity']
+  const attrOrder = ['level', 'rarity', 'display_name']
   const affixCfg = AFFIX_COUNT_CONFIG[rarity]
 
   switch (archetype) {
@@ -142,6 +151,8 @@ function buildItemBlueprint(name: string, archetype: string, rarity: string, sub
       baseAttrs.subtype = { value_type: 'enum', values: [subtype] }
       baseAttrs.damage = { value_type: 'single', value: Math.round(stats.damage) }
       attrOrder.push('subtype', 'damage')
+      if (Math.round(stats.strength) > 0) { baseAttrs.strength = { value_type: 'single', value: Math.round(stats.strength) }; attrOrder.push('strength') }
+      if (Math.round(stats.agility) > 0) { baseAttrs.agility = { value_type: 'single', value: Math.round(stats.agility) }; attrOrder.push('agility') }
       break
     }
     case 'armor': {
@@ -149,6 +160,8 @@ function buildItemBlueprint(name: string, archetype: string, rarity: string, sub
       baseAttrs.subtype = { value_type: 'enum', values: [subtype] }
       baseAttrs.defense_bonus = { value_type: 'single', value: Math.round(stats.defense_bonus) }
       attrOrder.push('subtype', 'defense_bonus')
+      if (Math.round(stats.intelligence) > 0) { baseAttrs.intelligence = { value_type: 'single', value: Math.round(stats.intelligence) }; attrOrder.push('intelligence') }
+      if (Math.round(stats.agility) > 0) { baseAttrs.agility = { value_type: 'single', value: Math.round(stats.agility) }; attrOrder.push('agility') }
       break
     }
     case 'shield': {
@@ -156,6 +169,7 @@ function buildItemBlueprint(name: string, archetype: string, rarity: string, sub
       baseAttrs.defense_bonus = { value_type: 'single', value: Math.round(stats.defense_bonus) }
       baseAttrs.block_chance = { value_type: 'single', value: Math.round(5 + level * 0.2) }
       attrOrder.push('defense_bonus', 'block_chance')
+      if (Math.round(stats.strength) > 0) { baseAttrs.strength = { value_type: 'single', value: Math.round(stats.strength) }; attrOrder.push('strength') }
       break
     }
     case 'accessory': {
@@ -163,6 +177,9 @@ function buildItemBlueprint(name: string, archetype: string, rarity: string, sub
       baseAttrs.subtype = { value_type: 'enum', values: [subtype] }
       baseAttrs.stat_bonus = { value_type: 'single', value: Math.round(stats.stat_bonus) }
       attrOrder.push('subtype', 'stat_bonus')
+      if (Math.round(stats.strength) > 0) { baseAttrs.strength = { value_type: 'single', value: Math.round(stats.strength) }; attrOrder.push('strength') }
+      if (Math.round(stats.intelligence) > 0) { baseAttrs.intelligence = { value_type: 'single', value: Math.round(stats.intelligence) }; attrOrder.push('intelligence') }
+      if (Math.round(stats.agility) > 0) { baseAttrs.agility = { value_type: 'single', value: Math.round(stats.agility) }; attrOrder.push('agility') }
       break
     }
   }
@@ -185,7 +202,7 @@ function buildItemBlueprint(name: string, archetype: string, rarity: string, sub
   }
 }
 
-function buildPotionBlueprint(name: string, potionType: string, level: number): Record<string, unknown> {
+function buildPotionBlueprint(name: string, potionType: string, level: number, displayName: string): Record<string, unknown> {
   const stats = computeStats(level, { archetype: 'potion' })
   return {
     name,
@@ -196,8 +213,9 @@ function buildPotionBlueprint(name: string, potionType: string, level: number): 
       level: { value_type: 'single', value: level },
       potion_type: { value_type: 'enum', values: [potionType] },
       effect_value: { value_type: 'single', value: Math.round(stats.effect_value) },
+      display_name: { value_type: 'enum', values: [displayName] },
     },
-    attribute_order: ['level', 'potion_type', 'effect_value'],
+    attribute_order: ['level', 'potion_type', 'effect_value', 'display_name'],
     affixes: {
       min_prefixes: 0, max_prefixes: 0, min_suffixes: 0, max_suffixes: 0,
       prefixes: [], suffixes: [],
@@ -205,8 +223,8 @@ function buildPotionBlueprint(name: string, potionType: string, level: number): 
   }
 }
 
-function buildSpellBlueprint(name: string, spellType: string, rarity: string, level: number): Record<string, unknown> {
-  const isHeal = spellType === 'heal' || name.toLowerCase().includes('heal')
+function buildSpellBlueprint(name: string, spellType: string, rarity: string, level: number, displayName: string): Record<string, unknown> {
+  const isHeal = spellType === 'heal' || displayName.toLowerCase().includes('heal')
   const stats = computeStats(level, { archetype: 'spell', spellType: isHeal ? 'heal' : 'damage' })
   const affixCfg = AFFIX_COUNT_CONFIG[rarity]
   return {
@@ -219,13 +237,14 @@ function buildSpellBlueprint(name: string, spellType: string, rarity: string, le
       rarity: { value_type: 'enum', values: [rarity] },
       spell_type: { value_type: 'enum', values: [spellType] },
       mana_cost: { value_type: 'single', value: Math.round(5 + level * 0.35) },
+      display_name: { value_type: 'enum', values: [displayName] },
       ...(isHeal
         ? { heal_amount: { value_type: 'single', value: Math.round(stats.heal_amount) } }
         : { damage: { value_type: 'single', value: Math.round(stats.damage) } }),
     },
     attribute_order: isHeal
-      ? ['level', 'rarity', 'spell_type', 'mana_cost', 'heal_amount']
-      : ['level', 'rarity', 'spell_type', 'mana_cost', 'damage'],
+      ? ['level', 'rarity', 'spell_type', 'mana_cost', 'heal_amount', 'display_name']
+      : ['level', 'rarity', 'spell_type', 'mana_cost', 'damage', 'display_name'],
     affixes: {
       min_prefixes: affixCfg.prefixes,
       max_prefixes: affixCfg.prefixes,
@@ -477,11 +496,19 @@ async function main() {
   for (let level = 1; level <= 100; level++) {
     const creatures = generateCreaturesForLevel(level)
     for (const c of creatures) {
-      const weight = SEED_CONFIG.creatureWeights[c.difficulty as keyof typeof SEED_CONFIG.creatureWeights].weight
-      const name = `${capitalize(c.subtype)}`
-      const bp = buildCreatureBlueprint(name, c.subtype, c.difficulty, weight, level)
-      const result = await createBlueprint(bp, clientId, apiKey)
-      creatureBlueprints.push({ id: result.id, name: result.name, level })
+      try {
+        const weight = SEED_CONFIG.creatureWeights[c.difficulty as keyof typeof SEED_CONFIG.creatureWeights].weight
+        const name = `${c.subtype}_${c.difficulty}_level_${level}`
+        const displayName = `${capitalize(c.subtype)}`
+        const bp = buildCreatureBlueprint(name, c.subtype, c.difficulty, weight, level, displayName)
+        const result = await createBlueprint(bp, clientId, apiKey)
+        if (result) {
+          creatureBlueprints.push({ id: result.id, name: result.name, level })
+        }
+      } catch (err) {
+        console.error(`  Failed to create creature blueprint for Lv.${level} ${c.difficulty} ${c.subtype}:`, err)
+        throw err
+      }
     }
   }
 
@@ -495,11 +522,19 @@ async function main() {
   for (let level = 1; level <= 100; level++) {
     const items = generateItemsForLevel(level)
     for (const item of items) {
-      const rarityWeight = SEED_CONFIG.rarityWeights[item.rarity as keyof typeof SEED_CONFIG.rarityWeights].weight
-      const name = `${capitalize(item.subtype)}`
-      const bp = buildItemBlueprint(name, item.archetype, item.rarity, item.subtype, rarityWeight, level)
-      const result = await createBlueprint(bp, clientId, apiKey)
-      itemBlueprintIds.push({ id: result.id, name: result.name, level })
+      try {
+        const rarityWeight = SEED_CONFIG.rarityWeights[item.rarity as keyof typeof SEED_CONFIG.rarityWeights].weight
+        const name = `${item.subtype}_${item.rarity}_level_${level}`
+        const displayName = `${capitalize(item.subtype)}`
+        const bp = buildItemBlueprint(name, item.archetype, item.rarity, item.subtype, rarityWeight, level, displayName)
+        const result = await createBlueprint(bp, clientId, apiKey)
+        if (result) {
+          itemBlueprintIds.push({ id: result.id, name: result.name, level })
+        }
+      } catch (err) {
+        console.error(`  Failed to create item blueprint for Lv.${level} ${item.archetype} ${item.subtype}:`, err)
+        throw err
+      }
     }
   }
 
@@ -514,10 +549,11 @@ async function main() {
   for (let i = 0; i < potionLevels.length; i++) {
     const pLevel = potionLevels[i]
     const pType = i % 2 === 0 ? 'health' : 'mana'
-    const name = `${capitalize(pType)} Potion`
-    const bp = buildPotionBlueprint(name, pType, pLevel)
+    const name = `${pType}_potion_level_${pLevel}`
+    const displayName = `${capitalize(pType)} Potion`
+    const bp = buildPotionBlueprint(name, pType, pLevel, displayName)
     const result = await createBlueprint(bp, clientId, apiKey)
-    potionBlueprintIds.push(result)
+    if (result) potionBlueprintIds.push(result)
   }
 
   console.log(`  Created ${potionBlueprintIds.length} potion blueprints`)
@@ -531,9 +567,11 @@ async function main() {
     const spell = generateSpellsForLevel(level)
     if (!spell) continue
 
-    const bp = buildSpellBlueprint(spell.name, spell.spellType, spell.rarity, level)
+    const technicalName = `${spell.name.toLowerCase().replace(/\s+/g, '_')}_level_${level}`
+    const displayName = spell.name
+    const bp = buildSpellBlueprint(technicalName, spell.spellType, spell.rarity, level, displayName)
     const result = await createBlueprint(bp, clientId, apiKey)
-    spellBlueprintIds.push({ id: result.id, name: result.name, level })
+    if (result) spellBlueprintIds.push({ id: result.id, name: result.name, level })
   }
 
   console.log(`  Created ${spellBlueprintIds.length} spell blueprints`)

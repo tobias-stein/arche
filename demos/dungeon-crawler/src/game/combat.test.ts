@@ -15,6 +15,9 @@ beforeEach(() => {
     mp: { current: 30, max: 30 },
     attack: 10,
     defense: 5,
+    strength: 0,
+    intelligence: 0,
+    agility: 0,
     position: { x: 0, y: 0 },
   }
   creature = {

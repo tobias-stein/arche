@@ -77,6 +77,9 @@ class GameState extends EventEmitter {
       mp: { current: cfg.baseMp, max: cfg.baseMp },
       attack: cfg.baseAttack,
       defense: cfg.baseDefense,
+      strength: cfg.baseStrength,
+      intelligence: cfg.baseIntelligence,
+      agility: cfg.baseAgility,
       position: { x: 0, y: 0 },
     }
   }
@@ -141,19 +144,43 @@ class GameState extends EventEmitter {
   }
 
   private recalculatePlayerStats(): void {
-    const baseAttack = GAME_CONFIG.player.baseAttack
-    const baseDefense = GAME_CONFIG.player.baseDefense
+    const cfg = GAME_CONFIG.player
 
     let bonusAttack = 0
     let bonusDefense = 0
+    let bonusStrength = 0
+    let bonusIntelligence = 0
+    let bonusAgility = 0
 
     for (const item of Object.values(this.equipment)) {
       if (item.stats.attack) bonusAttack += item.stats.attack
       if (item.stats.defense) bonusDefense += item.stats.defense
+      if (item.stats.strength) bonusStrength += item.stats.strength
+      if (item.stats.intelligence) bonusIntelligence += item.stats.intelligence
+      if (item.stats.agility) bonusAgility += item.stats.agility
     }
 
-    this.player.attack = baseAttack + bonusAttack
-    this.player.defense = baseDefense + bonusDefense
+    this.player.attack = cfg.baseAttack + bonusAttack
+    this.player.defense = cfg.baseDefense + bonusDefense
+    this.player.strength = cfg.baseStrength + bonusStrength
+    this.player.intelligence = cfg.baseIntelligence + bonusIntelligence
+    this.player.agility = cfg.baseAgility + bonusAgility
+
+    const newMaxHp = cfg.baseHp + this.player.strength * cfg.hpPerStrength
+    const newMaxMp = cfg.baseMp + this.player.intelligence * cfg.mpPerIntelligence
+
+    if (newMaxHp !== this.player.hp.max) {
+      const ratio = this.player.hp.max > 0 ? this.player.hp.current / this.player.hp.max : 1
+      this.player.hp.max = newMaxHp
+      this.player.hp.current = Math.round(this.player.hp.max * ratio)
+    }
+
+    if (newMaxMp !== this.player.mp.max) {
+      const ratio = this.player.mp.max > 0 ? this.player.mp.current / this.player.mp.max : 1
+      this.player.mp.max = newMaxMp
+      this.player.mp.current = Math.round(this.player.mp.max * ratio)
+    }
+
     this.emit('player:stats-changed', this.player)
   }
 
@@ -373,6 +400,9 @@ class GameState extends EventEmitter {
       mp: { current: cfg.baseMp, max: cfg.baseMp },
       attack: cfg.baseAttack,
       defense: cfg.baseDefense,
+      strength: cfg.baseStrength,
+      intelligence: cfg.baseIntelligence,
+      agility: cfg.baseAgility,
       position: { x: 0, y: 0 },
     }
     this.emit('game:restarted')

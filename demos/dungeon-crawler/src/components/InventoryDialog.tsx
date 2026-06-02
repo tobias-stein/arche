@@ -118,8 +118,7 @@ function InventoryDialog({ onClose, lootActive }: Props) {
 
   const cleanupDrag = useCallback(() => {
     clearDragUI()
-    dragState = null
-    pendingAbandon = null
+    cleanupDragState()
   }, [clearDragUI])
 
   const getTargetAtPosition = useCallback((x: number, y: number): {

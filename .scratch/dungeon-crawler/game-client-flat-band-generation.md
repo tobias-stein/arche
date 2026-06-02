@@ -1,6 +1,6 @@
 ---
 title: Update game client generation flow for flat band + single-value level
-status: ready-for-agent
+status: completed
 ---
 
 ## Problem

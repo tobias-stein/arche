@@ -1,6 +1,6 @@
 ---
 title: Overhaul seed script for fixed-level blueprint generation
-status: ready-for-agent
+status: completed
 ---
 
 ## Problem

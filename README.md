@@ -66,7 +66,9 @@ Measured on **Apple M1 (8 cores), 16 GB RAM, macOS 26.5**:
 | bp=1000 aff=4 attr=16 | 24,689 | 3.6 | 7.0 | 11.6 |
 | bp=1000 aff=4 attr=32 | 25,341 | 3.6 | 6.8 | 11.0 |
 
-Throughput ranges from **~20,000 to ~28,000 gen/s** (item names generated per second) with p99 latency consistently under 17 ms.
+bp: Blueprint, aff: Affixes, attr: Attributes
+
+Throughput ranges from **~20,000 to ~28,000 gen/s** (items generated per second via /generate API endpoint) with p99 latency consistently under 17 ms.
 
 ## Table of Contents
 

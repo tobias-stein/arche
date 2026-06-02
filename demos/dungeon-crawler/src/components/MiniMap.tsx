@@ -133,6 +133,8 @@ function MiniMap() {
       canvas.height = h;
     }
 
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
     for (let dy = -SM_HALF; dy <= SM_HALF; dy++) {
       for (let dx = -SM_HALF; dx <= SM_HALF; dx++) {
         const gx = pr.x + dx;

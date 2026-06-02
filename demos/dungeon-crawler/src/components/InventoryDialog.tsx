@@ -41,6 +41,7 @@ function InventoryDialog({ onClose, lootActive }: Props) {
   const [replaceConfirmIdx, setReplaceConfirmIdx] = useState<number | null>(null)
   const [pendingSpellInvIdx, setPendingSpellInvIdx] = useState<number | null>(null)
   const [consumeTarget, setConsumeTarget] = useState<{ item: ItemState; invIdx: number } | null>(null)
+  const [equipTarget, setEquipTarget] = useState<{ item: ItemState; invIdx: number } | null>(null)
 
   const dialogRef = useRef<HTMLDivElement>(null)
 
@@ -110,6 +111,7 @@ function InventoryDialog({ onClose, lootActive }: Props) {
     setReplaceConfirmIdx(null)
     setPendingSpellInvIdx(null)
     setConsumeTarget(null)
+    setEquipTarget(null)
     onClose?.()
   }, [onClose])
 
@@ -536,6 +538,43 @@ function InventoryDialog({ onClose, lootActive }: Props) {
     setConsumeTarget(null)
   }
 
+  function openEquipDialog(item: ItemState, invIdx: number) {
+    setEquipTarget({ item, invIdx })
+    setTooltip(null)
+  }
+
+  function confirmEquip() {
+    if (!equipTarget) return
+    const gs = getGameState()
+    gs.equipItem(equipTarget.invIdx)
+    syncState()
+    setEquipTarget(null)
+  }
+
+  function cancelEquip() {
+    setEquipTarget(null)
+  }
+
+  function renderEquipDialog() {
+    if (!equipTarget) return null
+    const { item } = equipTarget
+    return (
+      <div id="equip-dialog" className="visible">
+        <div className="eqd">
+          <h3>Equip Item</h3>
+          <div className="eqd-item">
+            <span className="eqi"><i className={getItemIcon(item)} style={{ color: getRarityColor(item.rarity) }} /></span>
+            <span className="eqn" style={{ color: getRarityColor(item.rarity) }}>{item.name}</span>
+          </div>
+          <div className="eqb">
+            <button className="eqd-yes" onClick={confirmEquip}>Equip</button>
+            <button onClick={cancelEquip}>Cancel</button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   function renderAbandonDialog() {
     if (!abandonItem) return null
     return (
@@ -703,6 +742,8 @@ function InventoryDialog({ onClose, lootActive }: Props) {
           onClick={(e) => {
             if (item && item.archeType === 'consumable') {
               openConsumeDialog(item, i)
+            } else if (item && item.equipSlot) {
+              openEquipDialog(item, i)
             } else if (item) {
               handleTooltipClick(e, item)
             }
@@ -804,6 +845,7 @@ function InventoryDialog({ onClose, lootActive }: Props) {
       {renderAbandonDialog()}
       {renderSpellReplaceDialog()}
       {renderConsumeDialog()}
+      {renderEquipDialog()}
     </>
   )
 }

@@ -83,13 +83,16 @@ export function generateMockItem(creatureLevel: number, levelVariance: number): 
   if (rarity === 'legendary' && Math.random() < 0.3) {
     // Sometimes generate a spell for legendary
     const spellName = pickRandom(SPELL_NAMES)
+    const isHeal = spellName.toLowerCase().includes('heal')
     return {
       id: generateItemId(),
       name: spellName,
       archeType: 'spell',
       rarity,
       level,
-      stats: { damage: Math.round(5 + level * 2.5) },
+      stats: isHeal
+        ? { heal: Math.round(10 + level * 3.5), mana_cost: Math.round(5 + level * 0.35) }
+        : { damage: Math.round(5 + level * 2.5), mana_cost: Math.round(5 + level * 0.35) },
       affixes: [],
     }
   }
@@ -98,6 +101,7 @@ export function generateMockItem(creatureLevel: number, levelVariance: number): 
     // Generate a consumable
     const idx = randInt(0, CONSUMABLE_PREFIXES.length - 1)
     const name = `${CONSUMABLE_PREFIXES[idx]} ${CONSUMABLE_TYPES[idx]}`
+    const isMana = CONSUMABLE_PREFIXES[idx] === 'Mana'
     return {
       id: generateItemId(),
       name,
@@ -105,7 +109,9 @@ export function generateMockItem(creatureLevel: number, levelVariance: number): 
       subtype: CONSUMABLE_TYPES[idx].toLowerCase(),
       rarity,
       level,
-      stats: { heal: Math.round(10 + level * 3) },
+      stats: isMana
+        ? { mana: Math.round(10 + level * 3) }
+        : { heal: Math.round(10 + level * 3) },
       affixes: [],
     }
   }

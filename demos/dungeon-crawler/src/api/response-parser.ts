@@ -123,7 +123,10 @@ export function parseItem(thing: GeneratedThing): ItemState {
   const manaCost = getNumber(blueprint_attributes, 'mana_cost', 0)
   const healAmount = getNumber(blueprint_attributes, 'heal_amount', 0)
 
-  if (damage) stats.attack = damage
+  if (damage) {
+    stats.attack = damage
+    stats.damage = damage
+  }
   if (defenseBonus) stats.defense = defenseBonus
   if (statBonus) stats.stat_bonus = statBonus
   if (blockChance) stats.block_chance = blockChance

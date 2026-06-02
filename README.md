@@ -409,6 +409,27 @@ cargo run --release --package arche-bench -- sweep --target http://localhost:808
 cargo run --release --package arche-bench -- bench --concurrency 10 --duration 30
 ```
 
+### Benchmark Results
+
+Measured on **Apple M1 (8 cores), 16 GB RAM, macOS 26.5** — all scenarios at concurrency 100:
+
+| Scenario | Peak gen/s | p50 (ms) | p95 (ms) | p99 (ms) |
+|---|---|---|---|---|
+| bp=1000 aff=0 attr=4 | 28,215 | 3.1 | 6.0 | 10.0 |
+| bp=1000 aff=0 attr=8 | 25,867 | 3.4 | 6.6 | 11.3 |
+| bp=1000 aff=0 attr=16 | 26,902 | 3.4 | 6.3 | 10.2 |
+| bp=1000 aff=0 attr=32 | 23,871 | 3.7 | 7.4 | 13.4 |
+| bp=1000 aff=2 attr=4 | 26,523 | 3.4 | 6.5 | 11.1 |
+| bp=1000 aff=2 attr=8 | 25,026 | 3.6 | 7.0 | 12.4 |
+| bp=1000 aff=2 attr=16 | 24,873 | 3.6 | 7.0 | 11.2 |
+| bp=1000 aff=2 attr=32 | 21,912 | 4.0 | 8.1 | 13.6 |
+| bp=1000 aff=4 attr=4 | 24,339 | 3.7 | 7.2 | 11.1 |
+| bp=1000 aff=4 attr=8 | 20,094 | 4.3 | 9.2 | 16.5 |
+| bp=1000 aff=4 attr=16 | 24,689 | 3.6 | 7.0 | 11.6 |
+| bp=1000 aff=4 attr=32 | 25,341 | 3.6 | 6.8 | 11.0 |
+
+Throughput ranges from **~20,000 to ~28,000 gen/s** with p99 latency consistently under 17 ms.
+
 ## Authentication & Permissions
 
 Arche uses **API-key-based authentication** via the `X-API-Key` header.

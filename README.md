@@ -47,7 +47,9 @@ arche/
 
 ## Benchmark Results
 
-Measured on **Apple M1 (8 cores), 16 GB RAM, macOS 26.5** — all scenarios at concurrency 100:
+The following results measure **how many item names the generation engine can produce per second** (`POST /api/generate`) under varying blueprint/affix/attribute counts at concurrency 100. Higher gen/s = faster throughput; lower p50/p95/p99 = snappier response times.
+
+Measured on **Apple M1 (8 cores), 16 GB RAM, macOS 26.5**:
 
 | Scenario | Peak gen/s | p50 (ms) | p95 (ms) | p99 (ms) |
 |---|---|---|---|---|
@@ -64,7 +66,7 @@ Measured on **Apple M1 (8 cores), 16 GB RAM, macOS 26.5** — all scenarios at c
 | bp=1000 aff=4 attr=16 | 24,689 | 3.6 | 7.0 | 11.6 |
 | bp=1000 aff=4 attr=32 | 25,341 | 3.6 | 6.8 | 11.0 |
 
-Throughput ranges from **~20,000 to ~28,000 gen/s** with p99 latency consistently under 17 ms.
+Throughput ranges from **~20,000 to ~28,000 gen/s** (item names generated per second) with p99 latency consistently under 17 ms.
 
 ## Table of Contents
 
